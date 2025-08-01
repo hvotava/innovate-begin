@@ -1,7 +1,28 @@
 const sequelize = require('../config/database');
 const { DataTypes } = require('sequelize');
 
-// User model
+// Company model
+const Company = sequelize.define('Company', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
+  }
+}, {
+  tableName: 'companies',
+  timestamps: false
+});
+
+// User model - rozšířený o autentifikaci
 const User = sequelize.define('User', {
   id: {
     type: DataTypes.INTEGER,
@@ -12,10 +33,32 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: false
   },
-  phone: {
+  email: {
     type: DataTypes.STRING,
     unique: true,
     allowNull: false
+  },
+  password: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  role: {
+    type: DataTypes.ENUM('admin', 'user'),
+    defaultValue: 'user'
+  },
+  companyId: {
+    type: DataTypes.INTEGER,
+    references: {
+      model: Company,
+      key: 'id'
+    },
+    allowNull: true
+  },
+  // Původní pole pro kompatibilitu
+  phone: {
+    type: DataTypes.STRING,
+    unique: false,  // změněno z unique na false
+    allowNull: true
   },
   language: {
     type: DataTypes.STRING,
@@ -24,13 +67,48 @@ const User = sequelize.define('User', {
   current_lesson_level: {
     type: DataTypes.INTEGER,
     defaultValue: 0
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
   }
 }, {
   tableName: 'users',
   timestamps: false
 });
 
-// Lesson model
+// Training model
+const Training = sequelize.define('Training', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  title: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  description: {
+    type: DataTypes.TEXT
+  },
+  companyId: {
+    type: DataTypes.INTEGER,
+    references: {
+      model: Company,
+      key: 'id'
+    },
+    allowNull: false
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
+  }
+}, {
+  tableName: 'trainings',
+  timestamps: false
+});
+
+// Lesson model - upravený pro Training
 const Lesson = sequelize.define('Lesson', {
   id: {
     type: DataTypes.INTEGER,
@@ -41,6 +119,19 @@ const Lesson = sequelize.define('Lesson', {
     type: DataTypes.STRING,
     allowNull: false
   },
+  content: {
+    type: DataTypes.TEXT,
+    allowNull: false
+  },
+  trainingId: {
+    type: DataTypes.INTEGER,
+    references: {
+      model: Training,
+      key: 'id'
+    },
+    allowNull: false
+  },
+  // Původní pole pro kompatibilitu
   description: {
     type: DataTypes.TEXT
   },
@@ -83,6 +174,83 @@ const Lesson = sequelize.define('Lesson', {
   timestamps: false
 });
 
+// Test model
+const Test = sequelize.define('Test', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  title: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  questions: {
+    type: DataTypes.JSON,
+    allowNull: false
+  },
+  trainingId: {
+    type: DataTypes.INTEGER,
+    references: {
+      model: Training,
+      key: 'id'
+    },
+    allowNull: false
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
+  }
+}, {
+  tableName: 'tests',
+  timestamps: false
+});
+
+// UserTraining model
+const UserTraining = sequelize.define('UserTraining', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  userId: {
+    type: DataTypes.INTEGER,
+    references: {
+      model: User,
+      key: 'id'
+    },
+    allowNull: false
+  },
+  trainingId: {
+    type: DataTypes.INTEGER,
+    references: {
+      model: Training,
+      key: 'id'
+    },
+    allowNull: false
+  },
+  progress: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0  // 0-100%
+  },
+  completed: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  started_at: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
+  },
+  completed_at: {
+    type: DataTypes.DATE,
+    allowNull: true
+  }
+}, {
+  tableName: 'user_trainings',
+  timestamps: false
+});
+
+// Původní modely pro kompatibilitu
 // Attempt model
 const Attempt = sequelize.define('Attempt', {
   id: {
@@ -244,22 +412,53 @@ const Answer = sequelize.define('Answer', {
 });
 
 // Associations
+// Company associations
+Company.hasMany(User, { foreignKey: 'companyId' });
+Company.hasMany(Training, { foreignKey: 'companyId' });
+
+// User associations
+User.belongsTo(Company, { foreignKey: 'companyId' });
+User.hasMany(UserTraining, { foreignKey: 'userId' });
 User.hasMany(Attempt, { foreignKey: 'user_id' });
 User.hasMany(TestSession, { foreignKey: 'user_id' });
+
+// Training associations
+Training.belongsTo(Company, { foreignKey: 'companyId' });
+Training.hasMany(Lesson, { foreignKey: 'trainingId' });
+Training.hasMany(Test, { foreignKey: 'trainingId' });
+Training.hasMany(UserTraining, { foreignKey: 'trainingId' });
+
+// Lesson associations
+Lesson.belongsTo(Training, { foreignKey: 'trainingId' });
+Lesson.hasMany(Attempt, { foreignKey: 'lesson_id' });
+Lesson.hasMany(TestSession, { foreignKey: 'lesson_id' });
+
+// Test associations
+Test.belongsTo(Training, { foreignKey: 'trainingId' });
+
+// UserTraining associations
+UserTraining.belongsTo(User, { foreignKey: 'userId' });
+UserTraining.belongsTo(Training, { foreignKey: 'trainingId' });
+
+// Původní associations pro kompatibilitu
 Attempt.belongsTo(User, { foreignKey: 'user_id' });
 Attempt.belongsTo(Lesson, { foreignKey: 'lesson_id' });
 Attempt.hasMany(Answer, { foreignKey: 'attempt_id' });
+
 TestSession.belongsTo(User, { foreignKey: 'user_id' });
 TestSession.belongsTo(Lesson, { foreignKey: 'lesson_id' });
 TestSession.belongsTo(Attempt, { foreignKey: 'attempt_id' });
-Lesson.hasMany(Attempt, { foreignKey: 'lesson_id' });
-Lesson.hasMany(TestSession, { foreignKey: 'lesson_id' });
+
 Answer.belongsTo(Attempt, { foreignKey: 'attempt_id' });
 
 module.exports = {
   sequelize,
+  Company,
   User,
+  Training,
   Lesson,
+  Test,
+  UserTraining,
   Attempt,
   TestSession,
   Answer

@@ -1,10 +1,12 @@
 const express = require('express');
-const { User, TestSession, Attempt } = require('../models');
+const bcrypt = require('bcryptjs');
+const { User, Company, TestSession, Attempt } = require('../models');
 const { body, validationResult } = require('express-validator');
+const { auth, adminOnly } = require('../middleware/auth');
 const router = express.Router();
 
-// Get all users with pagination
-router.get('/', async (req, res) => {
+// Get all users with pagination (admin only)
+router.get('/', auth, adminOnly, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -14,7 +16,7 @@ router.get('/', async (req, res) => {
     const whereClause = search ? {
       [require('sequelize').Op.or]: [
         { name: { [require('sequelize').Op.iLike]: `%${search}%` } },
-        { phone: { [require('sequelize').Op.iLike]: `%${search}%` } }
+        { email: { [require('sequelize').Op.iLike]: `%${search}%` } }
       ]
     } : {};
 
@@ -22,7 +24,15 @@ router.get('/', async (req, res) => {
       where: whereClause,
       limit,
       offset,
-      order: [['id', 'DESC']]
+      order: [['id', 'DESC']],
+      attributes: { exclude: ['password'] },
+      include: [
+        {
+          model: Company,
+          attributes: ['id', 'name'],
+          required: false
+        }
+      ]
     });
 
     res.json({
@@ -37,20 +47,27 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get single user
-router.get('/:id', async (req, res) => {
+// Get single user (admin only)
+router.get('/:id', auth, adminOnly, async (req, res) => {
   try {
     const user = await User.findByPk(req.params.id, {
+      attributes: { exclude: ['password'] },
       include: [
+        {
+          model: Company,
+          attributes: ['id', 'name']
+        },
         {
           model: TestSession,
           limit: 10,
-          order: [['started_at', 'DESC']]
+          order: [['started_at', 'DESC']],
+          required: false
         },
         {
           model: Attempt,
           limit: 10,
-          order: [['started_at', 'DESC']]
+          order: [['started_at', 'DESC']],
+          required: false
         }
       ]
     });
@@ -66,11 +83,15 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create new user
+// Create new user (admin only)
 router.post('/', [
+  auth,
+  adminOnly,
   body('name').notEmpty().withMessage('Name is required'),
-  body('phone').notEmpty().withMessage('Phone is required'),
-  body('language').optional().isIn(['cs', 'en']).withMessage('Invalid language')
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('role').optional().isIn(['admin', 'user']).withMessage('Invalid role'),
+  body('companyId').optional().isInt().withMessage('Invalid company ID')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -78,31 +99,57 @@ router.post('/', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, phone, language = 'cs', current_lesson_level = 0 } = req.body;
+    const { name, email, password, role = 'user', companyId, phone, language = 'cs' } = req.body;
+
+    // Zkontroluj, jestli email už neexistuje
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already exists' });
+    }
+
+    // Hashuj heslo
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     const user = await User.create({
       name,
-      phone,
+      email,
+      password: hashedPassword,
+      role,
+      companyId: companyId || null,
+      phone: phone || null,
       language,
-      current_lesson_level
+      current_lesson_level: 0
     });
 
-    res.status(201).json(user);
+    // Vrať data bez hesla
+    const userData = await User.findByPk(user.id, {
+      attributes: { exclude: ['password'] },
+      include: [{ model: Company, attributes: ['name'] }]
+    });
+
+    res.status(201).json({
+      message: 'User created successfully',
+      user: userData
+    });
   } catch (error) {
     console.error('Create user error:', error);
     if (error.name === 'SequelizeUniqueConstraintError') {
-      return res.status(400).json({ error: 'Phone number already exists' });
+      return res.status(400).json({ error: 'Email already exists' });
     }
     res.status(500).json({ error: 'Failed to create user' });
   }
 });
 
-// Update user
+// Update user (admin only)
 router.put('/:id', [
+  auth,
+  adminOnly,
   body('name').optional().notEmpty().withMessage('Name cannot be empty'),
-  body('phone').optional().notEmpty().withMessage('Phone cannot be empty'),
-  body('language').optional().isIn(['cs', 'en']).withMessage('Invalid language'),
-  body('current_lesson_level').optional().isInt({ min: 0 }).withMessage('Invalid lesson level')
+  body('email').optional().isEmail().withMessage('Valid email required'),
+  body('password').optional().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('role').optional().isIn(['admin', 'user']).withMessage('Invalid role'),
+  body('companyId').optional().isInt().withMessage('Invalid company ID')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -115,93 +162,99 @@ router.put('/:id', [
       return res.status(404).json({ error: 'User not found' });
     }
 
-    await user.update(req.body);
-    res.json(user);
+    const updateData = { ...req.body };
+
+    // Hashuj heslo, pokud je poskytnuté
+    if (updateData.password) {
+      const saltRounds = 12;
+      updateData.password = await bcrypt.hash(updateData.password, saltRounds);
+    }
+
+    await user.update(updateData);
+
+    // Vrať data bez hesla
+    const updatedUser = await User.findByPk(user.id, {
+      attributes: { exclude: ['password'] },
+      include: [{ model: Company, attributes: ['name'] }]
+    });
+
+    res.json({
+      message: 'User updated successfully',
+      user: updatedUser
+    });
   } catch (error) {
     console.error('Update user error:', error);
     if (error.name === 'SequelizeUniqueConstraintError') {
-      return res.status(400).json({ error: 'Phone number already exists' });
+      return res.status(400).json({ error: 'Email already exists' });
     }
     res.status(500).json({ error: 'Failed to update user' });
   }
 });
 
-// Delete user
-router.delete('/:id', async (req, res) => {
+// Delete user (admin only)
+router.delete('/:id', auth, adminOnly, async (req, res) => {
   try {
-    const user = await User.findByPk(req.params.id);
+    const { force } = req.query;
+    
+    const user = await User.findByPk(req.params.id, {
+      include: [
+        { model: TestSession },
+        { model: Attempt }
+      ]
+    });
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Check for related records
-    const testSessionsCount = await TestSession.count({ where: { user_id: req.params.id } });
-    const attemptsCount = await Attempt.count({ where: { user_id: req.params.id } });
+    // Prevent deletion of the last admin
+    if (user.role === 'admin') {
+      const adminCount = await User.count({ where: { role: 'admin' } });
+      if (adminCount <= 1) {
+        return res.status(400).json({ error: 'Cannot delete the last admin user' });
+      }
+    }
 
-    if (testSessionsCount > 0 || attemptsCount > 0) {
+    const hasRelations = user.TestSessions.length > 0 || user.Attempts.length > 0;
+
+    if (hasRelations && force !== 'true') {
       return res.status(400).json({
-        error: 'Cannot delete user with related records',
+        error: 'User has related data. Use force=true to delete anyway.',
         details: {
-          testSessions: testSessionsCount,
-          attempts: attemptsCount
-        },
-        forceDeleteUrl: `/api/users/${req.params.id}/force`
+          testSessions: user.TestSessions.length,
+          attempts: user.Attempts.length
+        }
       });
     }
 
     await user.destroy();
-    res.json({ message: 'User deleted successfully' });
+    res.json({ 
+      message: `User deleted successfully${force === 'true' ? ' (forced)' : ''}` 
+    });
   } catch (error) {
     console.error('Delete user error:', error);
     res.status(500).json({ error: 'Failed to delete user' });
   }
 });
 
-// Force delete user (with all related records)
-router.delete('/:id/force', async (req, res) => {
+// Call user (admin only) - zachováváme původní endpoint pro kompatibilitu
+router.post('/:id/call', auth, adminOnly, async (req, res) => {
   try {
     const user = await User.findByPk(req.params.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Delete related records first
-    await TestSession.destroy({ where: { user_id: req.params.id } });
-    await Attempt.destroy({ where: { user_id: req.params.id } });
-    
-    // Delete user
-    await user.destroy();
-    
-    res.json({ message: 'User and all related records deleted successfully' });
-  } catch (error) {
-    console.error('Force delete user error:', error);
-    res.status(500).json({ error: 'Failed to delete user' });
-  }
-});
-
-// Call user via Twilio
-router.post('/:id/call', async (req, res) => {
-  try {
-    const user = await User.findByPk(req.params.id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const { lessonId } = req.body;
-
-    const callResponse = {
-      success: true,
-      callId: `call_${Date.now()}`,
-      message: `Volání zahájeno pro ${user.name} na číslo ${user.phone}`,
+    // Zde by měla být integrace s Twilio
+    // Pro teď jen vracíme success
+    res.json({
+      message: 'Call initiated successfully',
       user: {
         id: user.id,
         name: user.name,
         phone: user.phone
-      },
-      lessonId: lessonId || null
-    };
-
-    res.json(callResponse);
+      }
+    });
   } catch (error) {
     console.error('Call user error:', error);
     res.status(500).json({ error: 'Failed to initiate call' });
