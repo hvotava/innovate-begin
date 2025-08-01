@@ -1,7 +1,7 @@
 const sequelize = require('../config/database');
 const { DataTypes } = require('sequelize');
 
-// Company model
+// Company model - rozšířený
 const Company = sequelize.define('Company', {
   id: {
     type: DataTypes.INTEGER,
@@ -12,6 +12,19 @@ const Company = sequelize.define('Company', {
     type: DataTypes.STRING,
     allowNull: false,
     unique: true
+  },
+  ico: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true,
+    validate: {
+      len: [8, 8] // IČO má 8 číslic
+    }
+  },
+  contactPersonId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    // Bude nastaveno přes asociaci později
   },
   created_at: {
     type: DataTypes.DATE,
@@ -43,8 +56,8 @@ const User = sequelize.define('User', {
     allowNull: true  // Dočasně nullable pro migraci
   },
   role: {
-    type: DataTypes.ENUM('admin', 'user'),
-    defaultValue: 'user'
+    type: DataTypes.ENUM('admin', 'superuser', 'contact_person', 'regular_user'),
+    defaultValue: 'regular_user'
   },
   companyId: {
     type: DataTypes.INTEGER,
@@ -77,7 +90,7 @@ const User = sequelize.define('User', {
   timestamps: false
 });
 
-// Training model
+// Training model - rozšířený
 const Training = sequelize.define('Training', {
   id: {
     type: DataTypes.INTEGER,
@@ -90,6 +103,10 @@ const Training = sequelize.define('Training', {
   },
   description: {
     type: DataTypes.TEXT
+  },
+  category: {
+    type: DataTypes.STRING,
+    allowNull: true
   },
   companyId: {
     type: DataTypes.INTEGER,
@@ -174,7 +191,7 @@ const Lesson = sequelize.define('Lesson', {
   timestamps: false
 });
 
-// Test model
+// Test model - rozšířený
 const Test = sequelize.define('Test', {
   id: {
     type: DataTypes.INTEGER,
@@ -187,6 +204,19 @@ const Test = sequelize.define('Test', {
   },
   questions: {
     type: DataTypes.JSON,
+    allowNull: false
+  },
+  lessonId: {
+    type: DataTypes.INTEGER,
+    references: {
+      model: 'Lessons', // Bude definován později
+      key: 'id'
+    },
+    allowNull: false
+  },
+  orderNumber: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
     allowNull: false
   },
   trainingId: {
@@ -415,12 +445,14 @@ const Answer = sequelize.define('Answer', {
 // Company associations
 Company.hasMany(User, { foreignKey: 'companyId' });
 Company.hasMany(Training, { foreignKey: 'companyId' });
+Company.belongsTo(User, { as: 'ContactPerson', foreignKey: 'contactPersonId' });
 
 // User associations
 User.belongsTo(Company, { foreignKey: 'companyId' });
 User.hasMany(UserTraining, { foreignKey: 'userId' });
 User.hasMany(Attempt, { foreignKey: 'user_id' });
 User.hasMany(TestSession, { foreignKey: 'user_id' });
+User.hasMany(Company, { as: 'ManagedCompanies', foreignKey: 'contactPersonId' });
 
 // Training associations
 Training.belongsTo(Company, { foreignKey: 'companyId' });
@@ -430,11 +462,13 @@ Training.hasMany(UserTraining, { foreignKey: 'trainingId' });
 
 // Lesson associations
 Lesson.belongsTo(Training, { foreignKey: 'trainingId' });
+Lesson.hasMany(Test, { foreignKey: 'lessonId' });
 Lesson.hasMany(Attempt, { foreignKey: 'lesson_id' });
 Lesson.hasMany(TestSession, { foreignKey: 'lesson_id' });
 
 // Test associations
 Test.belongsTo(Training, { foreignKey: 'trainingId' });
+Test.belongsTo(Lesson, { foreignKey: 'lessonId' });
 
 // UserTraining associations
 UserTraining.belongsTo(User, { foreignKey: 'userId' });
