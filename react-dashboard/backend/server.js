@@ -69,17 +69,9 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'frontend', 'build', 'index.html'));
 });
 
-// Funkce pro vytvoření admin účtu
+// Funkce pro vytvoření admin účtu a migraci dat
 const createDefaultAdmin = async () => {
   try {
-    // Zkontroluj, jestli už nějaký admin existuje
-    const existingAdmin = await User.findOne({ where: { role: 'admin' } });
-    
-    if (existingAdmin) {
-      console.log('✅ Admin account already exists');
-      return;
-    }
-
     // Vytvoř výchozí společnost
     let defaultCompany = await Company.findOne({ where: { name: 'Default Company' } });
     if (!defaultCompany) {
@@ -89,23 +81,81 @@ const createDefaultAdmin = async () => {
       console.log('✅ Default company created');
     }
 
-    // Vytvoř admin účet
+    // Zkontroluj, jestli už admin s emailem existuje
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@lecture.app';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
-    const hashedPassword = await bcrypt.hash(adminPassword, 12);
+    let existingAdmin = await User.findOne({ where: { email: adminEmail } });
+    
+    if (existingAdmin) {
+      console.log('✅ Admin account already exists');
+      return;
+    }
 
-    const admin = await User.create({
-      name: 'Administrator',
-      email: adminEmail,
-      password: hashedPassword,
-      role: 'admin',
-      companyId: defaultCompany.id
+    // Zkontroluj, jestli existuje nějaký admin podle role
+    const adminByRole = await User.findOne({ where: { role: 'admin' } });
+    if (adminByRole && !adminByRole.email) {
+      // Aktualizuj existujícího admina s emailem a heslem
+      const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+      const hashedPassword = await bcrypt.hash(adminPassword, 12);
+      
+      await adminByRole.update({
+        email: adminEmail,
+        password: hashedPassword,
+        companyId: defaultCompany.id
+      });
+      
+      console.log('✅ Existing admin updated with email and password');
+      console.log(`📧 Email: ${adminEmail}`);
+      console.log(`🔑 Password: ${adminPassword}`);
+      return;
+    }
+
+    // Migrace existujících uživatelů bez emailu
+    const usersWithoutEmail = await User.findAll({ 
+      where: { 
+        email: null 
+      } 
     });
 
-    console.log('🎉 Default admin account created!');
-    console.log(`📧 Email: ${adminEmail}`);
-    console.log(`🔑 Password: ${adminPassword}`);
-    console.log('⚠️  Please change the password after first login!');
+    for (const user of usersWithoutEmail) {
+      // Vytvoř dočasný email z phone nebo id
+      const tempEmail = user.phone 
+        ? `user_${user.phone.replace(/\D/g, '')}@temp.lecture.app`
+        : `user_${user.id}@temp.lecture.app`;
+      
+      // Vytvoř dočasné heslo
+      const tempPassword = await bcrypt.hash('temp123', 12);
+      
+      await user.update({
+        email: tempEmail,
+        password: tempPassword,
+        role: user.role || 'user',
+        companyId: user.companyId || defaultCompany.id
+      });
+    }
+
+    if (usersWithoutEmail.length > 0) {
+      console.log(`✅ Updated ${usersWithoutEmail.length} existing users with temporary emails`);
+    }
+
+    // Vytvoř nového admin účtu, pokud žádný neexistuje
+    const adminCount = await User.count({ where: { role: 'admin' } });
+    if (adminCount === 0) {
+      const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+      const hashedPassword = await bcrypt.hash(adminPassword, 12);
+
+      await User.create({
+        name: 'Administrator',
+        email: adminEmail,
+        password: hashedPassword,
+        role: 'admin',
+        companyId: defaultCompany.id
+      });
+
+      console.log('🎉 Default admin account created!');
+      console.log(`📧 Email: ${adminEmail}`);
+      console.log(`🔑 Password: ${adminPassword}`);
+      console.log('⚠️  Please change the password after first login!');
+    }
     
   } catch (error) {
     console.error('❌ Error creating default admin:', error);
