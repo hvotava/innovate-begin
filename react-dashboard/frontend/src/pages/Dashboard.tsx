@@ -104,11 +104,12 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, change }
               justifyContent: 'center',
               color: 'white',
               ml: 2,
+              '& svg': {
+                fontSize: { xs: '24px', sm: '32px' },
+              },
             }}
           >
-            {React.cloneElement(icon as React.ReactElement, {
-              fontSize: isMobile ? 'medium' : 'large'
-            })}
+            {icon}
           </Box>
         </Box>
       </CardContent>
