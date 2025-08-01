@@ -23,7 +23,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Initialize auth state from localStorage
   useEffect(() => {
-    const storedToken = localStorage.getItem('authToken');
+    setLoading(true);
+    
+    // Check for stored auth data
+    const storedToken = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
     
     if (storedToken && storedUser) {
@@ -35,6 +38,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Verify token is still valid
         authAPI.getProfile()
           .then(response => {
+            // Token is valid, update user data if needed
             setUser(response.data.user);
           })
           .catch(() => {
@@ -57,33 +61,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const { token: newToken, user: newUser } = response.data;
       
       // Store in localStorage
-      localStorage.setItem('authToken', newToken);
+      localStorage.setItem('token', newToken);
       localStorage.setItem('user', JSON.stringify(newUser));
       
       // Update state
       setToken(newToken);
       setUser(newUser);
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    } finally {
+      
       setLoading(false);
+    } catch (error) {
+      setLoading(false);
+      throw error;
     }
   };
 
   const logout = () => {
     // Clear localStorage
-    localStorage.removeItem('authToken');
+    localStorage.removeItem('token');
     localStorage.removeItem('user');
     
     // Clear state
     setToken(null);
     setUser(null);
     
-    // Call logout endpoint (optional, for server-side cleanup)
-    authAPI.logout().catch(error => {
-      console.warn('Logout API call failed:', error);
-    });
+    // Note: No server-side logout endpoint needed for JWT
+    console.log('User logged out successfully');
   };
 
   const value: AuthContextType = {
