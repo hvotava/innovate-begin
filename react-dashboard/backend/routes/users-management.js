@@ -1,22 +1,90 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
+const { User, Company, Training, Lesson, Test, UserTraining, TestSession } = require('../models');
+const { auth, adminOnly, superuserOrAdmin, contactPersonOrHigher, requireRoles, checkCompanyAccess } = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
-const { User, Company } = require('../models');
-const { auth, adminOnly, superuserOrAdmin, contactPersonOrHigher, checkCompanyAccess } = require('../middleware/auth');
 const router = express.Router();
 
-// GET všichni uživatelé s pokročilým filtrováním (admin only)
+// Helper function to assign user to first available training and test
+async function assignUserToFirstTrainingAndTest(userId, companyId) {
+  try {
+    // Find first training for the company
+    const firstTraining = await Training.findOne({
+      where: { companyId },
+      order: [['id', 'ASC']],
+      include: [
+        {
+          model: Lesson,
+          order: [['lesson_number', 'ASC'], ['id', 'ASC']],
+          limit: 1
+        }
+      ]
+    });
+
+    if (firstTraining) {
+      // Create UserTraining record
+      await UserTraining.create({
+        userId,
+        trainingId: firstTraining.id,
+        progress: 0,
+        completed: false
+      });
+
+      console.log(`✅ User ${userId} assigned to training ${firstTraining.id}`);
+
+      // If training has a lesson, find first test
+      if (firstTraining.Lessons && firstTraining.Lessons.length > 0) {
+        const firstLesson = firstTraining.Lessons[0];
+        
+        const firstTest = await Test.findOne({
+          where: { lessonId: firstLesson.id },
+          order: [['orderNumber', 'ASC'], ['id', 'ASC']]
+        });
+
+        if (firstTest) {
+          // Create TestSession for the test
+          await TestSession.create({
+            user_id: userId,
+            lesson_id: firstLesson.id,
+            total_questions: firstTest.questions ? firstTest.questions.length : 0,
+            questions_data: firstTest.questions || [],
+            current_question_index: 0,
+            current_score: 0.0,
+            is_completed: false
+          });
+
+          console.log(`✅ User ${userId} assigned to test ${firstTest.id} for lesson ${firstLesson.id}`);
+        }
+      }
+    } else {
+      console.log(`⚠️ No training found for company ${companyId}`);
+    }
+  } catch (error) {
+    console.error('Error assigning user to training/test:', error);
+    // Don't throw - user creation should still succeed even if assignment fails
+  }
+}
+
+// GET všichni uživatelé s filtry (admin only)
 router.get('/', auth, adminOnly, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
     const search = req.query.search || '';
-    const roleFilter = req.query.role || '';
-    const companyFilter = req.query.company || '';
+    const role = req.query.role || '';
+    const company = req.query.company || '';
 
     let whereClause = {};
-    
+    let includeClause = [
+      {
+        model: Company,
+        attributes: ['id', 'name'],
+        required: false
+      }
+    ];
+
+    // Search filter
     if (search) {
       whereClause[require('sequelize').Op.or] = [
         { name: { [require('sequelize').Op.iLike]: `%${search}%` } },
@@ -24,27 +92,23 @@ router.get('/', auth, adminOnly, async (req, res) => {
       ];
     }
 
-    if (roleFilter) {
-      whereClause.role = roleFilter;
+    // Role filter
+    if (role) {
+      whereClause.role = role;
     }
 
-    if (companyFilter) {
-      whereClause.companyId = parseInt(companyFilter);
+    // Company filter
+    if (company) {
+      whereClause.companyId = parseInt(company);
     }
 
     const { count, rows } = await User.findAndCountAll({
       where: whereClause,
+      include: includeClause,
+      attributes: { exclude: ['password'] },
       limit,
       offset,
-      order: [['id', 'DESC']],
-      attributes: { exclude: ['password'] },
-      include: [
-        {
-          model: Company,
-          attributes: ['id', 'name', 'ico'],
-          required: false
-        }
-      ]
+      order: [['id', 'DESC']]
     });
 
     res.json({
@@ -61,10 +125,10 @@ router.get('/', auth, adminOnly, async (req, res) => {
 
 // PUT změna role uživatele (admin only)
 router.put('/:id/role', [
-  auth,
+  auth, 
   adminOnly,
   body('role').isIn(['admin', 'superuser', 'contact_person', 'regular_user'])
-    .withMessage('Invalid role specified')
+    .withMessage('Invalid role')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -72,32 +136,26 @@ router.put('/:id/role', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { role } = req.body;
-    const userId = parseInt(req.params.id);
-
-    // Nemohou změnit sami sobě roli
-    if (req.user.id === userId) {
-      return res.status(400).json({ error: 'Cannot change your own role' });
-    }
-
-    const user = await User.findByPk(userId);
+    const user = await User.findByPk(req.params.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Zkontroluj, jestli není posledním adminem
+    const { role } = req.body;
+
+    // Prevent removing the last admin
     if (user.role === 'admin' && role !== 'admin') {
       const adminCount = await User.count({ where: { role: 'admin' } });
       if (adminCount <= 1) {
         return res.status(400).json({ 
-          error: 'Cannot change role of the last admin user' 
+          error: 'Cannot remove admin role from the last administrator' 
         });
       }
     }
 
     await user.update({ role });
 
-    const updatedUser = await User.findByPk(userId, {
+    const updatedUser = await User.findByPk(user.id, {
       attributes: { exclude: ['password'] },
       include: [
         {
@@ -118,27 +176,32 @@ router.put('/:id/role', [
   }
 });
 
-// GET uživatelé podle společnosti (contact_person+ může vidět svou firmu)
-router.get('/company/:companyId', auth, contactPersonOrHigher, checkCompanyAccess, async (req, res) => {
+// GET uživatelé podle společnosti (contact_person+ může zobrazit svou firmu)
+router.get('/company/:companyId', [auth, contactPersonOrHigher], async (req, res) => {
   try {
     const { companyId } = req.params;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
+
+    // Contact person může zobrazit pouze svou firmu
+    if (req.user.role === 'contact_person' && req.user.companyId !== parseInt(companyId)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
 
     const { count, rows } = await User.findAndCountAll({
       where: { companyId: parseInt(companyId) },
-      limit,
-      offset,
-      order: [['name', 'ASC']],
       attributes: { exclude: ['password'] },
       include: [
         {
           model: Company,
-          attributes: ['id', 'name', 'ico'],
-          required: true
+          attributes: ['id', 'name'],
+          required: false
         }
-      ]
+      ],
+      limit,
+      offset,
+      order: [['id', 'DESC']]
     });
 
     res.json({
@@ -171,7 +234,7 @@ router.post('/company/:companyId', [
     }
 
     const { companyId } = req.params;
-    const { name, email, password, role = 'regular_user', phone } = req.body;
+    const { name, email, password, role = 'regular_user', phone, language = 'cs' } = req.body;
 
     // Zkontroluj, jestli už uživatel neexistuje
     const existingUser = await User.findOne({ where: { email } });
@@ -200,8 +263,13 @@ router.post('/company/:companyId', [
       password: hashedPassword,
       role,
       phone: phone || null,
-      companyId: parseInt(companyId)
+      language,
+      companyId: parseInt(companyId),
+      current_lesson_level: 0
     });
+
+    // Automatically assign to first training and test
+    await assignUserToFirstTrainingAndTest(user.id, parseInt(companyId));
 
     const createdUser = await User.findByPk(user.id, {
       attributes: { exclude: ['password'] },
@@ -215,7 +283,7 @@ router.post('/company/:companyId', [
     });
 
     res.status(201).json({
-      message: 'User created successfully',
+      message: 'User created successfully and assigned to first available training',
       user: createdUser
     });
   } catch (error) {
@@ -230,31 +298,36 @@ router.get('/stats/roles', auth, adminOnly, async (req, res) => {
     const roleStats = await User.findAll({
       attributes: [
         'role',
-        [require('sequelize').fn('COUNT', require('sequelize').col('role')), 'count']
+        [require('sequelize').fn('COUNT', require('sequelize').col('id')), 'count']
       ],
-      group: ['role'],
-      raw: true
+      group: ['role']
     });
 
-    const companyStats = await User.findAll({
+    const companyStats = await Company.findAll({
       attributes: [
-        [require('sequelize').col('Company.name'), 'companyName'],
-        [require('sequelize').fn('COUNT', require('sequelize').col('User.id')), 'userCount']
+        'name',
+        [require('sequelize').fn('COUNT', require('sequelize').col('Users.id')), 'userCount']
       ],
       include: [
         {
-          model: Company,
-          attributes: [],
-          required: true
+          model: User,
+          attributes: []
         }
       ],
       group: ['Company.id', 'Company.name'],
-      raw: true
+      having: require('sequelize').literal('COUNT("Users"."id") > 0'),
+      order: [[require('sequelize').fn('COUNT', require('sequelize').col('Users.id')), 'DESC']]
     });
 
     res.json({
-      roleStats,
-      companyStats
+      roleStats: roleStats.map(stat => ({
+        role: stat.role,
+        count: parseInt(stat.dataValues.count)
+      })),
+      companyStats: companyStats.map(stat => ({
+        companyName: stat.name,
+        userCount: parseInt(stat.dataValues.userCount)
+      }))
     });
   } catch (error) {
     console.error('Get user stats error:', error);
@@ -262,22 +335,15 @@ router.get('/stats/roles', auth, adminOnly, async (req, res) => {
   }
 });
 
-// DELETE uživatel (admin only, s ochranou posledního admina)
+// DELETE uživatel (admin only)
 router.delete('/:id', auth, adminOnly, async (req, res) => {
   try {
-    const userId = parseInt(req.params.id);
-
-    // Nemohou smazat sami sebe
-    if (req.user.id === userId) {
-      return res.status(400).json({ error: 'Cannot delete your own account' });
-    }
-
-    const user = await User.findByPk(userId);
+    const user = await User.findByPk(req.params.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Zkontroluj, jestli není posledním adminem
+    // Prevent deleting the last admin
     if (user.role === 'admin') {
       const adminCount = await User.count({ where: { role: 'admin' } });
       if (adminCount <= 1) {
@@ -287,7 +353,12 @@ router.delete('/:id', auth, adminOnly, async (req, res) => {
       }
     }
 
+    // Delete related records first
+    await UserTraining.destroy({ where: { userId: user.id } });
+    await TestSession.destroy({ where: { user_id: user.id } });
+    
     await user.destroy();
+
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
     console.error('Delete user error:', error);

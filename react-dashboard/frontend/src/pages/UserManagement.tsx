@@ -420,26 +420,22 @@ const UserManagement: React.FC = () => {
           icon={<PhoneIcon />}
           label="Zavolat"
           onClick={() => handleCallUser(params.row)}
-          showInMenu
         />,
         <GridActionsCellItem
           icon={<EditIcon />}
           label="Upravit"
           onClick={() => handleOpenDialog(params.row)}
-          showInMenu
         />,
         <GridActionsCellItem
           icon={<AdminIcon />}
           label="Změnit roli"
           onClick={() => handleOpenRoleDialog(params.row)}
-          showInMenu
         />,
         <GridActionsCellItem
           icon={<DeleteIcon />}
           label="Smazat"
           onClick={() => handleDeleteUser(params.row)}
           disabled={params.row.id === user?.id}
-          showInMenu
         />
       ]
     }

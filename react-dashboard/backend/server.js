@@ -46,6 +46,7 @@ app.use('/api/trainings', require('./routes/trainings'));
 app.use('/api/lessons', require('./routes/lessons'));
 app.use('/api/tests', require('./routes/tests'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/twilio', require('./routes/twilio'));
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -1,0 +1,220 @@
+const express = require('express');
+const twilio = require('twilio');
+const router = express.Router();
+
+// Twilio VoiceResponse for handling voice calls
+const VoiceResponse = twilio.twiml.VoiceResponse;
+
+// Voice webhook - handles incoming calls and responses
+router.post('/voice', (req, res) => {
+  const twiml = new VoiceResponse();
+  
+  // Determine language from caller's phone number
+  const callerNumber = req.body.From;
+  let language = 'cs-CZ'; // Default to Czech
+  let voice = 'Google.cs-CZ-Standard-A';
+  
+  // Simple language detection based on country code
+  if (callerNumber && callerNumber.startsWith('+421')) {
+    language = 'sk-SK';
+    voice = 'Google.sk-SK-Standard-A';
+  } else if (callerNumber && callerNumber.startsWith('+1')) {
+    language = 'en-US';
+    voice = 'Google.en-US-Standard-A';
+  }
+  
+  // Welcome message
+  const welcomeText = getWelcomeMessage(language);
+  
+  twiml.say({
+    voice: voice,
+    language: language
+  }, welcomeText);
+  
+  // Gather user input
+  const gather = twiml.gather({
+    numDigits: 1,
+    timeout: 10,
+    action: '/api/twilio/gather',
+    method: 'POST'
+  });
+  
+  gather.say({
+    voice: voice,
+    language: language
+  }, getMenuMessage(language));
+  
+  // If no input, repeat
+  twiml.say({
+    voice: voice,
+    language: language
+  }, getTimeoutMessage(language));
+  
+  twiml.hangup();
+  
+  res.type('text/xml');
+  res.send(twiml.toString());
+});
+
+// Handle user input from voice menu
+router.post('/gather', (req, res) => {
+  const twiml = new VoiceResponse();
+  const digit = req.body.Digits;
+  const callerNumber = req.body.From;
+  
+  // Determine language
+  let language = 'cs-CZ';
+  let voice = 'Google.cs-CZ-Standard-A';
+  
+  if (callerNumber && callerNumber.startsWith('+421')) {
+    language = 'sk-SK';
+    voice = 'Google.sk-SK-Standard-A';
+  } else if (callerNumber && callerNumber.startsWith('+1')) {
+    language = 'en-US';
+    voice = 'Google.en-US-Standard-A';
+  }
+  
+  switch (digit) {
+    case '1':
+      // Start lesson
+      twiml.say({
+        voice: voice,
+        language: language
+      }, getStartLessonMessage(language));
+      break;
+      
+    case '2':
+      // Take test
+      twiml.say({
+        voice: voice,
+        language: language
+      }, getStartTestMessage(language));
+      break;
+      
+    case '3':
+      // Progress info
+      twiml.say({
+        voice: voice,
+        language: language
+      }, getProgressMessage(language));
+      break;
+      
+    case '0':
+      // Speak with human
+      twiml.say({
+        voice: voice,
+        language: language
+      }, getTransferMessage(language));
+      // Here you could transfer to a human agent
+      break;
+      
+    default:
+      twiml.say({
+        voice: voice,
+        language: language
+      }, getInvalidInputMessage(language));
+      twiml.redirect('/api/twilio/voice');
+      break;
+  }
+  
+  twiml.hangup();
+  
+  res.type('text/xml');
+  res.send(twiml.toString());
+});
+
+// Status callback for call monitoring
+router.post('/status', (req, res) => {
+  const callSid = req.body.CallSid;
+  const callStatus = req.body.CallStatus;
+  const from = req.body.From;
+  const to = req.body.To;
+  
+  console.log(`📞 Twilio Call Status Update:
+    SID: ${callSid}
+    Status: ${callStatus}
+    From: ${from}
+    To: ${to}
+    Duration: ${req.body.CallDuration || 'N/A'}s
+  `);
+  
+  // You could save call logs to database here
+  // await CallLog.create({ callSid, status: callStatus, from, to, duration: req.body.CallDuration });
+  
+  res.sendStatus(200);
+});
+
+// Helper functions for multi-language messages
+function getWelcomeMessage(language) {
+  const messages = {
+    'cs-CZ': 'Vítejte v systému Lecture. Jsem váš AI asistent pro vzdělávání.',
+    'sk-SK': 'Vitajte v systéme Lecture. Som váš AI asistent pre vzdelávanie.',
+    'en-US': 'Welcome to the Lecture system. I am your AI learning assistant.'
+  };
+  return messages[language] || messages['cs-CZ'];
+}
+
+function getMenuMessage(language) {
+  const messages = {
+    'cs-CZ': 'Stiskněte 1 pro zahájení lekce, 2 pro test, 3 pro informace o pokroku, nebo 0 pro spojení s operátorem.',
+    'sk-SK': 'Stlačte 1 pre začatie lekcie, 2 pre test, 3 pre informácie o pokroku, alebo 0 pre spojenie s operátorom.',
+    'en-US': 'Press 1 to start a lesson, 2 for a test, 3 for progress information, or 0 to speak with an operator.'
+  };
+  return messages[language] || messages['cs-CZ'];
+}
+
+function getTimeoutMessage(language) {
+  const messages = {
+    'cs-CZ': 'Neobdrželi jsme žádný vstup. Opakuji možnosti.',
+    'sk-SK': 'Nedostali sme žiadny vstup. Opakujem možnosti.',
+    'en-US': 'We did not receive any input. Repeating options.'
+  };
+  return messages[language] || messages['cs-CZ'];
+}
+
+function getStartLessonMessage(language) {
+  const messages = {
+    'cs-CZ': 'Zahajuji vaši další lekci. Pokračujte ve svém webovém prohlížeči nebo mobilní aplikaci pro interaktivní obsah.',
+    'sk-SK': 'Začínam vašu ďalšiu lekciu. Pokračujte vo svojom webovom prehliadači alebo mobilnej aplikácii pre interaktívny obsah.',
+    'en-US': 'Starting your next lesson. Please continue in your web browser or mobile app for interactive content.'
+  };
+  return messages[language] || messages['cs-CZ'];
+}
+
+function getStartTestMessage(language) {
+  const messages = {
+    'cs-CZ': 'Připravuji váš test. Prosím, otevřete webovou aplikaci pro dokončení testu.',
+    'sk-SK': 'Pripravujem váš test. Prosím, otvorte webovú aplikáciu pre dokončenie testu.',
+    'en-US': 'Preparing your test. Please open the web application to complete the test.'
+  };
+  return messages[language] || messages['cs-CZ'];
+}
+
+function getProgressMessage(language) {
+  const messages = {
+    'cs-CZ': 'Váš aktuální pokrok je dostupný ve webové aplikaci. Pokračujte ve svém tempě učení.',
+    'sk-SK': 'Váš aktuálny pokrok je dostupný vo webovej aplikácii. Pokračujte vo svojom tempe učenia.',
+    'en-US': 'Your current progress is available in the web application. Continue learning at your own pace.'
+  };
+  return messages[language] || messages['cs-CZ'];
+}
+
+function getTransferMessage(language) {
+  const messages = {
+    'cs-CZ': 'Přepojuji vás na lidského operátora. Prosím, čekejte.',
+    'sk-SK': 'Prepájam vás na ľudského operátora. Prosím, čakajte.',
+    'en-US': 'Transferring you to a human operator. Please wait.'
+  };
+  return messages[language] || messages['cs-CZ'];
+}
+
+function getInvalidInputMessage(language) {
+  const messages = {
+    'cs-CZ': 'Neplatná volba. Prosím, zkuste to znovu.',
+    'sk-SK': 'Neplatná voľba. Prosím, skúste to znovu.',
+    'en-US': 'Invalid choice. Please try again.'
+  };
+  return messages[language] || messages['cs-CZ'];
+}
+
+module.exports = router; 
