@@ -54,7 +54,8 @@ export const userService = {
 
 // Companies API calls (rozšířené)
 export const companiesAPI = {
-  getCompanies: () => api.get('/companies'),
+  getCompanies: (params?: { page?: number; limit?: number; search?: string }) =>
+    api.get('/companies', { params }),
   
   createCompany: (data: {
     name: string;
