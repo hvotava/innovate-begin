@@ -9,7 +9,7 @@
 /coverage
 
 # production
-/build
+# /build  # Commented out for Railway deployment
 
 # misc
 .DS_Store

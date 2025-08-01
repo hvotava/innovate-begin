@@ -3,7 +3,7 @@ node_modules/
 */node_modules/
 
 # Production builds
-frontend/build/
+# frontend/build/  # Commented out for Railway deployment
 backend/dist/
 
 # Environment variables
