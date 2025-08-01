@@ -243,12 +243,15 @@ const UserManagement: React.FC = () => {
           updateData.password = formData.password;
         }
 
-        // Přidej telefon pouze pokud není prázdný
+        // Přidej telefon pouze pokud není prázdný - neposílej prázdný string
         if (formData.phone && formData.phone.trim()) {
           updateData.phone = formData.phone;
         }
+        // Pokud je prázdný, tak vůbec neposíláme phone field
 
+        console.log('🔄 UserManagement updating user:', editingUser.id, 'with data:', updateData);
         await userService.updateUser(editingUser.id, updateData);
+        console.log('✅ UserManagement update successful');
         showSnackbar('Uživatel byl úspěšně aktualizován', 'success');
       } else {
         // Create new user - password je povinné
@@ -279,7 +282,9 @@ const UserManagement: React.FC = () => {
           createData.phone = formData.phone;
         }
 
+        console.log('🔄 UserManagement creating user with data:', createData);
         await userService.createUser(createData);
+        console.log('✅ UserManagement create successful');
         showSnackbar('Nový uživatel byl úspěšně vytvořen', 'success');
       }
 
@@ -287,8 +292,30 @@ const UserManagement: React.FC = () => {
       fetchUsers();
       fetchStats();
     } catch (error: any) {
-      console.error('Error saving user:', error);
-      const errorMessage = error.response?.data?.error || 'Nepodařilo se uložit uživatele';
+      console.error('❌ UserManagement error saving user:', error);
+      console.error('❌ Error response:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
+      
+      let errorMessage = 'Nepodařilo se uložit uživatele';
+      
+      if (error.response?.status === 400) {
+        if (error.response.data?.errors) {
+          // Validation errors array
+          const validationErrors = error.response.data.errors.map((err: any) => err.msg).join(', ');
+          errorMessage = `Chyby ve formuláři: ${validationErrors}`;
+        } else {
+          errorMessage = error.response.data?.error || 'Neplatná data - zkontrolujte všechna pole';
+        }
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Uživatel nebyl nalezen';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'Nemáte oprávnění k této operaci';
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Nejste přihlášeni';
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+      
       showSnackbar(errorMessage, 'error');
     }
   };

@@ -140,22 +140,28 @@ router.post('/', [
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('role').optional().isIn(['admin', 'superuser', 'contact_person', 'regular_user']).withMessage('Invalid role'),
   body('companyId').optional().isInt().withMessage('Invalid company ID'),
-  body('phone').optional().notEmpty().withMessage('Phone cannot be empty'),
+  body('phone').optional(), // Odstranit notEmpty() - prázdný string je OK
   body('current_lesson_level').optional().isInt({ min: 1 }).withMessage('Current lesson level must be at least 1')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.error('❌ Create user validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { name, email, password, role = 'regular_user', companyId, phone, language = 'cs', current_lesson_level = 1 } = req.body;
+
+    console.log('🔄 Backend creating user with body:', req.body);
 
     // Zkontroluj, jestli email už neexistuje
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ error: 'Email already exists' });
     }
+
+    // Convert empty phone string to null
+    const phoneValue = phone && phone.trim() ? phone.trim() : null;
 
     // Hashuj heslo
     const saltRounds = 12;
@@ -167,10 +173,12 @@ router.post('/', [
       password: hashedPassword,
       role,
       companyId: companyId || null,
-      phone: phone || null,
+      phone: phoneValue, // Použít null pro prázdný phone
       language,
       current_lesson_level
     });
+
+    console.log('🔄 Backend user created:', user.id);
 
     // Automatically assign to first training and test if user has a company
     if (companyId) {
@@ -183,12 +191,13 @@ router.post('/', [
       include: [{ model: Company, attributes: ['name'] }]
     });
 
+    console.log('✅ Backend user created successfully');
     res.status(201).json({
       message: 'User created successfully and assigned to first available training',
       user: userData
     });
   } catch (error) {
-    console.error('Create user error:', error);
+    console.error('❌ Backend create user error:', error);
     if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(400).json({ error: 'Email already exists' });
     }
@@ -205,12 +214,13 @@ router.put('/:id', [
   body('password').optional().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('role').optional().isIn(['admin', 'superuser', 'contact_person', 'regular_user']).withMessage('Invalid role'),
   body('companyId').optional().isInt().withMessage('Invalid company ID'),
-  body('phone').optional().notEmpty().withMessage('Phone cannot be empty'),
+  body('phone').optional(), // Odstranit notEmpty() - prázdný string je OK
   body('current_lesson_level').optional().isInt({ min: 1 }).withMessage('Current lesson level must be at least 1')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.error('❌ Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
@@ -221,6 +231,8 @@ router.put('/:id', [
 
     const { name, email, password, role, companyId, phone, language, current_lesson_level } = req.body;
     
+    console.log('🔄 Backend updating user:', req.params.id, 'with body:', req.body);
+    
     // Check if email is being changed and if new email already exists
     if (email && email !== user.email) {
       const existingUser = await User.findOne({ where: { email } });
@@ -229,13 +241,26 @@ router.put('/:id', [
       }
     }
     
-    const updateData = { name, email, role, companyId, phone, language, current_lesson_level };
+    // Convert empty phone string to null
+    const phoneValue = phone && phone.trim() ? phone.trim() : null;
+    
+    const updateData = { 
+      name, 
+      email, 
+      role, 
+      companyId, 
+      phone: phoneValue, // Použít null pro prázdný phone
+      language, 
+      current_lesson_level 
+    };
 
     // Hashuj heslo, pokud je zadané
     if (password) {
       const saltRounds = 12;
       updateData.password = await bcrypt.hash(password, saltRounds);
     }
+
+    console.log('🔄 Backend updateData:', updateData);
 
     // Check if company changed and reassign training if needed
     const oldCompanyId = user.companyId;
@@ -253,12 +278,13 @@ router.put('/:id', [
       include: [{ model: Company, attributes: ['name'] }]
     });
 
+    console.log('✅ Backend user updated successfully');
     res.json({
       message: 'User updated successfully',
       user: updatedUser
     });
   } catch (error) {
-    console.error('Update user error:', error);
+    console.error('❌ Backend update user error:', error);
     if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(400).json({ error: 'Email already exists' });
     }

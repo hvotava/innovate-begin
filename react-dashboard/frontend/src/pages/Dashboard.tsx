@@ -145,12 +145,18 @@ const Dashboard: React.FC = () => {
   const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
+    console.log('🔍 Dashboard useEffect - User data:', user);
+    console.log('🔍 Dashboard useEffect - isAdmin:', isAdmin);
+    console.log('🔍 Dashboard useEffect - user?.role:', user?.role);
+    
     if (!isAdmin) {
+      console.log('❌ Dashboard access denied - user is not admin');
       setError('Přístup k Dashboard je povolen pouze administrátorům');
       setLoading(false);
       return;
     }
 
+    console.log('✅ Dashboard access granted - calling fetchDashboardStats');
     fetchDashboardStats();
   }, [isAdmin]);
 
