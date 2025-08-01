@@ -321,7 +321,7 @@ const Users: React.FC = () => {
 
   const handleCallUser = async (userId: number) => {
     try {
-      await userService.callUser(userId);
+      await userService.callUser(userId, { lessonId: 1 });
       showSnackbar('Hovor byl zahájen', 'success');
     } catch (err: any) {
       console.error('Error calling user:', err);
