@@ -1,5 +1,5 @@
 # Multi-stage build for React + Node.js app (v2)
-FROM node:18-alpine AS build
+FROM node:20-alpine AS build
 
 # Set working directory
 WORKDIR /app
@@ -23,7 +23,7 @@ COPY react-dashboard/backend/package*.json ./
 RUN npm ci --only=production
 
 # Production stage
-FROM node:18-alpine AS production
+FROM node:20-alpine AS production
 
 WORKDIR /app
 
