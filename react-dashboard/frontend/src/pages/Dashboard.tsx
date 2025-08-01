@@ -157,12 +157,35 @@ const Dashboard: React.FC = () => {
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
+      console.log('🔍 Fetching dashboard stats...');
+      
+      // Debug info first
+      try {
+        const debugResponse = await dashboardAPI.getDebug();
+        console.log('🔍 Debug info:', debugResponse.data);
+      } catch (debugError) {
+        console.error('🔍 Debug error:', debugError);
+      }
+      
       const response = await dashboardAPI.getStats();
+      console.log('📊 Dashboard stats response:', response);
       setStats(response.data);
       setError(null);
     } catch (err: any) {
       console.error('Error fetching dashboard stats:', err);
-      setError('Nepodařilo se načíst statistiky');
+      console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
+      
+      let errorMessage = 'Nepodařilo se načíst statistiky';
+      if (err.response?.status === 403) {
+        errorMessage = 'Nemáte oprávnění pro přístup k dashboard statistikám';
+      } else if (err.response?.status === 401) {
+        errorMessage = 'Nejste přihlášen nebo vypršela vaše relace';
+      } else if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -4,9 +4,39 @@ const { auth, adminOnly } = require('../middleware/auth');
 const { Op } = require('sequelize');
 const router = express.Router();
 
+// DEBUG endpoint pro diagnostiku
+router.get('/debug', auth, async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Dashboard debug endpoint called');
+    console.log('🔍 User:', req.user ? { id: req.user.id, role: req.user.role, email: req.user.email } : 'No user');
+    
+    const basicCounts = {
+      users: await User.count(),
+      companies: await Company.count(),
+      trainings: await Training.count(),
+      lessons: await Lesson.count(),
+      tests: await Test.count()
+    };
+    
+    console.log('🔍 Basic counts:', basicCounts);
+    
+    res.json({
+      user: req.user ? { id: req.user.id, role: req.user.role, email: req.user.email } : null,
+      isAdmin: req.user?.role === 'admin',
+      basicCounts,
+      message: 'Debug info loaded successfully'
+    });
+  } catch (error) {
+    console.error('🔍 DEBUG ERROR:', error);
+    res.status(500).json({ error: error.message, stack: error.stack });
+  }
+});
+
 // GET dashboard statistiky (pouze pro admin)
 router.get('/stats', auth, adminOnly, async (req, res) => {
   try {
+    console.log('📊 Dashboard stats request from user:', req.user?.role, req.user?.email);
+    
     // Základní počty
     const [
       totalUsers,
@@ -37,6 +67,8 @@ router.get('/stats', auth, adminOnly, async (req, res) => {
         }
       })
     ]);
+
+    console.log('📊 Basic counts:', { totalUsers, totalCompanies, totalTrainings, totalLessons, totalTests });
 
     // Uživatelé podle rolí
     const usersByRole = await User.findAll({
@@ -125,10 +157,11 @@ router.get('/stats', auth, adminOnly, async (req, res) => {
       }
     };
 
+    console.log('📊 Sending stats:', JSON.stringify(stats, null, 2));
     res.json(stats);
   } catch (error) {
     console.error('Dashboard stats error:', error);
-    res.status(500).json({ error: 'Failed to fetch dashboard statistics' });
+    res.status(500).json({ error: 'Failed to fetch dashboard statistics', details: error.message });
   }
 });
 
@@ -169,5 +202,4 @@ router.get('/quick-actions', auth, adminOnly, async (req, res) => {
   }
 });
 
-module.exports = router; 
 module.exports = router; 

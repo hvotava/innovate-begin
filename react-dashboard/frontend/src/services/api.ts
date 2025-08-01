@@ -177,6 +177,9 @@ export const dashboardAPI = {
   getStats: () => api.get('/dashboard/stats'),
   
   getQuickActions: () => api.get('/dashboard/quick-actions'),
+  
+  // Debug endpoint
+  getDebug: () => api.get('/dashboard/debug'),
 };
 
 export default api;
