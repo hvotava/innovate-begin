@@ -262,7 +262,7 @@ const Dashboard: React.FC = () => {
       {/* Stats Cards */}
       <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 3, sm: 4 } }}>
         {statCards.map((card, index) => (
-          <Grid key={index} xs={12} sm={6} lg={3}>
+          <Grid item key={index} xs={12} sm={6} lg={3}>
             <StatCard {...card} />
           </Grid>
         ))}
@@ -271,7 +271,7 @@ const Dashboard: React.FC = () => {
       {/* Charts Section */}
       <Grid container spacing={{ xs: 2, sm: 3 }}>
         {/* Activity Chart */}
-        <Grid xs={12} lg={8}>
+        <Grid item xs={12} lg={8}>
           <Card sx={{ height: { xs: 300, sm: 400 } }}>
             <CardContent sx={{ p: { xs: 2, sm: 3 }, height: '100%' }}>
               <Typography 
@@ -329,7 +329,7 @@ const Dashboard: React.FC = () => {
         </Grid>
 
         {/* Completion Status */}
-        <Grid xs={12} lg={4}>
+        <Grid item xs={12} lg={4}>
           <Card sx={{ height: { xs: 300, sm: 400 } }}>
             <CardContent sx={{ p: { xs: 2, sm: 3 }, height: '100%' }}>
               <Typography 
