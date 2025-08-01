@@ -58,6 +58,7 @@ export interface Test {
   trainingId: number;
   created_at?: string;
   Training?: Training;
+  Lesson?: Lesson;
 }
 
 // Question types
