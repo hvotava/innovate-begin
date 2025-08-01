@@ -4,7 +4,7 @@ FROM node:18-alpine AS build
 # Set working directory
 WORKDIR /app
 
-# Copy root package files
+# Copy root package files (for concurrently)
 COPY package*.json ./
 
 # Install root dependencies
@@ -12,14 +12,14 @@ RUN npm ci --only=production
 
 # Build frontend
 WORKDIR /app/frontend
-COPY frontend/package*.json ./
+COPY react-dashboard/frontend/package*.json ./
 RUN npm ci --only=production
-COPY frontend/ ./
+COPY react-dashboard/frontend/ ./
 RUN npm run build
 
 # Build backend (install dependencies)
 WORKDIR /app/backend
-COPY backend/package*.json ./
+COPY react-dashboard/backend/package*.json ./
 RUN npm ci --only=production
 
 # Production stage
@@ -30,6 +30,7 @@ WORKDIR /app
 # Copy backend files
 COPY --from=build /app/backend ./backend
 COPY --from=build /app/backend/node_modules ./backend/node_modules
+COPY react-dashboard/backend/ ./backend/
 
 # Copy frontend build
 COPY --from=build /app/frontend/build ./frontend/build

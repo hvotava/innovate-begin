@@ -16,11 +16,11 @@ coverage.xml
 .hypothesis
 .pytest_cache
 *.log
-frontend/node_modules
-frontend/build
-backend/node_modules
-backend/*.db
-backend/logs
+react-dashboard/frontend/node_modules
+react-dashboard/frontend/build
+react-dashboard/backend/node_modules
+react-dashboard/backend/*.db
+react-dashboard/backend/logs
 .DS_Store
 *.swp
 *.swo
