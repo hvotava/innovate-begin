@@ -40,6 +40,7 @@ const { sequelize, User, Company } = require('./models');
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/users-management', require('./routes/users-management'));
 app.use('/api/companies', require('./routes/companies'));
 app.use('/api/trainings', require('./routes/trainings'));
 app.use('/api/lessons', require('./routes/lessons'));
@@ -120,8 +121,18 @@ const createDefaultAdmin = async () => {
     });
 
     for (const user of usersNeedingMigration) {
+      // Migrace starých rolí na nové
+      let newRole = 'regular_user';
+      if (user.role === 'admin') {
+        newRole = 'admin';
+      } else if (user.role === 'user') {
+        newRole = 'regular_user';
+      } else if (['superuser', 'contact_person', 'regular_user'].includes(user.role)) {
+        newRole = user.role;
+      }
+
       const updateData = {
-        role: user.role || 'user',
+        role: newRole,
         companyId: user.companyId || defaultCompany.id
       };
 
