@@ -2,13 +2,12 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { Box } from '@mui/material';
 
 // Contexts
 import { AuthProvider } from './contexts/AuthContext';
 
 // Components
-import Sidebar from './components/Sidebar';
+import ResponsiveSidebar from './components/ResponsiveSidebar';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -19,7 +18,7 @@ import Lessons from './pages/Lessons';
 import Tests from './pages/Tests';
 import Analytics from './pages/Analytics';
 
-// Modern theme with beautiful colors
+// Enhanced responsive theme
 const theme = createTheme({
   palette: {
     mode: 'light',
@@ -60,6 +59,15 @@ const theme = createTheme({
   shape: {
     borderRadius: 12,
   },
+  breakpoints: {
+    values: {
+      xs: 0,
+      sm: 600,
+      md: 900,
+      lg: 1200,
+      xl: 1536,
+    },
+  },
   components: {
     MuiCard: {
       styleOverrides: {
@@ -77,26 +85,47 @@ const theme = createTheme({
         },
       },
     },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          '& .MuiOutlinedInput-root': {
+            borderRadius: 8,
+          },
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundImage: 'none',
+        },
+      },
+    },
+    // Responsive typography
+    MuiTypography: {
+      styleOverrides: {
+        h1: {
+          fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+        },
+        h2: {
+          fontSize: 'clamp(1.75rem, 4vw, 3rem)',
+        },
+        h3: {
+          fontSize: 'clamp(1.5rem, 3vw, 2.5rem)',
+        },
+        h4: {
+          fontSize: 'clamp(1.25rem, 2.5vw, 2rem)',
+        },
+        h5: {
+          fontSize: 'clamp(1.1rem, 2vw, 1.5rem)',
+        },
+        h6: {
+          fontSize: 'clamp(1rem, 1.5vw, 1.25rem)',
+        },
+      },
+    },
   },
 });
-
-// Layout component for authenticated pages
-const AuthenticatedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-    <Sidebar />
-    <Box
-      component="main"
-      sx={{
-        flexGrow: 1,
-        p: 3,
-        backgroundColor: 'background.default',
-        minHeight: '100vh',
-      }}
-    >
-      {children}
-    </Box>
-  </Box>
-);
 
 function App() {
   return (
@@ -108,7 +137,7 @@ function App() {
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
             
-            {/* Protected routes */}
+            {/* Protected routes with ResponsiveSidebar */}
             <Route
               path="/"
               element={
@@ -122,9 +151,9 @@ function App() {
               path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <AuthenticatedLayout>
+                  <ResponsiveSidebar>
                     <Dashboard />
-                  </AuthenticatedLayout>
+                  </ResponsiveSidebar>
                 </ProtectedRoute>
               }
             />
@@ -133,9 +162,31 @@ function App() {
               path="/users"
               element={
                 <ProtectedRoute adminOnly>
-                  <AuthenticatedLayout>
+                  <ResponsiveSidebar>
                     <Users />
-                  </AuthenticatedLayout>
+                  </ResponsiveSidebar>
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/companies"
+              element={
+                <ProtectedRoute adminOnly>
+                  <ResponsiveSidebar>
+                    <div>Companies Page (Coming Soon)</div>
+                  </ResponsiveSidebar>
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/trainings"
+              element={
+                <ProtectedRoute>
+                  <ResponsiveSidebar>
+                    <div>Trainings Page (Coming Soon)</div>
+                  </ResponsiveSidebar>
                 </ProtectedRoute>
               }
             />
@@ -144,9 +195,9 @@ function App() {
               path="/lessons"
               element={
                 <ProtectedRoute>
-                  <AuthenticatedLayout>
+                  <ResponsiveSidebar>
                     <Lessons />
-                  </AuthenticatedLayout>
+                  </ResponsiveSidebar>
                 </ProtectedRoute>
               }
             />
@@ -155,9 +206,9 @@ function App() {
               path="/tests"
               element={
                 <ProtectedRoute>
-                  <AuthenticatedLayout>
+                  <ResponsiveSidebar>
                     <Tests />
-                  </AuthenticatedLayout>
+                  </ResponsiveSidebar>
                 </ProtectedRoute>
               }
             />
@@ -166,9 +217,9 @@ function App() {
               path="/analytics"
               element={
                 <ProtectedRoute adminOnly>
-                  <AuthenticatedLayout>
+                  <ResponsiveSidebar>
                     <Analytics />
-                  </AuthenticatedLayout>
+                  </ResponsiveSidebar>
                 </ProtectedRoute>
               }
             />

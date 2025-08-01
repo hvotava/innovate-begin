@@ -17,7 +17,15 @@ import {
   CircularProgress,
   Tooltip,
   InputAdornment,
+  Container,
+  Grid,
+  Avatar,
+  Divider,
+  useMediaQuery,
+  Stack,
+  Fab,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { DataGrid, GridColDef, GridActionsCellItem } from '@mui/x-data-grid';
 import {
   Add as AddIcon,
@@ -29,6 +37,9 @@ import {
   Person as PersonIcon,
   Phone as PhoneIcon,
   Search as SearchIcon,
+  Language as LanguageIcon,
+  School as SchoolIcon,
+  AccountCircle as AccountIcon,
 } from '@mui/icons-material';
 import { userService, User, CreateUserData, UpdateUserData } from '../services/userService';
 
@@ -39,7 +50,146 @@ interface UserDialogData {
   current_lesson_level: number;
 }
 
+// Mobile User Card Component
+interface UserCardProps {
+  user: User;
+  onEdit: (user: User) => void;
+  onDelete: (id: number) => void;
+  onCall: (id: number) => void;
+}
+
+const UserCard: React.FC<UserCardProps> = ({ user, onEdit, onDelete, onCall }) => (
+  <Card 
+    sx={{ 
+      mb: 2,
+      transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+      '&:hover': {
+        transform: 'translateY(-2px)',
+        boxShadow: 4,
+      },
+    }}
+  >
+    <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+          <Avatar 
+            sx={{ 
+              bgcolor: 'primary.main', 
+              mr: 2,
+              width: { xs: 40, sm: 48 },
+              height: { xs: 40, sm: 48 },
+            }}
+          >
+            <PersonIcon />
+          </Avatar>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                fontWeight: 600,
+                fontSize: { xs: '1rem', sm: '1.25rem' },
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {user.name}
+            </Typography>
+            <Typography 
+              variant="body2" 
+              color="text.secondary"
+              sx={{ 
+                fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                display: 'flex',
+                alignItems: 'center',
+                mt: 0.5,
+              }}
+            >
+              <PhoneIcon sx={{ fontSize: 16, mr: 0.5 }} />
+              {user.phone}
+            </Typography>
+          </Box>
+        </Box>
+        <Typography 
+          variant="caption" 
+          color="text.secondary"
+          sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+        >
+          #{user.id}
+        </Typography>
+      </Box>
+
+      <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+        <Chip
+          icon={<LanguageIcon />}
+          label={user.language === 'cs' ? 'Čeština' : 'Angličtina'}
+          size="small"
+          color="primary"
+          variant="outlined"
+          sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+        />
+        <Chip
+          icon={<SchoolIcon />}
+          label={`Level ${user.current_lesson_level}`}
+          size="small"
+          color="secondary"
+          variant="outlined"
+          sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+        />
+      </Box>
+
+      <Divider sx={{ my: 2 }} />
+
+      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+        <Tooltip title="Zavolat">
+          <IconButton 
+            size="small" 
+            onClick={() => onCall(user.id)}
+            sx={{ 
+              bgcolor: 'success.main',
+              color: 'white',
+              '&:hover': { bgcolor: 'success.dark' },
+            }}
+          >
+            <CallIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Upravit">
+          <IconButton 
+            size="small" 
+            onClick={() => onEdit(user)}
+            sx={{ 
+              bgcolor: 'primary.main',
+              color: 'white',
+              '&:hover': { bgcolor: 'primary.dark' },
+            }}
+          >
+            <EditIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Smazat">
+          <IconButton 
+            size="small" 
+            onClick={() => onDelete(user.id)}
+            sx={{ 
+              bgcolor: 'error.main',
+              color: 'white',
+              '&:hover': { bgcolor: 'error.dark' },
+            }}
+          >
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Box>
+    </CardContent>
+  </Card>
+);
+
 const Users: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,19 +199,21 @@ const Users: React.FC = () => {
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
-    severity: 'success' | 'error';
+    severity: 'success' | 'error' | 'warning' | 'info';
   }>({
     open: false,
     message: '',
     severity: 'success',
   });
 
-  const [dialogData, setDialogData] = useState<UserDialogData>({
+  const [formData, setFormData] = useState<UserDialogData>({
     name: '',
     phone: '',
     language: 'cs',
-    current_lesson_level: 0,
+    current_lesson_level: 1,
   });
+
+  const [formLoading, setFormLoading] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -71,53 +223,84 @@ const Users: React.FC = () => {
     try {
       setLoading(true);
       const data = await userService.getUsers();
-      setUsers(data.users);
+      setUsers(data);
     } catch (err) {
+      console.error('Error fetching users:', err);
       setError('Nepodařilo se načíst uživatele');
-      console.error('Fetch users error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCallUser = async (userId: number) => {
-    try {
-      const response = await userService.callUser(userId, { lessonId: 1 });
-      setSnackbar({
-        open: true,
-        message: response.message,
-        severity: 'success',
-      });
-    } catch (err) {
-      setSnackbar({
-        open: true,
-        message: 'Nepodařilo se zahájit volání',
-        severity: 'error',
-      });
-      console.error('Call user error:', err);
-    }
+  const showSnackbar = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
+    setSnackbar({ open: true, message, severity });
   };
 
-  const handleAddUser = () => {
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
+  const handleOpenDialog = () => {
+    setOpenDialog(true);
     setEditingUser(null);
-    setDialogData({
+    setFormData({
       name: '',
       phone: '',
       language: 'cs',
-      current_lesson_level: 0,
+      current_lesson_level: 1,
     });
-    setOpenDialog(true);
   };
 
   const handleEditUser = (user: User) => {
     setEditingUser(user);
-    setDialogData({
+    setFormData({
       name: user.name,
       phone: user.phone,
       language: user.language,
       current_lesson_level: user.current_lesson_level,
     });
     setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setEditingUser(null);
+    setFormLoading(false);
+  };
+
+  const handleSubmit = async () => {
+    try {
+      setFormLoading(true);
+      
+      if (editingUser) {
+        const updateData: UpdateUserData = {
+          name: formData.name,
+          phone: formData.phone,
+          language: formData.language as 'cs' | 'en',
+          current_lesson_level: formData.current_lesson_level,
+        };
+        await userService.updateUser(editingUser.id, updateData);
+        showSnackbar('Uživatel byl úspěšně aktualizován', 'success');
+      } else {
+        const createData: CreateUserData = {
+          name: formData.name,
+          phone: formData.phone,
+          language: formData.language as 'cs' | 'en',
+          current_lesson_level: formData.current_lesson_level,
+        };
+        await userService.createUser(createData);
+        showSnackbar('Uživatel byl úspěšně vytvořen', 'success');
+      }
+      
+      handleCloseDialog();
+      fetchUsers();
+    } catch (err: any) {
+      console.error('Error saving user:', err);
+      const errorMessage = err.message || 'Nastala chyba při ukládání uživatele';
+      showSnackbar(errorMessage, 'error');
+    } finally {
+      setFormLoading(false);
+    }
   };
 
   const handleDeleteUser = async (userId: number) => {
@@ -127,75 +310,23 @@ const Users: React.FC = () => {
 
     try {
       await userService.deleteUser(userId);
-      setUsers(users.filter(user => user.id !== userId));
-      setSnackbar({
-        open: true,
-        message: 'Uživatel byl úspěšně smazán',
-        severity: 'success',
-      });
+      showSnackbar('Uživatel byl úspěšně smazán', 'success');
+      fetchUsers();
     } catch (err: any) {
-      if (err.response?.status === 400) {
-        const forceDelete = window.confirm(
-          'Uživatel má související záznamy. Chcete vynutit smazání?'
-        );
-        if (forceDelete) {
-          try {
-            await userService.forceDeleteUser(userId);
-            setUsers(users.filter(user => user.id !== userId));
-            setSnackbar({
-              open: true,
-              message: 'Uživatel byl úspěšně smazán (včetně souvisejících záznamů)',
-              severity: 'success',
-            });
-          } catch (forceErr) {
-            setSnackbar({
-              open: true,
-              message: 'Nepodařilo se smazat uživatele',
-              severity: 'error',
-            });
-          }
-        }
-      } else {
-        setSnackbar({
-          open: true,
-          message: 'Nepodařilo se smazat uživatele',
-          severity: 'error',
-        });
-      }
+      console.error('Error deleting user:', err);
+      const errorMessage = err.message || 'Nastala chyba při mazání uživatele';
+      showSnackbar(errorMessage, 'error');
     }
   };
 
-  const handleSaveUser = async () => {
+  const handleCallUser = async (userId: number) => {
     try {
-      if (editingUser) {
-        // Update existing user
-        const updatedUser = await userService.updateUser(editingUser.id, dialogData);
-        setUsers(users.map(user => 
-          user.id === editingUser.id ? updatedUser : user
-        ));
-        setSnackbar({
-          open: true,
-          message: 'Uživatel byl úspěšně aktualizován',
-          severity: 'success',
-        });
-      } else {
-        // Create new user
-        const newUser = await userService.createUser(dialogData);
-        setUsers([...users, newUser]);
-        setSnackbar({
-          open: true,
-          message: 'Uživatel byl úspěšně vytvořen',
-          severity: 'success',
-        });
-      }
-      setOpenDialog(false);
-    } catch (err) {
-      setSnackbar({
-        open: true,
-        message: editingUser ? 'Nepodařilo se aktualizovat uživatele' : 'Nepodařilo se vytvořit uživatele',
-        severity: 'error',
-      });
-      console.error('Save user error:', err);
+      await userService.callUser(userId);
+      showSnackbar('Hovor byl zahájen', 'success');
+    } catch (err: any) {
+      console.error('Error calling user:', err);
+      const errorMessage = err.message || 'Nastala chyba při zahájení hovoru';
+      showSnackbar(errorMessage, 'error');
     }
   };
 
@@ -285,32 +416,94 @@ const Users: React.FC = () => {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-        <CircularProgress size={60} />
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          minHeight: { xs: '50vh', sm: '60vh' },
+          p: { xs: 2, sm: 3 },
+        }}
+      >
+        <CircularProgress size={isMobile ? 40 : 60} />
       </Box>
     );
   }
 
   return (
-    <Box>
+    <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3 } }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' },
+        justifyContent: 'space-between', 
+        alignItems: { xs: 'stretch', sm: 'center' }, 
+        mb: { xs: 3, sm: 4 },
+        gap: { xs: 2, sm: 0 },
+      }}>
         <Box>
-          <Typography variant="h4" sx={{ mb: 1 }}>
+          <Typography 
+            variant={isMobile ? "h5" : "h4"} 
+            sx={{ 
+              mb: 1,
+              fontWeight: 700,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
+          >
             Správa uživatelů
           </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Spravujte uživatele systému a jejich nastavení
+          <Typography 
+            variant="body1" 
+            color="text.secondary"
+            sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+          >
+            Celkem {users.length} uživatelů
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleAddUser}
-          sx={{ borderRadius: 2 }}
-        >
-          Nový uživatel
-        </Button>
+        
+        {!isMobile && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleOpenDialog}
+            size={isSmallMobile ? "small" : "medium"}
+            sx={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+              },
+            }}
+          >
+            Přidat uživatele
+          </Button>
+        )}
+      </Box>
+
+      {/* Search */}
+      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+        <TextField
+          fullWidth
+          placeholder="Vyhledat uživatele..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          size={isMobile ? "small" : "medium"}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+          sx={{
+            maxWidth: { xs: '100%', md: 400 },
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 2,
+            },
+          }}
+        />
       </Box>
 
       {error && (
@@ -319,102 +512,184 @@ const Users: React.FC = () => {
         </Alert>
       )}
 
-      {/* Search */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent sx={{ pb: '16px !important' }}>
-          <TextField
-            fullWidth
-            placeholder="Vyhledat uživatele..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-          />
-        </CardContent>
-      </Card>
-
-      {/* Users Table */}
-      <Card>
-        <Box sx={{ height: 600, width: '100%' }}>
-          <DataGrid
-            rows={filteredUsers}
-            columns={columns}
-            pageSizeOptions={[5, 10, 25]}
-            initialState={{
-              pagination: {
-                paginationModel: { page: 0, pageSize: 10 },
-              },
-            }}
-            disableRowSelectionOnClick
-            sx={{
-              border: 'none',
-              '& .MuiDataGrid-cell': {
-                borderColor: 'divider',
-              },
-              '& .MuiDataGrid-columnHeaders': {
-                backgroundColor: 'grey.50',
-                borderColor: 'divider',
-              },
-            }}
-          />
+      {/* Content */}
+      {isMobile ? (
+        // Mobile: Cards View
+        <Box>
+          {filteredUsers.length === 0 ? (
+            <Box 
+              sx={{ 
+                textAlign: 'center', 
+                py: 8,
+                color: 'text.secondary',
+              }}
+            >
+              <AccountIcon sx={{ fontSize: 64, mb: 2, opacity: 0.5 }} />
+              <Typography variant="h6" gutterBottom>
+                {searchTerm ? 'Žádní uživatelé nenalezeni' : 'Zatím žádní uživatelé'}
+              </Typography>
+              <Typography variant="body2">
+                {searchTerm ? 'Zkuste změnit vyhledávací kritéria' : 'Přidejte prvního uživatele'}
+              </Typography>
+            </Box>
+          ) : (
+            filteredUsers.map((user) => (
+              <UserCard
+                key={user.id}
+                user={user}
+                onEdit={handleEditUser}
+                onDelete={handleDeleteUser}
+                onCall={handleCallUser}
+              />
+            ))
+          )}
         </Box>
-      </Card>
+      ) : (
+        // Desktop: DataGrid View
+        <Card>
+          <Box sx={{ height: 600, width: '100%' }}>
+            <DataGrid
+              rows={filteredUsers}
+              columns={columns}
+              initialState={{
+                pagination: {
+                  paginationModel: { page: 0, pageSize: 10 },
+                },
+              }}
+              pageSizeOptions={[5, 10, 25]}
+              disableRowSelectionOnClick
+              sx={{
+                border: 'none',
+                '& .MuiDataGrid-cell': {
+                  borderBottom: '1px solid rgba(224, 224, 224, 0.5)',
+                },
+                '& .MuiDataGrid-columnHeaders': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                  borderBottom: '2px solid rgba(224, 224, 224, 0.8)',
+                },
+              }}
+            />
+          </Box>
+        </Card>
+      )}
 
-      {/* User Dialog */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          {editingUser ? 'Upravit uživatele' : 'Nový uživatel'}
-          <IconButton onClick={() => setOpenDialog(false)}>
+      {/* Mobile FAB */}
+      {isMobile && (
+        <Fab
+          color="primary"
+          aria-label="add"
+          onClick={handleOpenDialog}
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            '&:hover': {
+              background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+            },
+          }}
+        >
+          <AddIcon />
+        </Fab>
+      )}
+
+      {/* Dialog */}
+      <Dialog 
+        open={openDialog} 
+        onClose={handleCloseDialog}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={isSmallMobile}
+        PaperProps={{
+          sx: {
+            borderRadius: { xs: 0, sm: 2 },
+            m: { xs: 0, sm: 2 },
+          },
+        }}
+      >
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          pb: 1,
+        }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            {editingUser ? 'Upravit uživatele' : 'Přidat nového uživatele'}
+          </Typography>
+          <IconButton onClick={handleCloseDialog} size="small">
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+        
+        <DialogContent sx={{ pt: 2 }}>
+          <Stack spacing={3}>
             <TextField
               fullWidth
               label="Jméno"
-              value={dialogData.name}
-              onChange={(e) => setDialogData({ ...dialogData, name: e.target.value })}
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+              size={isSmallMobile ? "small" : "medium"}
             />
+            
             <TextField
               fullWidth
               label="Telefon"
-              value={dialogData.phone}
-              onChange={(e) => setDialogData({ ...dialogData, phone: e.target.value })}
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              required
+              size={isSmallMobile ? "small" : "medium"}
             />
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                fullWidth
-                select
-                label="Jazyk"
-                value={dialogData.language}
-                onChange={(e) => setDialogData({ ...dialogData, language: e.target.value })}
-                SelectProps={{ native: true }}
-              >
-                <option value="cs">Čeština</option>
-                <option value="en">Angličtina</option>
-              </TextField>
-              <TextField
-                fullWidth
-                type="number"
-                label="Úroveň lekce"
-                value={dialogData.current_lesson_level}
-                onChange={(e) => setDialogData({ ...dialogData, current_lesson_level: parseInt(e.target.value) || 0 })}
-              />
-            </Box>
-          </Box>        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setOpenDialog(false)}>
+            
+            <TextField
+              fullWidth
+              label="Jazyk"
+              select
+              value={formData.language}
+              onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+              SelectProps={{ native: true }}
+              size={isSmallMobile ? "small" : "medium"}
+            >
+              <option value="cs">Čeština</option>
+              <option value="en">Angličtina</option>
+            </TextField>
+            
+            <TextField
+              fullWidth
+              label="Úroveň lekce"
+              type="number"
+              value={formData.current_lesson_level}
+              onChange={(e) => setFormData({ ...formData, current_lesson_level: parseInt(e.target.value) || 1 })}
+              inputProps={{ min: 1, max: 100 }}
+              size={isSmallMobile ? "small" : "medium"}
+            />
+          </Stack>
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 3, pt: 2 }}>
+          <Button 
+            onClick={handleCloseDialog}
+            size={isSmallMobile ? "small" : "medium"}
+          >
             Zrušit
           </Button>
-          <Button variant="contained" onClick={handleSaveUser}>
-            {editingUser ? 'Aktualizovat' : 'Vytvořit'}
+          <Button
+            onClick={handleSubmit}
+            variant="contained"
+            disabled={formLoading || !formData.name.trim() || !formData.phone.trim()}
+            size={isSmallMobile ? "small" : "medium"}
+            sx={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+              },
+            }}
+          >
+            {formLoading ? (
+              <CircularProgress size={20} color="inherit" />
+            ) : (
+              editingUser ? 'Uložit změny' : 'Přidat uživatele'
+            )}
           </Button>
         </DialogActions>
       </Dialog>
@@ -423,17 +698,14 @@ const Users: React.FC = () => {
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
       >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
-        >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </Box>
+    </Container>
   );
 };
 
