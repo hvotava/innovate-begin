@@ -40,7 +40,7 @@ const User = sequelize.define('User', {
   },
   password: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true  // Dočasně nullable pro migraci
   },
   role: {
     type: DataTypes.ENUM('admin', 'user'),

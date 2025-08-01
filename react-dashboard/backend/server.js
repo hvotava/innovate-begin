@@ -109,32 +109,39 @@ const createDefaultAdmin = async () => {
       return;
     }
 
-    // Migrace existujících uživatelů bez emailu
-    const usersWithoutEmail = await User.findAll({ 
+    // Migrace existujících uživatelů bez emailu nebo hesla
+    const usersNeedingMigration = await User.findAll({ 
       where: { 
-        email: null 
+        [require('sequelize').Op.or]: [
+          { email: null },
+          { password: null }
+        ]
       } 
     });
 
-    for (const user of usersWithoutEmail) {
-      // Vytvoř dočasný email z phone nebo id
-      const tempEmail = user.phone 
-        ? `user_${user.phone.replace(/\D/g, '')}@temp.lecture.app`
-        : `user_${user.id}@temp.lecture.app`;
-      
-      // Vytvoř dočasné heslo
-      const tempPassword = await bcrypt.hash('temp123', 12);
-      
-      await user.update({
-        email: tempEmail,
-        password: tempPassword,
+    for (const user of usersNeedingMigration) {
+      const updateData = {
         role: user.role || 'user',
         companyId: user.companyId || defaultCompany.id
-      });
+      };
+
+      // Vytvoř dočasný email, pokud chybí
+      if (!user.email) {
+        updateData.email = user.phone 
+          ? `user_${user.phone.replace(/\D/g, '')}@temp.lecture.app`
+          : `user_${user.id}@temp.lecture.app`;
+      }
+
+      // Vytvoř dočasné heslo, pokud chybí
+      if (!user.password) {
+        updateData.password = await bcrypt.hash('temp123', 12);
+      }
+      
+      await user.update(updateData);
     }
 
-    if (usersWithoutEmail.length > 0) {
-      console.log(`✅ Updated ${usersWithoutEmail.length} existing users with temporary emails`);
+    if (usersNeedingMigration.length > 0) {
+      console.log(`✅ Updated ${usersNeedingMigration.length} existing users with temporary emails/passwords`);
     }
 
     // Vytvoř nového admin účtu, pokud žádný neexistuje
