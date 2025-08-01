@@ -41,10 +41,12 @@ import {
   SupervisorAccount as SuperuserIcon,
   ContactPhone as ContactIcon,
   PersonOutline as UserIcon,
-  Analytics as AnalyticsIcon
+  Analytics as AnalyticsIcon,
+  Phone as PhoneIcon,
+  Language as LanguageIcon
 } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridActionsCellItem } from '@mui/x-data-grid';
-import { usersManagementAPI, companiesAPI } from '../services/api';
+import { usersManagementAPI, companiesAPI, userService } from '../services/api';
 import { User, Company, UserStats, UserRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { canManageUsers } from '../utils/permissions';
@@ -57,6 +59,7 @@ interface UserFormData {
   role: UserRole;
   companyId: number | '';
   phone: string;
+  language: string;
 }
 
 interface TabPanelProps {
@@ -96,7 +99,8 @@ const UserManagement: React.FC = () => {
     password: '',
     role: 'regular_user',
     companyId: '',
-    phone: ''
+    phone: '',
+    language: 'cs'
   });
   
   // Filters
@@ -170,6 +174,91 @@ const UserManagement: React.FC = () => {
 
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
+  };
+
+  // User Edit/Create Dialog handlers
+  const handleOpenDialog = (targetUser?: User) => {
+    if (targetUser) {
+      setEditingUser(targetUser);
+      setFormData({
+        name: targetUser.name,
+        email: targetUser.email,
+        password: '', // Necháme prázdné pro bezpečnost
+        role: targetUser.role,
+        companyId: targetUser.companyId || '',
+        phone: targetUser.phone || '',
+        language: targetUser.language || 'cs'
+      });
+    } else {
+      setEditingUser(null);
+      setFormData({
+        name: '',
+        email: '',
+        password: '',
+        role: 'regular_user',
+        companyId: '',
+        phone: '',
+        language: 'cs'
+      });
+    }
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setEditingUser(null);
+    setFormData({
+      name: '',
+      email: '',
+      password: '',
+      role: 'regular_user',
+      companyId: '',
+      phone: '',
+      language: 'cs'
+    });
+  };
+
+  const handleSubmitUser = async () => {
+    try {
+      const submitData = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password || undefined,
+        role: formData.role,
+        companyId: Number(formData.companyId),
+        phone: formData.phone || undefined,
+        language: formData.language
+      };
+
+      if (editingUser) {
+        // Update existing user
+        await userService.updateUser(editingUser.id, submitData);
+        showSnackbar('Uživatel byl úspěšně aktualizován', 'success');
+      } else {
+        // Create new user
+        await userService.createUser(submitData);
+        showSnackbar('Nový uživatel byl úspěšně vytvořen', 'success');
+      }
+
+      handleCloseDialog();
+      fetchUsers();
+      fetchStats();
+    } catch (error: any) {
+      console.error('Error saving user:', error);
+      const errorMessage = error.response?.data?.error || 'Nepodařilo se uložit uživatele';
+      showSnackbar(errorMessage, 'error');
+    }
+  };
+
+  // Twilio calling functionality
+  const handleCallUser = async (targetUser: User) => {
+    try {
+      await userService.callUser(targetUser.id, { lessonId: 1 });
+      showSnackbar(`Volání zahájeno pro uživatele ${targetUser.name}`, 'success');
+    } catch (error: any) {
+      console.error('Error calling user:', error);
+      showSnackbar('Nepodařilo se zahájit volání', 'error');
+    }
   };
 
   const handleOpenRoleDialog = (targetUser: User) => {
@@ -271,21 +360,43 @@ const UserManagement: React.FC = () => {
       renderCell: (params) => params.value || '—'
     },
     {
+      field: 'language',
+      headerName: 'Jazyk',
+      width: 80,
+      renderCell: (params) => (
+        <Chip label={params.value || 'cs'} size="small" variant="outlined" />
+      )
+    },
+    {
       field: 'actions',
       type: 'actions',
       headerName: 'Akce',
-      width: 120,
+      width: 180,
       getActions: (params) => [
         <GridActionsCellItem
+          icon={<PhoneIcon />}
+          label="Zavolat"
+          onClick={() => handleCallUser(params.row)}
+          showInMenu
+        />,
+        <GridActionsCellItem
           icon={<EditIcon />}
+          label="Upravit"
+          onClick={() => handleOpenDialog(params.row)}
+          showInMenu
+        />,
+        <GridActionsCellItem
+          icon={<AdminIcon />}
           label="Změnit roli"
           onClick={() => handleOpenRoleDialog(params.row)}
+          showInMenu
         />,
         <GridActionsCellItem
           icon={<DeleteIcon />}
           label="Smazat"
           onClick={() => handleDeleteUser(params.row)}
           disabled={params.row.id === user?.id}
+          showInMenu
         />
       ]
     }
@@ -322,19 +433,42 @@ const UserManagement: React.FC = () => {
         )}
         
         {targetUser.phone && (
-          <Typography variant="body2" color="text.secondary">
-            Tel: {targetUser.phone}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+            <PhoneIcon fontSize="small" sx={{ mr: 1 }} />
+            <Typography variant="body2">
+              {targetUser.phone}
+            </Typography>
+          </Box>
         )}
+
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <LanguageIcon fontSize="small" sx={{ mr: 1 }} />
+          <Chip label={targetUser.language || 'cs'} size="small" variant="outlined" />
+        </Box>
       </CardContent>
       
       <CardActions>
         <Button 
           size="small" 
+          startIcon={<PhoneIcon />}
+          onClick={() => handleCallUser(targetUser)}
+          color="primary"
+        >
+          Zavolat
+        </Button>
+        <Button 
+          size="small" 
           startIcon={<EditIcon />}
+          onClick={() => handleOpenDialog(targetUser)}
+        >
+          Upravit
+        </Button>
+        <Button 
+          size="small" 
+          startIcon={<AdminIcon />}
           onClick={() => handleOpenRoleDialog(targetUser)}
         >
-          Změnit roli
+          Role
         </Button>
         <Button 
           size="small" 
@@ -424,9 +558,28 @@ const UserManagement: React.FC = () => {
   return (
     <Box sx={{ p: { xs: 2, sm: 3 } }}>
       {/* Header */}
-      <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
-        Správa uživatelů
-      </Typography>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: { xs: 'flex-start', sm: 'center' },
+        flexDirection: { xs: 'column', sm: 'row' },
+        mb: 3,
+        gap: 2
+      }}>
+        <Typography variant="h4" component="h1">
+          Správa uživatelů
+        </Typography>
+        
+        {!isMobile && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenDialog()}
+          >
+            Přidat uživatele
+          </Button>
+        )}
+      </Box>
 
       {/* Tabs */}
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
@@ -500,11 +653,21 @@ const UserManagement: React.FC = () => {
 
         {/* Content */}
         {isMobile ? (
-          // Mobile Card View
           <>
+            {/* Mobile Card View */}
             {users.map((targetUser) => (
               <UserCard key={targetUser.id} user={targetUser} />
             ))}
+            
+            {/* Mobile FAB */}
+            <Fab
+              color="primary"
+              aria-label="add"
+              sx={{ position: 'fixed', bottom: 16, right: 16 }}
+              onClick={() => handleOpenDialog()}
+            >
+              <AddIcon />
+            </Fab>
           </>
         ) : (
           // Desktop DataGrid
@@ -529,6 +692,159 @@ const UserManagement: React.FC = () => {
       <TabPanel value={tabValue} index={1}>
         <StatsPanel />
       </TabPanel>
+
+      {/* User Edit/Create Dialog */}
+      <Dialog 
+        open={dialogOpen} 
+        onClose={handleCloseDialog}
+        fullScreen={isMobile}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {editingUser ? 'Upravit uživatele' : 'Přidat uživatele'}
+        </DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Jméno"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                margin="normal"
+                required
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                margin="normal"
+                required
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Heslo"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                margin="normal"
+                required={!editingUser}
+                helperText={editingUser ? "Ponechte prázdné pro zachování současného hesla" : ""}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Telefon"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                margin="normal"
+              />
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Role</InputLabel>
+                <Select
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
+                  label="Role"
+                >
+                  <MenuItem value="admin">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AdminIcon />
+                      Administrátor
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="superuser">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <SuperuserIcon />
+                      Superuživatel
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="contact_person">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <ContactIcon />
+                      Kontaktní osoba
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="regular_user">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <UserIcon />
+                      Běžný uživatel
+                    </Box>
+                  </MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Společnost</InputLabel>
+                <Select
+                  value={formData.companyId}
+                  onChange={(e) => setFormData({ ...formData, companyId: e.target.value as number })}
+                  label="Společnost"
+                  required
+                >
+                  {companies.map((company) => (
+                    <MenuItem key={company.id} value={company.id}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <BusinessIcon fontSize="small" />
+                        <Typography>{company.name}</Typography>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Jazyk</InputLabel>
+                <Select
+                  value={formData.language}
+                  onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                  label="Jazyk"
+                >
+                  <MenuItem value="cs">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <LanguageIcon fontSize="small" />
+                      Čeština
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="sk">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <LanguageIcon fontSize="small" />
+                      Slovenština
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="en">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <LanguageIcon fontSize="small" />
+                      English
+                    </Box>
+                  </MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Zrušit</Button>
+          <Button 
+            onClick={handleSubmitUser} 
+            variant="contained"
+            disabled={!formData.name.trim() || !formData.email.trim() || !formData.companyId || (!editingUser && !formData.password.trim())}
+          >
+            {editingUser ? 'Uložit změny' : 'Vytvořit uživatele'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Role Change Dialog */}
       <Dialog open={roleDialogOpen} onClose={() => setRoleDialogOpen(false)}>

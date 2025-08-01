@@ -1,106 +1,71 @@
 import axios from 'axios';
+import { User, Company, Training, Lesson, Test, UserRole } from '../types';
 
-// Create axios instance with base configuration
+// Configure axios
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || '/api',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: '/api'
 });
 
-// Request interceptor for adding auth token if needed
+// Add auth token to requests
 api.interceptors.request.use(
   (config) => {
-    // Add auth token if available
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Response interceptor for handling common errors
-api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    // Handle 401 Unauthorized
-    if (error.response?.status === 401) {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('user');
-      // Redirect to login page if needed
-      window.location.href = '/login';
-    }
-    
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Auth API calls
 export const authAPI = {
-  login: (email: string, password: string) =>
+  login: (email: string, password: string) => 
     api.post('/auth/login', { email, password }),
   
   register: (userData: {
     name: string;
     email: string;
     password: string;
-    role?: 'admin' | 'user';
+    role?: UserRole;
     companyId?: number;
   }) => api.post('/auth/register', userData),
   
   getProfile: () => api.get('/auth/profile'),
-  
-  logout: () => api.post('/auth/logout'),
 };
 
-// Users API calls
-export const usersAPI = {
-  getUsers: (params?: { page?: number; limit?: number; search?: string }) =>
-    api.get('/users', { params }),
-  
-  getUser: (id: number) => api.get(`/users/${id}`),
-  
+// User API calls
+export const userService = {
+  getUsers: () => api.get('/users'),
   createUser: (userData: {
     name: string;
     email: string;
     password: string;
-    role?: 'admin' | 'superuser' | 'contact_person' | 'regular_user';
-    companyId?: number;
+    role: UserRole;
+    companyId: number;
     phone?: string;
+    language?: string;
   }) => api.post('/users', userData),
-  
   updateUser: (id: number, userData: any) => api.put(`/users/${id}`, userData),
-  
-  deleteUser: (id: number, force?: boolean) =>
-    api.delete(`/users/${id}${force ? '?force=true' : ''}`),
-  
-  callUser: (id: number) => api.post(`/users/${id}/call`),
+  deleteUser: (id: number) => api.delete(`/users/${id}`),
+  callUser: (id: number, callData: { lessonId: number }) => 
+    api.post(`/users/${id}/call`, callData),
 };
 
-// Companies API calls
+// Companies API calls (rozšířené)
 export const companiesAPI = {
-  getCompanies: (params?: { page?: number; limit?: number; search?: string }) =>
-    api.get('/companies', { params }),
+  getCompanies: () => api.get('/companies'),
   
-  getCompany: (id: number) => api.get(`/companies/${id}`),
-  
-  createCompany: (data: { 
-    name: string; 
-    ico?: string; 
-    contactPersonId?: number 
+  createCompany: (data: {
+    name: string;
+    ico?: string;
+    contactPersonId?: number;
   }) => api.post('/companies', data),
   
-  updateCompany: (id: number, data: { 
-    name?: string; 
-    ico?: string; 
-    contactPersonId?: number 
+  updateCompany: (id: number, data: {
+    name?: string;
+    ico?: string;
+    contactPersonId?: number;
   }) => api.put(`/companies/${id}`, data),
   
   deleteCompany: (id: number) => api.delete(`/companies/${id}`),
@@ -108,12 +73,10 @@ export const companiesAPI = {
   getAvailableContactPersons: () => api.get('/companies/contact-persons/available'),
 };
 
-// Trainings API calls
+// Trainings API calls (rozšířené)
 export const trainingsAPI = {
   getTrainings: (params?: { page?: number; limit?: number; search?: string }) =>
     api.get('/trainings', { params }),
-  
-  getMyTrainings: () => api.get('/trainings/my-trainings'),
   
   getTraining: (id: number) => api.get(`/trainings/${id}`),
   
@@ -128,8 +91,10 @@ export const trainingsAPI = {
   
   deleteTraining: (id: number) => api.delete(`/trainings/${id}`),
   
-  assignTraining: (id: number, userId: number) =>
+  assignTraining: (id: number, userId: number) => 
     api.post(`/trainings/${id}/assign`, { userId }),
+  
+  getMyTrainings: () => api.get('/trainings/my-trainings'),
 };
 
 // Lessons API calls (rozšířené)
@@ -196,6 +161,13 @@ export const usersManagementAPI = {
   getUserStats: () => api.get('/users-management/stats/roles'),
   
   deleteUser: (id: number) => api.delete(`/users-management/${id}`),
+};
+
+// Dashboard API calls (admin only)
+export const dashboardAPI = {
+  getStats: () => api.get('/dashboard/stats'),
+  
+  getQuickActions: () => api.get('/dashboard/quick-actions'),
 };
 
 export default api;

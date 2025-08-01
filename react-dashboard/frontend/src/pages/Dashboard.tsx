@@ -4,29 +4,42 @@ import {
   Card,
   CardContent,
   Typography,
-  CircularProgress,
   Alert,
-  Container,
+  Paper,
   useMediaQuery,
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import { useTheme } from '@mui/material/styles';
 import {
   People as PeopleIcon,
+  Business as BusinessIcon,
   School as SchoolIcon,
+  Assignment as LessonIcon,
   Quiz as QuizIcon,
   TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useAuth } from '../contexts/AuthContext';
+import { dashboardAPI } from '../services/api';
 
 // Types
 interface DashboardStats {
-  totalUsers: number;
-  totalLessons: number;
-  completedTests: number;
-  averageScore: number;
-  recentActivity: number;
+  overview: {
+    totalUsers: number;
+    totalCompanies: number;
+    totalTrainings: number;
+    totalLessons: number;
+    totalTests: number;
+    recentUsers: number;
+    recentTrainings: number;
+  };
+  usersByRole: Array<{ role: string; count: number }>;
+  topCompanies: Array<{ id: number; name: string; userCount: number }>;
+  activityChart: Array<{ date: string; users: number; trainings: number; lessons: number; tests: number }>;
+  growth: {
+    usersGrowth: string;
+    trainingsGrowth: string;
+  };
 }
 
 interface StatCardProps {
@@ -48,33 +61,35 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, change }
         height: '100%', 
         position: 'relative', 
         overflow: 'visible',
-        transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+        border: `2px solid ${color}20`,
         '&:hover': {
           transform: 'translateY(-4px)',
           boxShadow: theme.shadows[8],
-        },
+          transition: 'all 0.3s ease-in-out',
+        }
       }}
     >
-      <CardContent sx={{ pb: 2, p: { xs: 2, sm: 3 } }}>
+      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ flex: 1 }}>
             <Typography 
               variant="body2" 
               color="text.secondary" 
               sx={{ 
+                fontSize: { xs: '0.8rem', sm: '0.9rem' },
                 mb: 1,
-                fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                fontWeight: 500,
+                fontWeight: 500
               }}
             >
               {title}
             </Typography>
             <Typography 
-              variant={isMobile ? "h5" : "h4"} 
+              variant="h4" 
               sx={{ 
                 fontWeight: 700, 
-                color: 'text.primary',
-                fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
+                color: color,
+                fontSize: { xs: '1.8rem', sm: '2.2rem' },
+                mb: change ? 0.5 : 0
               }}
             >
               {value}
@@ -83,33 +98,33 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, change }
               <Typography 
                 variant="body2" 
                 sx={{ 
-                  color: 'success.main', 
-                  mt: 1,
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                  fontWeight: 500,
+                  color: change.startsWith('+') ? 'success.main' : 'error.main',
+                  fontSize: { xs: '0.75rem', sm: '0.8rem' },
+                  fontWeight: 600
                 }}
               >
-                {change}
+                {change} za 30 dní
               </Typography>
             )}
           </Box>
           <Box
             sx={{
-              width: { xs: 48, sm: 64 },
-              height: { xs: 48, sm: 64 },
+              backgroundColor: `${color}15`,
               borderRadius: '50%',
-              background: color,
+              p: { xs: 1.5, sm: 2 },
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'white',
-              ml: 2,
-              '& svg': {
-                fontSize: { xs: '24px', sm: '32px' },
-              },
+              minWidth: { xs: 48, sm: 56 },
+              minHeight: { xs: 48, sm: 56 },
             }}
           >
-            {icon}
+            {React.cloneElement(icon as React.ReactElement, {
+              sx: { 
+                color: color, 
+                fontSize: { xs: 24, sm: 32 } 
+              }
+            })}
           </Box>
         </Box>
       </CardContent>
@@ -120,149 +135,124 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, change }
 const Dashboard: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
   
-  const [stats, setStats] = useState<DashboardStats>({
-    totalUsers: 0,
-    totalLessons: 0,
-    completedTests: 0,
-    averageScore: 0,
-    recentActivity: 0,
-  });
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Sample data - in real app, this would come from API
-  const chartData = [
-    { name: 'Po', tests: 12, users: 8 },
-    { name: 'Út', tests: 19, users: 12 },
-    { name: 'St', tests: 15, users: 10 },
-    { name: 'Čt', tests: 25, users: 18 },
-    { name: 'Pá', tests: 22, users: 15 },
-    { name: 'So', tests: 18, users: 12 },
-    { name: 'Ne', tests: 16, users: 9 },
-  ];
-
-  const pieData = [
-    { name: 'Dokončené', value: 65, color: '#22c55e' },
-    { name: 'Probíhající', value: 25, color: '#f59e0b' },
-    { name: 'Nedokončené', value: 10, color: '#ef4444' },
-  ];
+  // Kontrola oprávnění - pouze admin
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
-    // Simulate API call
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        // Mock API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        setStats({
-          totalUsers: 1247,
-          totalLessons: 89,
-          completedTests: 3456,
-          averageScore: 87.3,
-          recentActivity: 142,
-        });
-      } catch (err) {
-        setError('Nepodařilo se načíst data dashboardu');
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!isAdmin) {
+      setError('Přístup k Dashboard je povolen pouze administrátorům');
+      setLoading(false);
+      return;
+    }
 
-    fetchDashboardData();
-  }, []);
+    fetchDashboardStats();
+  }, [isAdmin]);
+
+  const fetchDashboardStats = async () => {
+    try {
+      setLoading(true);
+      const response = await dashboardAPI.getStats();
+      setStats(response.data);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error fetching dashboard stats:', err);
+      setError('Nepodařilo se načíst statistiky');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isAdmin) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">
+          Dashboard je přístupný pouze administrátorům systému.
+        </Alert>
+      </Box>
+    );
+  }
 
   if (loading) {
     return (
-      <Box 
-        sx={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          minHeight: { xs: '50vh', sm: '60vh' },
-          p: { xs: 2, sm: 3 },
-        }}
-      >
-        <CircularProgress size={isMobile ? 40 : 60} />
+      <Box sx={{ p: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+        <Typography>Načítám dashboard...</Typography>
       </Box>
     );
   }
 
-  if (error) {
+  if (error || !stats) {
     return (
-      <Box sx={{ p: { xs: 2, sm: 3 } }}>
-        <Alert severity="error">{error}</Alert>
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error" action={
+          <button onClick={fetchDashboardStats}>Zkusit znovu</button>
+        }>
+          {error || 'Nepodařilo se načíst data'}
+        </Alert>
       </Box>
     );
   }
 
+  // Definice karet s daty ze serveru
   const statCards = [
     {
       title: 'Celkem uživatelů',
-      value: stats.totalUsers.toLocaleString(),
+      value: stats.overview.totalUsers,
       icon: <PeopleIcon />,
-      color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      change: '+12% tento měsíc',
+      color: theme.palette.primary.main,
+      change: stats.growth.usersGrowth
     },
     {
-      title: 'Aktivní lekce',
-      value: stats.totalLessons,
+      title: 'Společnosti',
+      value: stats.overview.totalCompanies,
+      icon: <BusinessIcon />,
+      color: theme.palette.success.main,
+    },
+    {
+      title: 'Školení',
+      value: stats.overview.totalTrainings,
       icon: <SchoolIcon />,
-      color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-      change: '+8% tento týden',
+      color: theme.palette.warning.main,
+      change: stats.growth.trainingsGrowth
     },
     {
-      title: 'Dokončené testy',
-      value: stats.completedTests.toLocaleString(),
+      title: 'Lekce',
+      value: stats.overview.totalLessons,
+      icon: <LessonIcon />,
+      color: theme.palette.info.main,
+    },
+    {
+      title: 'Testy',
+      value: stats.overview.totalTests,
       icon: <QuizIcon />,
-      color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-      change: '+23% tento měsíc',
-    },
-    {
-      title: 'Průměrné skóre',
-      value: `${stats.averageScore}%`,
-      icon: <TrendingUpIcon />,
-      color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-      change: '+5% oproti minulému měsíci',
-    },
+      color: theme.palette.secondary.main,
+    }
   ];
 
+  // Barvy pro pie chart
+  const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1'];
+
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3 } }}>
-      {/* Welcome Section */}
-      <Box sx={{ mb: { xs: 3, sm: 4 } }}>
-        <Typography 
-          variant={isMobile ? "h5" : "h4"} 
-          sx={{ 
-            fontWeight: 700, 
-            mb: 1,
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            backgroundClip: 'text',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}
-        >
-          Vítejte zpět, {user?.name}! 👋
+    <Box sx={{ p: { xs: 2, sm: 3 } }}>
+      {/* Header */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" sx={{ mb: 1, fontWeight: 600 }}>
+          📊 Admin Dashboard
         </Typography>
-        <Typography 
-          variant="body1" 
-          color="text.secondary"
-          sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
-        >
-          {isAdmin 
-            ? 'Zde je přehled aktivity vaší platformy.' 
-            : 'Zde je přehled vašeho pokroku.'
-          }
+        <Typography variant="body1" color="text.secondary">
+          Přehled systému a klíčových metrik
         </Typography>
       </Box>
 
       {/* Stats Cards */}
       <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 3, sm: 4 } }}>
         {statCards.map((card, index) => (
-          <Grid item key={index} xs={12} sm={6} lg={3}>
+          <Grid key={index} xs={12} sm={6} lg={2.4}>
             <StatCard {...card} />
           </Grid>
         ))}
@@ -271,137 +261,103 @@ const Dashboard: React.FC = () => {
       {/* Charts Section */}
       <Grid container spacing={{ xs: 2, sm: 3 }}>
         {/* Activity Chart */}
-        <Grid item xs={12} lg={8}>
-          <Card sx={{ height: { xs: 300, sm: 400 } }}>
-            <CardContent sx={{ p: { xs: 2, sm: 3 }, height: '100%' }}>
-              <Typography 
-                variant="h6" 
-                sx={{ 
-                  mb: 2, 
-                  fontWeight: 600,
-                  fontSize: { xs: '1rem', sm: '1.25rem' },
-                }}
-              >
-                Aktivita v posledních 7 dnech
-              </Typography>
-              <Box sx={{ width: '100%', height: { xs: 220, sm: 300 } }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis 
-                      dataKey="name" 
-                      axisLine={false}
-                      tick={{ fontSize: isMobile ? 12 : 14 }}
-                    />
-                    <YAxis 
-                      axisLine={false}
-                      tick={{ fontSize: isMobile ? 12 : 14 }}
-                    />
-                    <Tooltip 
-                      contentStyle={{
-                        backgroundColor: 'white',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        fontSize: isMobile ? '12px' : '14px',
-                      }}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="tests" 
-                      stroke="#6366f1" 
-                      strokeWidth={3}
-                      dot={{ fill: '#6366f1', strokeWidth: 2, r: isMobile ? 4 : 6 }}
-                      name="Testy"
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="users" 
-                      stroke="#f59e0b" 
-                      strokeWidth={3}
-                      dot={{ fill: '#f59e0b', strokeWidth: 2, r: isMobile ? 4 : 6 }}
-                      name="Uživatelé"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </Box>
-            </CardContent>
-          </Card>
+        <Grid xs={12} lg={8}>
+          <Paper sx={{ p: { xs: 2, sm: 3 }, height: { xs: 300, sm: 400 } }}>
+            <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+              <TrendingUpIcon sx={{ mr: 1 }} />
+              Aktivita za posledních 7 dní
+            </Typography>
+            <ResponsiveContainer width="100%" height="85%">
+              <LineChart data={stats.activityChart}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="date" 
+                  fontSize={isMobile ? 10 : 12}
+                  tickFormatter={(value) => new Date(value).toLocaleDateString('cs-CZ', { month: 'short', day: 'numeric' })}
+                />
+                <YAxis fontSize={isMobile ? 10 : 12} />
+                <Tooltip 
+                  labelFormatter={(value) => new Date(value).toLocaleDateString('cs-CZ')}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="users" 
+                  stroke={theme.palette.primary.main} 
+                  strokeWidth={2}
+                  name="Noví uživatelé"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="trainings" 
+                  stroke={theme.palette.warning.main} 
+                  strokeWidth={2}
+                  name="Nová školení"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </Paper>
         </Grid>
 
-        {/* Completion Status */}
-        <Grid item xs={12} lg={4}>
-          <Card sx={{ height: { xs: 300, sm: 400 } }}>
-            <CardContent sx={{ p: { xs: 2, sm: 3 }, height: '100%' }}>
-              <Typography 
-                variant="h6" 
-                sx={{ 
-                  mb: 2, 
-                  fontWeight: 600,
-                  fontSize: { xs: '1rem', sm: '1.25rem' },
-                }}
-              >
-                Stav dokončení
-              </Typography>
-              <Box sx={{ width: '100%', height: { xs: 220, sm: 300 } }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={isMobile ? 40 : 60}
-                      outerRadius={isMobile ? 80 : 100}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{
-                        backgroundColor: 'white',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        fontSize: isMobile ? '12px' : '14px',
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </Box>
-              
-              {/* Legend */}
-              <Box sx={{ mt: 2 }}>
-                {pieData.map((entry, index) => (
-                  <Box 
-                    key={index}
-                    sx={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      mb: 1,
-                      fontSize: { xs: '0.8rem', sm: '0.875rem' },
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: 12,
-                        height: 12,
-                        backgroundColor: entry.color,
-                        borderRadius: '2px',
-                        mr: 1,
-                      }}
-                    />
-                    <Typography variant="body2" sx={{ fontSize: 'inherit' }}>
-                      {entry.name}: {entry.value}%
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-            </CardContent>
-          </Card>
+        {/* Users by Role Chart */}
+        <Grid xs={12} lg={4}>
+          <Paper sx={{ p: { xs: 2, sm: 3 }, height: { xs: 300, sm: 400 } }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Uživatelé podle rolí
+            </Typography>
+            <ResponsiveContainer width="100%" height="85%">
+              <PieChart>
+                <Pie
+                  data={stats.usersByRole}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ role, count, percent }) => 
+                    isMobile ? `${(percent * 100).toFixed(0)}%` : `${role}: ${count}`
+                  }
+                  outerRadius={isMobile ? 60 : 80}
+                  fill="#8884d8"
+                  dataKey="count"
+                  nameKey="role"
+                >
+                  {stats.usersByRole.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </Paper>
+        </Grid>
+
+        {/* Top Companies */}
+        <Grid xs={12}>
+          <Paper sx={{ p: { xs: 2, sm: 3 } }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Top 5 společností podle počtu uživatelů
+            </Typography>
+            <Grid container spacing={2}>
+              {stats.topCompanies.map((company, index) => (
+                <Grid key={company.id} xs={12} sm={6} md={2.4}>
+                  <Card variant="outlined">
+                    <CardContent sx={{ textAlign: 'center', p: 2 }}>
+                      <Typography variant="h6" color="primary" sx={{ mb: 1 }}>
+                        #{index + 1}
+                      </Typography>
+                      <Typography variant="body1" sx={{ mb: 1, fontWeight: 500 }}>
+                        {company.name}
+                      </Typography>
+                      <Typography variant="h5" color="text.secondary">
+                        {company.userCount} uživatelů
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          </Paper>
         </Grid>
       </Grid>
-    </Container>
+    </Box>
   );
 };
 
