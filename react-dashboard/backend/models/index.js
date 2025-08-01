@@ -209,7 +209,7 @@ const Test = sequelize.define('Test', {
   lessonId: {
     type: DataTypes.INTEGER,
     references: {
-      model: 'Lessons', // Bude definován později
+      model: 'lessons', // Název tabulky (správný název)
       key: 'id'
     },
     allowNull: false

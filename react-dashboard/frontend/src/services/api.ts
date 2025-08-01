@@ -134,7 +134,7 @@ export const trainingsAPI = {
 
 // Lessons API calls (rozšířené)
 export const lessonsAPI = {
-  getLessons: (params?: { page?: number; limit?: number; search?: string }) =>
+  getLessons: (params?: { page?: number; limit?: number; search?: string; trainingId?: string }) =>
     api.get('/lessons', { params }),
   
   getLesson: (id: number) => api.get(`/lessons/${id}`),
@@ -152,7 +152,7 @@ export const lessonsAPI = {
 
 // Tests API calls (rozšířené)
 export const testsAPI = {
-  getTests: (params?: { page?: number; limit?: number; search?: string }) =>
+  getTests: (params?: { page?: number; limit?: number; search?: string; lessonId?: string }) =>
     api.get('/tests', { params }),
   
   getTest: (id: number) => api.get(`/tests/${id}`),
@@ -160,7 +160,8 @@ export const testsAPI = {
   createTest: (data: {
     title: string;
     questions: any[];
-    trainingId: number;
+    lessonId: number;
+    orderNumber?: number;
   }) => api.post('/tests', data),
   
   updateTest: (id: number, data: any) => api.put(`/tests/${id}`, data),
