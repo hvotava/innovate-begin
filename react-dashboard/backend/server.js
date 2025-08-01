@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -28,6 +29,10 @@ app.use(compression());
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static assets from the React build folder
+app.use(express.static(path.join(__dirname, '..', 'frontend', 'build')));
+
 
 // Database connection
 const { sequelize } = require('./models');
@@ -57,9 +62,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+// All other GET requests not handled before will return the React app
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'build', 'index.html'));
 });
 
 // Start server
