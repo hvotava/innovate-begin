@@ -1,0 +1,63 @@
+{% extends "admin/base.html" %}
+
+{% block title %}
+    Upravit lekci
+{% endblock %}
+
+{% block page_title %}
+    Upravit lekci: {{ lesson.title }}
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            <div class="mb-3">
+                <label for="title" class="form-label">Název</label>
+                <input type="text" class="form-control" id="title" name="title" value="{{ lesson.title }}">
+            </div>
+            <div class="mb-3">
+                <label for="description" class="form-label">Popis</label>
+                <textarea class="form-control" id="description" name="description" rows="3">{{ lesson.description }}</textarea>
+            </div>
+            <div class="mb-3">
+                <label for="level" class="form-label">Úroveň</label>
+                <input type="text" class="form-control" id="level" name="level" value="{{ lesson.level }}">
+            </div>
+
+            <h5 class="mt-4">Otázky</h5>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Otázka</th>
+                            <th>Odpověď</th>
+                            <th>Klíčová slova</th>
+                            <th>Povoleno</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for question in lesson.questions %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ question.question }}</td>
+                            <td>{{ question.correct_answer }}</td>
+                            <td>{{ question.keywords|join(', ') }}</td>
+                            <td>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="enabled_questions" value="{{ loop.index0 }}" {% if question.enabled %}checked{% endif %}>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Uložit změny</button>
+            <a href="{{ url_for('admin_list_lessons') }}" class="btn btn-secondary">Zpět</a>
+        </form>
+    </div>
+</div>
+{% endblock %} 

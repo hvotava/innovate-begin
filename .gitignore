@@ -1,0 +1,34 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# ZIP files
+*.zip
+
+# macOS
+.DS_Store
+
+# Database files
+*.db
+instance/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Railway specific
+.railway/ .env.backup
+.env.backup

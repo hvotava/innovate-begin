@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+websockets
+aiohttp
+sqlalchemy
+openai
+twilio
+python-dotenv
+psycopg2-binary
+# ... další závislosti dle původního requirements.txt
+jinja2
+python-multipart
+# Audio zpracování
+pydub
+numpy
+scipy>=1.11.0

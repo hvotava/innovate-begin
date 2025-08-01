@@ -1,0 +1,38 @@
+{% extends "admin/base.html" %}
+
+{% block title %}
+    Pokrok uživatelů
+{% endblock %}
+
+{% block page_title %}
+    Celkový pokrok uživatelů
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Uživatel</th>
+                        <th>Aktuální úroveň</th>
+                        <th>Název lekce</th>
+                        <th>Počet pokusů</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in progress_data %}
+                    <tr>
+                        <td>{{ item.user.name }}</td>
+                        <td>{{ item.level }}</td>
+                        <td>{{ item.lesson_name }}</td>
+                        <td>{{ item.attempts_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %} 

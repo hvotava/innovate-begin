@@ -1,0 +1,17 @@
+# Railway Environment Variables
+# Zkopírujte tyto proměnné do Railway Dashboard → Settings → Environment
+
+NODE_ENV=production
+DATABASE_URL=postgresql://postgres:ulrLIUFMOFKhCmmzJLyGGVRRwuDzxfHE@postgres.railway.internal:5432/railway
+PORT=5000
+
+# Optional - Twilio integration
+# TWILIO_ACCOUNT_SID=your_twilio_account_sid
+# TWILIO_AUTH_TOKEN=your_twilio_auth_token  
+# TWILIO_PHONE_NUMBER=your_twilio_phone_number
+
+# Optional - OpenAI integration
+# OPENAI_API_KEY=your_openai_api_key
+
+# Optional - CORS (nastavte na vaši Railway domain)
+# FRONTEND_URL=https://your-app.railway.app 

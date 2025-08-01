@@ -1,0 +1,48 @@
+{% extends "admin/base.html" %}
+
+{% block title %}
+    Seznam lekcí
+{% endblock %}
+
+{% block page_title %}
+    Správa lekcí
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-end mb-3">
+    <a href="{{ url_for('admin_new_lesson_get') }}" class="btn btn-primary"><i class="bi bi-plus-circle-fill me-2"></i>Nová lekce</a>
+</div>
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Název</th>
+                        <th>Jazyk</th>
+                        <th>Úroveň</th>
+                        <th>Akce</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lesson in lessons %}
+                    <tr>
+                        <td>{{ lesson.id }}</td>
+                        <td>{{ lesson.title }}</td>
+                        <td>{{ lesson.language }}</td>
+                        <td>{{ lesson.level }}</td>
+                        <td>
+                            <a href="{{ url_for('admin_edit_lesson_get', id=lesson.id) }}" class="btn btn-sm btn-warning">Upravit</a>
+                            <form method="post" action="{{ url_for('admin_delete_lesson', lesson_id=lesson.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-danger">Smazat</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %} 

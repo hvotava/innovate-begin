@@ -1,0 +1,53 @@
+{% extends "admin/base.html" %}
+
+{% block title %}
+    Seznam uživatelů
+{% endblock %}
+
+{% block page_title %}
+    Správa uživatelů
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-end mb-3">
+    <a href="{{ url_for('admin_new_user_get') }}" class="btn btn-primary"><i class="bi bi-person-plus-fill me-2"></i>Nový uživatel</a>
+</div>
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Jméno</th>
+                        <th>Telefon</th>
+                        <th>Jazyk</th>
+                        <th>Úroveň</th>
+                        <th>Akce</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.name }}</td>
+                        <td>{{ user.phone }}</td>
+                        <td>{{ user.language }}</td>
+                        <td>{{ user.current_lesson_level }}</td>
+                        <td>
+                            <a href="{{ url_for('admin_edit_user_get', id=user.id) }}" class="btn btn-sm btn-warning">Upravit</a>
+                            <form method="post" action="{{ url_for('admin_call_user', user_id=user.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-success">Zavolat</button>
+                            </form>
+                            <form method="post" action="{{ url_for('admin_delete_user', user_id=user.id) }}" style="display:inline;" onsubmit="return confirm('Opravdu chcete smazat uživatele {{ user.name }}? Tato akce je nevratná!');">
+                                <button type="submit" class="btn btn-sm btn-danger">Smazat</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %} 
