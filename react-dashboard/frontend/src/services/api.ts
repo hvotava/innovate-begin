@@ -46,7 +46,15 @@ export const userService = {
     phone?: string;
     language?: string;
   }) => api.post('/users', userData),
-  updateUser: (id: number, userData: any) => api.put(`/users/${id}`, userData),
+  updateUser: (id: number, userData: {
+    name?: string;
+    email?: string;
+    password?: string;
+    role?: UserRole;
+    companyId?: number;
+    phone?: string;
+    language?: string;
+  }) => api.put(`/users/${id}`, userData),
   deleteUser: (id: number) => api.delete(`/users/${id}`),
   callUser: (id: number, callData: { lessonId: number }) => 
     api.post(`/users/${id}/call`, callData),

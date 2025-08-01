@@ -220,23 +220,66 @@ const UserManagement: React.FC = () => {
 
   const handleSubmitUser = async () => {
     try {
-      const submitData = {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password || undefined,
-        role: formData.role,
-        companyId: Number(formData.companyId),
-        phone: formData.phone || undefined,
-        language: formData.language
-      };
-
       if (editingUser) {
-        // Update existing user
-        await userService.updateUser(editingUser.id, submitData);
+        // Update existing user - password je optional
+        const updateData: {
+          name: string;
+          email: string;
+          role: UserRole;
+          companyId: number;
+          language: string;
+          password?: string;
+          phone?: string;
+        } = {
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          companyId: Number(formData.companyId),
+          language: formData.language
+        };
+
+        // Přidej heslo pouze pokud není prázdné
+        if (formData.password && formData.password.trim()) {
+          updateData.password = formData.password;
+        }
+
+        // Přidej telefon pouze pokud není prázdný
+        if (formData.phone && formData.phone.trim()) {
+          updateData.phone = formData.phone;
+        }
+
+        await userService.updateUser(editingUser.id, updateData);
         showSnackbar('Uživatel byl úspěšně aktualizován', 'success');
       } else {
-        // Create new user
-        await userService.createUser(submitData);
+        // Create new user - password je povinné
+        if (!formData.password || !formData.password.trim()) {
+          showSnackbar('Heslo je povinné pro nového uživatele', 'error');
+          return;
+        }
+
+        const createData: {
+          name: string;
+          email: string;
+          password: string;
+          role: UserRole;
+          companyId: number;
+          language: string;
+          phone?: string;
+        } = {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+          companyId: Number(formData.companyId),
+          language: formData.language
+        };
+
+        // Přidej telefon pouze pokud není prázdný
+        if (formData.phone && formData.phone.trim()) {
+          createData.phone = formData.phone;
+        }
+
+        await userService.createUser(createData);
         showSnackbar('Nový uživatel byl úspěšně vytvořen', 'success');
       }
 
