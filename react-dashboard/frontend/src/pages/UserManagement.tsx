@@ -292,7 +292,7 @@ const UserManagement: React.FC = () => {
   ];
 
   // Mobile Card Component
-  const UserCard: React.FC<{ user: User }> = ({ targetUser }) => (
+  const UserCard: React.FC<{ user: User }> = ({ user: targetUser }) => (
     <Card sx={{ mb: 2 }}>
       <CardContent>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
