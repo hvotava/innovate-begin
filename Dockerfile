@@ -1,4 +1,4 @@
-# Multi-stage build for React + Node.js app
+# Multi-stage build for React + Node.js app (v2)
 FROM node:18-alpine AS build
 
 # Set working directory
