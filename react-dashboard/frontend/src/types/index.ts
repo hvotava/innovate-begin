@@ -65,7 +65,7 @@ export interface Question {
   id?: number;
   question: string;
   options: string[];
-  correct_answer: string;
+  correctAnswer: number; // Index správné odpovědi v options array
   explanation?: string;
 }
 
