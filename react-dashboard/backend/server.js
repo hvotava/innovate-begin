@@ -30,39 +30,8 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Debug: Log the static path
-const staticPath = path.join(__dirname, '..', 'frontend', 'build');
-console.log('🔍 Static files path:', staticPath);
-console.log('🔍 Current directory (__dirname):', __dirname);
-
-// Check if build directory exists
-const fs = require('fs');
-if (fs.existsSync(staticPath)) {
-  console.log('✅ Build directory exists');
-} else {
-  console.log('❌ Build directory does NOT exist');
-  console.log('📁 Trying alternative paths...');
-  
-  // Try other possible paths
-  const altPaths = [
-    path.join(__dirname, 'frontend', 'build'),
-    path.join(__dirname, '..', '..', 'frontend', 'build'),
-    '/application/frontend/build'
-  ];
-  
-  altPaths.forEach(altPath => {
-    console.log(`🔍 Checking: ${altPath} - ${fs.existsSync(altPath) ? 'EXISTS' : 'NOT FOUND'}`);
-  });
-}
-
 // Serve static assets from the React build folder
-app.use(express.static(staticPath));
-
-// Log all requests for debugging
-app.use((req, res, next) => {
-  console.log(`📝 ${req.method} ${req.path}`);
-  next();
-});
+app.use(express.static(path.join(__dirname, '..', 'frontend', 'build')));
 
 // Database connection
 const { sequelize } = require('./models');
