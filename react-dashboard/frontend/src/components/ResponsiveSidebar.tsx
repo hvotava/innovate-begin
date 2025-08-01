@@ -32,19 +32,62 @@ import {
   Menu as MenuIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { canManageUsers, canManageCompanies, canManageTrainings, canViewAllData, getRoleDisplayName, getRoleColor } from '../utils/permissions';
 
 const drawerWidth = 280;
 
-// Menu items s rolemi
-const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', roles: ['admin', 'user'] },
-  { text: 'Uživatelé', icon: <PeopleIcon />, path: '/users', roles: ['admin'] },
-  { text: 'Společnosti', icon: <BusinessIcon />, path: '/companies', roles: ['admin'] },
-  { text: 'Školení', icon: <SchoolIcon />, path: '/trainings', roles: ['admin', 'user'] },
-  { text: 'Lekce', icon: <SchoolIcon />, path: '/lessons', roles: ['admin', 'user'] },
-  { text: 'Testy', icon: <QuizIcon />, path: '/tests', roles: ['admin', 'user'] },
-  { text: 'Analytika', icon: <AnalyticsIcon />, path: '/analytics', roles: ['admin'] },
-];
+// Menu items definované dynamicky podle oprávnění
+const getMenuItems = (user: any) => {
+  if (!user) return [];
+  
+  const items = [
+    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', show: true },
+  ];
+
+  // Role-based menu items
+  if (canManageUsers(user.role)) {
+    items.push(
+      { text: 'Správa uživatelů', icon: <AdminIcon />, path: '/user-management', show: true }
+    );
+  }
+
+  if (canManageCompanies(user.role)) {
+    items.push(
+      { text: 'Společnosti', icon: <BusinessIcon />, path: '/companies', show: true }
+    );
+  }
+
+  if (canManageTrainings(user.role)) {
+    items.push(
+      { text: 'Školení', icon: <SchoolIcon />, path: '/trainings', show: true },
+      { text: 'Lekce', icon: <SchoolIcon />, path: '/lessons', show: true },
+      { text: 'Testy', icon: <QuizIcon />, path: '/tests', show: true }
+    );
+  }
+
+  // Basic users section
+  if (!canManageUsers(user.role)) {
+    items.push(
+      { text: 'Uživatelé', icon: <PeopleIcon />, path: '/users', show: true }
+    );
+  }
+
+  // Moje školení pro regular users
+  if (user.role === 'regular_user') {
+    items.push(
+      { text: 'Moje školení', icon: <SchoolIcon />, path: '/my-trainings', show: true }
+    );
+  }
+
+  // Analytics jen pro admin
+  if (user.role === 'admin') {
+    items.push(
+      { text: 'Analytika', icon: <AnalyticsIcon />, path: '/analytics', show: true }
+    );
+  }
+
+  return items.filter(item => item.show);
+};
 
 interface ResponsiveSidebarProps {
   children: React.ReactNode;
@@ -75,10 +118,8 @@ const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({ children }) => {
     }
   };
 
-  // Filter menu items based on user role
-  const filteredMenuItems = menuItems.filter(item => 
-    item.roles.includes(user?.role || 'user')
-  );
+  // Get menu items based on user permissions
+  const menuItems = getMenuItems(user);
 
   const drawer = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -94,7 +135,7 @@ const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({ children }) => {
           📚 Lecture
         </Typography>
         <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 0.5 }}>
-          {isAdmin ? 'Admin Dashboard' : 'Uživatelský panel'}
+          {user ? `${getRoleDisplayName(user.role)} Panel` : 'Dashboard'}
         </Typography>
       </Box>
 
@@ -150,15 +191,13 @@ const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({ children }) => {
                 {user.email}
               </Typography>
               <Chip
-                label={isAdmin ? 'Admin' : 'Uživatel'}
+                label={getRoleDisplayName(user.role)}
                 size="small"
+                color={getRoleColor(user.role)}
                 sx={{
                   mt: 0.5,
                   height: { xs: 16, sm: 20 },
                   fontSize: { xs: '0.6rem', sm: '0.7rem' },
-                  bgcolor: isAdmin ? 'rgba(245, 158, 11, 0.2)' : 'rgba(6, 182, 212, 0.2)',
-                  color: isAdmin ? '#fbbf24' : '#67e8f9',
-                  border: `1px solid ${isAdmin ? 'rgba(245, 158, 11, 0.3)' : 'rgba(6, 182, 212, 0.3)'}`,
                 }}
               />
             </Box>
@@ -170,7 +209,7 @@ const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({ children }) => {
 
       {/* Navigation */}
       <List sx={{ px: 2, py: 2, flex: 1 }}>
-        {filteredMenuItems.map((item) => {
+        {menuItems.map((item) => {
           const isActive = location.pathname === item.path;
           
           return (

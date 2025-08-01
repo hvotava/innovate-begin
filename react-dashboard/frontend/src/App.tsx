@@ -14,6 +14,9 @@ import ProtectedRoute from './components/ProtectedRoute';
 // Pages
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
+import UserManagement from './pages/UserManagement';
+import Companies from './pages/Companies';
+import Trainings from './pages/Trainings';
 import Lessons from './pages/Lessons';
 import Tests from './pages/Tests';
 import Analytics from './pages/Analytics';
@@ -170,11 +173,22 @@ function App() {
             />
             
             <Route
+              path="/user-management"
+              element={
+                <ProtectedRoute adminOnly>
+                  <ResponsiveSidebar>
+                    <UserManagement />
+                  </ResponsiveSidebar>
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
               path="/companies"
               element={
                 <ProtectedRoute adminOnly>
                   <ResponsiveSidebar>
-                    <div>Companies Page (Coming Soon)</div>
+                    <Companies />
                   </ResponsiveSidebar>
                 </ProtectedRoute>
               }
@@ -185,7 +199,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ResponsiveSidebar>
-                    <div>Trainings Page (Coming Soon)</div>
+                    <Trainings />
                   </ResponsiveSidebar>
                 </ProtectedRoute>
               }
