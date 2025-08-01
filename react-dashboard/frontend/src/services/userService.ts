@@ -3,6 +3,7 @@ import api from './api';
 export interface User {
   id: number;
   name: string;
+  email: string;
   phone: string;
   language: string;
   current_lesson_level: number;
@@ -10,6 +11,8 @@ export interface User {
 
 export interface CreateUserData {
   name: string;
+  email: string;
+  password: string;
   phone: string;
   language?: string;
   current_lesson_level?: number;
@@ -17,6 +20,8 @@ export interface CreateUserData {
 
 export interface UpdateUserData {
   name?: string;
+  email?: string;
+  password?: string;
   phone?: string;
   language?: string;
   current_lesson_level?: number;

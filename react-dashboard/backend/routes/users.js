@@ -139,7 +139,9 @@ router.post('/', [
   body('email').isEmail().withMessage('Valid email is required'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('role').optional().isIn(['admin', 'superuser', 'contact_person', 'regular_user']).withMessage('Invalid role'),
-  body('companyId').optional().isInt().withMessage('Invalid company ID')
+  body('companyId').optional().isInt().withMessage('Invalid company ID'),
+  body('phone').optional().notEmpty().withMessage('Phone cannot be empty'),
+  body('current_lesson_level').optional().isInt({ min: 1 }).withMessage('Current lesson level must be at least 1')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -147,7 +149,7 @@ router.post('/', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, email, password, role = 'regular_user', companyId, phone, language = 'cs' } = req.body;
+    const { name, email, password, role = 'regular_user', companyId, phone, language = 'cs', current_lesson_level = 1 } = req.body;
 
     // Zkontroluj, jestli email už neexistuje
     const existingUser = await User.findOne({ where: { email } });
@@ -167,7 +169,7 @@ router.post('/', [
       companyId: companyId || null,
       phone: phone || null,
       language,
-      current_lesson_level: 0
+      current_lesson_level
     });
 
     // Automatically assign to first training and test if user has a company
@@ -202,7 +204,9 @@ router.put('/:id', [
   body('email').optional().isEmail().withMessage('Valid email is required'),
   body('password').optional().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('role').optional().isIn(['admin', 'superuser', 'contact_person', 'regular_user']).withMessage('Invalid role'),
-  body('companyId').optional().isInt().withMessage('Invalid company ID')
+  body('companyId').optional().isInt().withMessage('Invalid company ID'),
+  body('phone').optional().notEmpty().withMessage('Phone cannot be empty'),
+  body('current_lesson_level').optional().isInt({ min: 1 }).withMessage('Current lesson level must be at least 1')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -215,8 +219,17 @@ router.put('/:id', [
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const { name, email, password, role, companyId, phone, language } = req.body;
-    const updateData = { name, email, role, companyId, phone, language };
+    const { name, email, password, role, companyId, phone, language, current_lesson_level } = req.body;
+    
+    // Check if email is being changed and if new email already exists
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ where: { email } });
+      if (existingUser) {
+        return res.status(400).json({ error: 'Email already exists' });
+      }
+    }
+    
+    const updateData = { name, email, role, companyId, phone, language, current_lesson_level };
 
     // Hashuj heslo, pokud je zadané
     if (password) {

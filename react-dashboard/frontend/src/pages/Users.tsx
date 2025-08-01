@@ -40,11 +40,18 @@ import {
   Language as LanguageIcon,
   School as SchoolIcon,
   AccountCircle as AccountIcon,
+  Email as EmailIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
+  VpnKey as PasswordIcon,
 } from '@mui/icons-material';
 import { userService, User, CreateUserData, UpdateUserData } from '../services/userService';
+import { useAuth } from '../contexts/AuthContext';
 
 interface UserDialogData {
   name: string;
+  email: string;
+  password: string;
   phone: string;
   language: string;
   current_lesson_level: number;
@@ -54,69 +61,83 @@ interface UserDialogData {
 interface UserCardProps {
   user: User;
   onEdit: (user: User) => void;
-  onDelete: (id: number) => void;
-  onCall: (id: number) => void;
+  onDelete: (userId: number) => void;
+  onCall: (userId: number) => void;
 }
 
 const UserCard: React.FC<UserCardProps> = ({ user, onEdit, onDelete, onCall }) => (
   <Card 
     sx={{ 
       mb: 2,
-      transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+      transition: 'all 0.2s ease-in-out',
       '&:hover': {
+        boxShadow: (theme) => theme.shadows[4],
         transform: 'translateY(-2px)',
-        boxShadow: 4,
       },
     }}
   >
     <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-          <Avatar 
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
+        <Avatar 
+          sx={{ 
+            width: { xs: 40, sm: 48 }, 
+            height: { xs: 40, sm: 48 }, 
+            mr: 2,
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          }}
+        >
+          <PersonIcon />
+        </Avatar>
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+          <Typography 
+            variant="h6" 
             sx={{ 
-              bgcolor: 'primary.main', 
-              mr: 2,
-              width: { xs: 40, sm: 48 },
-              height: { xs: 40, sm: 48 },
+              fontWeight: 600, 
+              fontSize: { xs: '1rem', sm: '1.1rem' },
+              mb: 0.5,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
             }}
           >
-            <PersonIcon />
-          </Avatar>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                fontWeight: 600,
-                fontSize: { xs: '1rem', sm: '1.25rem' },
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {user.name}
-            </Typography>
-            <Typography 
-              variant="body2" 
-              color="text.secondary"
-              sx={{ 
-                fontSize: { xs: '0.8rem', sm: '0.875rem' },
-                display: 'flex',
-                alignItems: 'center',
-                mt: 0.5,
-              }}
-            >
-              <PhoneIcon sx={{ fontSize: 16, mr: 0.5 }} />
-              {user.phone}
-            </Typography>
-          </Box>
+            {user.name}
+          </Typography>
+          <Typography 
+            variant="body2" 
+            color="text.secondary"
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              mb: 0.5,
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+            }}
+          >
+            <EmailIcon sx={{ fontSize: 14, mr: 0.5 }} />
+            {user.email}
+          </Typography>
+          <Typography 
+            variant="body2" 
+            color="text.secondary"
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+            }}
+          >
+            <PhoneIcon sx={{ fontSize: 14, mr: 0.5 }} />
+            {user.phone}
+          </Typography>
+          <Typography 
+            variant="caption" 
+            color="text.secondary"
+            sx={{ 
+              display: 'block',
+              mt: 1,
+              fontSize: { xs: '0.7rem', sm: '0.75rem' }
+            }}
+          >
+            #{user.id}
+          </Typography>
         </Box>
-        <Typography 
-          variant="caption" 
-          color="text.secondary"
-          sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
-        >
-          #{user.id}
-        </Typography>
       </Box>
 
       <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
@@ -189,6 +210,7 @@ const Users: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { user } = useAuth();
   
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -196,6 +218,7 @@ const Users: React.FC = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -208,6 +231,8 @@ const Users: React.FC = () => {
 
   const [formData, setFormData] = useState<UserDialogData>({
     name: '',
+    email: '',
+    password: '',
     phone: '',
     language: 'cs',
     current_lesson_level: 1,
@@ -215,9 +240,17 @@ const Users: React.FC = () => {
 
   const [formLoading, setFormLoading] = useState(false);
 
+  // Kontrola oprávnění - pouze admin
+  const isAdmin = user?.role === 'admin';
+
   useEffect(() => {
+    if (!isAdmin) {
+      setError('Nemáte oprávnění pro správu uživatelů. Tato sekce je pouze pro administrátory.');
+      setLoading(false);
+      return;
+    }
     fetchUsers();
-  }, []);
+  }, [isAdmin]);
 
   const fetchUsers = async () => {
     try {
@@ -245,6 +278,8 @@ const Users: React.FC = () => {
     setEditingUser(null);
     setFormData({
       name: '',
+      email: '',
+      password: '',
       phone: '',
       language: 'cs',
       current_lesson_level: 1,
@@ -255,6 +290,8 @@ const Users: React.FC = () => {
     setEditingUser(user);
     setFormData({
       name: user.name,
+      email: user.email,
+      password: '', // Prázdné pro bezpečnost
       phone: user.phone,
       language: user.language,
       current_lesson_level: user.current_lesson_level,
@@ -266,6 +303,7 @@ const Users: React.FC = () => {
     setOpenDialog(false);
     setEditingUser(null);
     setFormLoading(false);
+    setShowPassword(false);
   };
 
   const handleSubmit = async () => {
@@ -275,28 +313,59 @@ const Users: React.FC = () => {
       if (editingUser) {
         const updateData: UpdateUserData = {
           name: formData.name,
+          email: formData.email,
           phone: formData.phone,
           language: formData.language as 'cs' | 'en',
           current_lesson_level: formData.current_lesson_level,
         };
-        await userService.updateUser(editingUser.id, updateData);
+        
+        // Přidej heslo pouze pokud je vyplněné
+        if (formData.password.trim()) {
+          updateData.password = formData.password;
+        }
+        
+        console.log('🔄 Updating user:', editingUser.id, 'with data:', updateData);
+        const result = await userService.updateUser(editingUser.id, updateData);
+        console.log('✅ Update result:', result);
         showSnackbar('Uživatel byl úspěšně aktualizován', 'success');
       } else {
         const createData: CreateUserData = {
           name: formData.name,
+          email: formData.email,
+          password: formData.password,
           phone: formData.phone,
           language: formData.language as 'cs' | 'en',
           current_lesson_level: formData.current_lesson_level,
         };
-        await userService.createUser(createData);
+        console.log('🔄 Creating user with data:', createData);
+        const result = await userService.createUser(createData);
+        console.log('✅ Create result:', result);
         showSnackbar('Uživatel byl úspěšně vytvořen', 'success');
       }
       
       handleCloseDialog();
       fetchUsers();
     } catch (err: any) {
-      console.error('Error saving user:', err);
-      const errorMessage = err.message || 'Nastala chyba při ukládání uživatele';
+      console.error('❌ Error saving user:', err);
+      console.error('❌ Error response:', err.response?.data);
+      console.error('❌ Error status:', err.response?.status);
+      
+      let errorMessage = 'Nastala chyba při ukládání uživatele';
+      
+      if (err.response?.status === 400) {
+        errorMessage = err.response.data?.error || 'Neplatná data - zkontrolujte všechna pole';
+      } else if (err.response?.status === 404) {
+        errorMessage = 'Uživatel nebyl nalezen';
+      } else if (err.response?.status === 403) {
+        errorMessage = 'Nemáte oprávnění k této operaci';
+      } else if (err.response?.status === 401) {
+        errorMessage = 'Nejste přihlášeni';
+      } else if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       showSnackbar(errorMessage, 'error');
     } finally {
       setFormLoading(false);
@@ -307,25 +376,26 @@ const Users: React.FC = () => {
     if (!window.confirm('Opravdu chcete smazat tohoto uživatele?')) {
       return;
     }
-
+    
     try {
       await userService.deleteUser(userId);
       showSnackbar('Uživatel byl úspěšně smazán', 'success');
       fetchUsers();
     } catch (err: any) {
       console.error('Error deleting user:', err);
-      const errorMessage = err.message || 'Nastala chyba při mazání uživatele';
+      const errorMessage = err.response?.data?.error || 'Nepodařilo se smazat uživatele';
       showSnackbar(errorMessage, 'error');
     }
   };
 
   const handleCallUser = async (userId: number) => {
     try {
-      await userService.callUser(userId, { lessonId: 1 });
-      showSnackbar('Hovor byl zahájen', 'success');
+      const callData = { lessonId: 1 }; // Default lesson
+      await userService.callUser(userId, callData);
+      showSnackbar('Volání bylo zahájeno', 'success');
     } catch (err: any) {
       console.error('Error calling user:', err);
-      const errorMessage = err.message || 'Nastala chyba při zahájení hovoru';
+      const errorMessage = err.response?.data?.error || 'Nepodařilo se zahájit volání';
       showSnackbar(errorMessage, 'error');
     }
   };
@@ -344,6 +414,30 @@ const Users: React.FC = () => {
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <PersonIcon sx={{ mr: 1, color: 'text.secondary' }} />
           {params.value}
+        </Box>
+      ),
+    },
+    {
+      field: 'email',
+      headerName: 'Email',
+      width: 220,
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <EmailIcon sx={{ mr: 1, color: 'text.secondary' }} />
+          {params.value}
+        </Box>
+      ),
+    },
+    {
+      field: 'password',
+      headerName: 'Heslo',
+      width: 120,
+      renderCell: () => (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <PasswordIcon sx={{ mr: 1, color: 'text.secondary' }} />
+          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+            ••••••••
+          </Typography>
         </Box>
       ),
     },
@@ -411,46 +505,48 @@ const Users: React.FC = () => {
 
   const filteredUsers = users.filter(user =>
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.phone.includes(searchTerm)
   );
 
   if (loading) {
     return (
-      <Box 
-        sx={{ 
+      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+        <Box sx={{ 
           display: 'flex', 
           justifyContent: 'center', 
           alignItems: 'center', 
-          minHeight: { xs: '50vh', sm: '60vh' },
-          p: { xs: 2, sm: 3 },
-        }}
-      >
-        <CircularProgress size={isMobile ? 40 : 60} />
-      </Box>
+          minHeight: '400px' 
+        }}>
+          <CircularProgress size={60} />
+        </Box>
+      </Container>
     );
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3 } }}>
+    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
       {/* Header */}
       <Box sx={{ 
         display: 'flex', 
-        flexDirection: { xs: 'column', sm: 'row' },
         justifyContent: 'space-between', 
-        alignItems: { xs: 'stretch', sm: 'center' }, 
-        mb: { xs: 3, sm: 4 },
+        alignItems: { xs: 'flex-start', sm: 'center' },
+        flexDirection: { xs: 'column', sm: 'row' },
         gap: { xs: 2, sm: 0 },
+        mb: 4 
       }}>
         <Box>
           <Typography 
-            variant={isMobile ? "h5" : "h4"} 
+            variant="h4" 
+            component="h1" 
             sx={{ 
-              mb: 1,
               fontWeight: 700,
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               backgroundClip: 'text',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
+              fontSize: { xs: '1.75rem', sm: '2.125rem' },
+              mb: 1
             }}
           >
             Správa uživatelů
@@ -458,7 +554,7 @@ const Users: React.FC = () => {
           <Typography 
             variant="body1" 
             color="text.secondary"
-            sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+            sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
           >
             Celkem {users.length} uživatelů
           </Typography>
@@ -469,12 +565,13 @@ const Users: React.FC = () => {
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleOpenDialog}
-            size={isSmallMobile ? "small" : "medium"}
             sx={{
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               '&:hover': {
                 background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
               },
+              px: 3,
+              py: 1.5,
             }}
           >
             Přidat uživatele
@@ -483,29 +580,29 @@ const Users: React.FC = () => {
       </Box>
 
       {/* Search */}
-      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+      <Box sx={{ mb: 3 }}>
         <TextField
           fullWidth
-          placeholder="Vyhledat uživatele..."
+          placeholder="Hledat podle jména, emailu nebo telefonu..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          size={isMobile ? "small" : "medium"}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon />
+                <SearchIcon color="action" />
               </InputAdornment>
             ),
           }}
-          sx={{
+          sx={{ 
             maxWidth: { xs: '100%', md: 400 },
             '& .MuiOutlinedInput-root': {
               borderRadius: 2,
-            },
+            }
           }}
         />
       </Box>
 
+      {/* Error Display */}
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
@@ -634,6 +731,40 @@ const Users: React.FC = () => {
             
             <TextField
               fullWidth
+              label="Email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
+              size={isSmallMobile ? "small" : "medium"}
+            />
+            
+            <TextField
+              fullWidth
+              label="Heslo"
+              type={showPassword ? "text" : "password"}
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              required={!editingUser}
+              helperText={editingUser ? "Ponechte prázdné pro zachování současného hesla" : ""}
+              size={isSmallMobile ? "small" : "medium"}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                      size="small"
+                    >
+                      {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+            
+            <TextField
+              fullWidth
               label="Telefon"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -676,7 +807,13 @@ const Users: React.FC = () => {
           <Button
             onClick={handleSubmit}
             variant="contained"
-            disabled={formLoading || !formData.name.trim() || !formData.phone.trim()}
+            disabled={
+              formLoading || 
+              !formData.name.trim() || 
+              !formData.email.trim() || 
+              !formData.phone.trim() ||
+              (!editingUser && !formData.password.trim()) // Pro nového uživatele je heslo povinné
+            }
             size={isSmallMobile ? "small" : "medium"}
             sx={{
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
