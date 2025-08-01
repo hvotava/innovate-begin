@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Grid,
   Card,
   CardContent,
   Typography,
@@ -10,6 +9,7 @@ import {
   Container,
   useMediaQuery,
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import { useTheme } from '@mui/material/styles';
 import {
   People as PeopleIcon,
