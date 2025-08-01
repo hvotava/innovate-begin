@@ -79,23 +79,22 @@ router.get('/stats', auth, adminOnly, async (req, res) => {
       group: ['role']
     });
 
-    // Společnosti s počtem uživatelů
-    const companiesWithUsers = await Company.findAll({
-      attributes: [
-        'id',
-        'name',
-        [require('sequelize').fn('COUNT', require('sequelize').col('Users.id')), 'userCount']
-      ],
-      include: [
-        {
-          model: User,
-          attributes: []
-        }
-      ],
-      group: ['Company.id'],
-      order: [[require('sequelize').fn('COUNT', require('sequelize').col('Users.id')), 'DESC']],
-      limit: 5
+    // Společnosti s počtem uživatelů - použijeme raw query pro spolehlivost
+    const companiesWithUsersRaw = await require('sequelize').query(`
+      SELECT 
+        c.id,
+        c.name,
+        COUNT(u.id) as "userCount"
+      FROM companies c
+      LEFT JOIN users u ON c.id = u."companyId"
+      GROUP BY c.id, c.name
+      ORDER BY COUNT(u.id) DESC
+      LIMIT 5
+    `, {
+      type: require('sequelize').QueryTypes.SELECT
     });
+
+    console.log('📊 Companies with users raw result:', companiesWithUsersRaw);
 
     // Aktivita za posledních 7 dní
     const last7Days = [];
@@ -145,10 +144,10 @@ router.get('/stats', auth, adminOnly, async (req, res) => {
         role: item.role,
         count: parseInt(item.dataValues.count)
       })),
-      topCompanies: companiesWithUsers.map(company => ({
+      topCompanies: companiesWithUsersRaw.map(company => ({
         id: company.id,
         name: company.name,
-        userCount: parseInt(company.dataValues.userCount)
+        userCount: parseInt(company.userCount)
       })),
       activityChart: last7Days,
       growth: {

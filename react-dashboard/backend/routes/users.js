@@ -352,18 +352,40 @@ router.post('/:id/call', auth, adminOnly, async (req, res) => {
     // Twilio integration
     if (twilioClient && process.env.TWILIO_PHONE_NUMBER) {
       try {
+        // Určit správnou backend URL pro webhooks
+        const getBackendUrl = () => {
+          if (process.env.BACKEND_URL) {
+            return process.env.BACKEND_URL;
+          }
+          // Railway automaticky nastavuje RAILWAY_STATIC_URL
+          if (process.env.RAILWAY_STATIC_URL) {
+            return process.env.RAILWAY_STATIC_URL;
+          }
+          // Pro lokální development
+          if (process.env.NODE_ENV === 'development') {
+            return 'http://localhost:5000';
+          }
+          // Fallback pro Railway (může být app specific)
+          return `https://${process.env.RAILWAY_PROJECT_NAME || 'lecture-final'}.railway.app`;
+        };
+
+        const backendUrl = getBackendUrl();
+        console.log('🔍 Using backend URL for Twilio webhooks:', backendUrl);
+
         const call = await twilioClient.calls.create({
           to: user.phone,
           from: process.env.TWILIO_PHONE_NUMBER,
-          url: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/twilio/voice`,
+          url: `${backendUrl}/api/twilio/voice`,
           method: 'POST',
           record: true,
-          statusCallback: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/twilio/status`,
+          statusCallback: `${backendUrl}/api/twilio/status`,
           statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
           statusCallbackMethod: 'POST'
         });
 
         console.log(`✅ Twilio call initiated to ${user.name} (${user.phone}): ${call.sid}`);
+        console.log(`📞 Voice webhook: ${backendUrl}/api/twilio/voice`);
+        console.log(`📊 Status webhook: ${backendUrl}/api/twilio/status`);
 
         res.json({
           message: `Volání úspěšně zahájeno pro uživatele ${user.name} ${lessonInfo}`,
@@ -375,18 +397,18 @@ router.post('/:id/call', auth, adminOnly, async (req, res) => {
           }
         });
       } catch (twilioError) {
-        console.error('Twilio call error:', twilioError);
+        console.error('❌ Twilio call error:', twilioError);
         res.status(500).json({ 
           error: 'Nepodařilo se zahájit Twilio volání',
-          details: twilioError.message
+          details: twilioError.message || 'Neznámá chyba'
         });
       }
     } else {
-      // Fallback - log the call attempt
-      console.log(`📞 Mock call to ${user.name} (${user.phone}) ${lessonInfo}`);
-      
+      // Mock response when Twilio is not configured
+      console.log('📞 Mock Twilio call for user:', user.name, user.phone);
       res.json({
-        message: `Simulované volání pro uživatele ${user.name} ${lessonInfo} (Twilio není nakonfigurováno)`,
+        message: `Mock volání zahájeno pro uživatele ${user.name} ${lessonInfo} (Twilio není nakonfigurováno)`,
+        callSid: 'mock-call-' + Date.now(),
         user: {
           id: user.id,
           name: user.name,
