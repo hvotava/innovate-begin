@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { Training, Company, Lesson, Test, UserTraining, User } = require('../models');
-const { auth, adminOnly } = require('../middleware/auth');
+const { auth, adminOnly, superuserOrAdmin, contactPersonOrHigher, checkCompanyAccess } = require('../middleware/auth');
 const router = express.Router();
 
 // GET všechna školení (admin vidí všechna, user jen svojí)
@@ -14,8 +14,8 @@ router.get('/', auth, async (req, res) => {
 
     let whereClause = {};
     
-    // User vidí jen školení svojí společnosti
-    if (req.user.role === 'user') {
+    // Regular user a contact person vidí jen školení svojí společnosti
+    if (['regular_user', 'contact_person'].includes(req.user.role)) {
       whereClause.companyId = req.user.companyId;
     }
 
@@ -130,12 +130,13 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// POST nové školení (admin only)
+// POST nové školení (contact_person+ může vytvořit pro svou firmu)
 router.post('/', [
   auth,
-  adminOnly,
+  contactPersonOrHigher,
   body('title').notEmpty().withMessage('Training title is required'),
   body('description').optional(),
+  body('category').optional().notEmpty().withMessage('Category cannot be empty if provided'),
   body('companyId').isInt().withMessage('Valid company ID is required')
 ], async (req, res) => {
   try {
@@ -144,7 +145,7 @@ router.post('/', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, description, companyId } = req.body;
+    const { title, description, category, companyId } = req.body;
 
     // Zkontroluj, jestli společnost existuje
     const company = await Company.findByPk(companyId);
@@ -152,9 +153,17 @@ router.post('/', [
       return res.status(400).json({ error: 'Company not found' });
     }
 
+    // Contact person může vytvářet pouze pro svou firmu
+    if (req.user.role === 'contact_person' && req.user.companyId !== parseInt(companyId)) {
+      return res.status(403).json({ 
+        error: 'You can only create trainings for your own company' 
+      });
+    }
+
     const training = await Training.create({
       title,
       description,
+      category,
       companyId
     });
 
