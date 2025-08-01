@@ -1,15 +1,61 @@
 const express = require('express');
-const { Lesson, TestSession } = require('../models');
+const { Lesson, Training, Company, TestSession } = require('../models');
 const { body, validationResult } = require('express-validator');
+const { auth, adminOnly, superuserOrAdmin, contactPersonOrHigher, checkCompanyAccess } = require('../middleware/auth');
 const router = express.Router();
 
-// Get all lessons
-router.get('/', async (req, res) => {
+// GET všechny lekce (s podporou role-based přístupu)
+router.get('/', auth, async (req, res) => {
   try {
-    const lessons = await Lesson.findAll({
-      order: [['level', 'ASC']]
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    const search = req.query.search || '';
+    const trainingId = req.query.trainingId || '';
+
+    let whereClause = {};
+    let includeClause = [
+      {
+        model: Training,
+        attributes: ['id', 'title', 'category', 'companyId'],
+        include: [
+          {
+            model: Company,
+            attributes: ['id', 'name']
+          }
+        ]
+      }
+    ];
+
+    // Filtrování podle trainingId
+    if (trainingId) {
+      whereClause.trainingId = parseInt(trainingId);
+    }
+
+    // Vyhledávání podle názvu
+    if (search) {
+      whereClause.title = { [require('sequelize').Op.iLike]: `%${search}%` };
+    }
+
+    // Role-based přístup
+    if (['regular_user', 'contact_person'].includes(req.user.role)) {
+      includeClause[0].where = { companyId: req.user.companyId };
+    }
+
+    const { count, rows } = await Lesson.findAndCountAll({
+      where: whereClause,
+      include: includeClause,
+      limit,
+      offset,
+      order: [['id', 'DESC']]
     });
-    res.json(lessons);
+
+    res.json({
+      lessons: rows,
+      totalLessons: count,
+      totalPages: Math.ceil(count / limit),
+      currentPage: page
+    });
   } catch (error) {
     console.error('Get lessons error:', error);
     res.status(500).json({ error: 'Failed to fetch lessons' });
@@ -30,11 +76,13 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create new lesson
+// POST nová lekce (contact_person+ může vytvořit pro svou firmu)
 router.post('/', [
+  auth,
+  contactPersonOrHigher,
   body('title').notEmpty().withMessage('Title is required'),
-  body('level').isInt({ min: 0 }).withMessage('Invalid lesson number'),
-  body('required_score').optional().isFloat({ min: 0, max: 100 }).withMessage('Invalid required score')
+  body('content').notEmpty().withMessage('Content is required'),
+  body('trainingId').isInt().withMessage('Valid training ID is required')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -42,8 +90,51 @@ router.post('/', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const lesson = await Lesson.create(req.body);
-    res.status(201).json(lesson);
+    const { title, content, trainingId } = req.body;
+
+    // Zkontroluj, jestli školení existuje
+    const training = await Training.findByPk(trainingId, {
+      include: [{ model: Company, attributes: ['id', 'name'] }]
+    });
+
+    if (!training) {
+      return res.status(400).json({ error: 'Training not found' });
+    }
+
+    // Contact person může vytvářet pouze pro svou firmu
+    if (req.user.role === 'contact_person' && req.user.companyId !== training.companyId) {
+      return res.status(403).json({ 
+        error: 'You can only create lessons for trainings in your own company' 
+      });
+    }
+
+    const lesson = await Lesson.create({
+      title,
+      content,
+      trainingId,
+      // Zachová původní pole pro kompatibilitu
+      description: content,
+      language: 'cs',
+      level: 'beginner',
+      lesson_number: 0,
+      required_score: 90.0,
+      lesson_type: 'standard'
+    });
+
+    const createdLesson = await Lesson.findByPk(lesson.id, {
+      include: [
+        {
+          model: Training,
+          attributes: ['id', 'title', 'category'],
+          include: [{ model: Company, attributes: ['name'] }]
+        }
+      ]
+    });
+
+    res.status(201).json({
+      message: 'Lesson created successfully',
+      lesson: createdLesson
+    });
   } catch (error) {
     console.error('Create lesson error:', error);
     res.status(500).json({ error: 'Failed to create lesson' });
