@@ -71,7 +71,7 @@ export const usersAPI = {
     name: string;
     email: string;
     password: string;
-    role?: 'admin' | 'user';
+    role?: 'admin' | 'superuser' | 'contact_person' | 'regular_user';
     companyId?: number;
     phone?: string;
   }) => api.post('/users', userData),
@@ -91,12 +91,21 @@ export const companiesAPI = {
   
   getCompany: (id: number) => api.get(`/companies/${id}`),
   
-  createCompany: (data: { name: string }) => api.post('/companies', data),
+  createCompany: (data: { 
+    name: string; 
+    ico?: string; 
+    contactPersonId?: number 
+  }) => api.post('/companies', data),
   
-  updateCompany: (id: number, data: { name: string }) =>
-    api.put(`/companies/${id}`, data),
+  updateCompany: (id: number, data: { 
+    name?: string; 
+    ico?: string; 
+    contactPersonId?: number 
+  }) => api.put(`/companies/${id}`, data),
   
   deleteCompany: (id: number) => api.delete(`/companies/${id}`),
+  
+  getAvailableContactPersons: () => api.get('/companies/contact-persons/available'),
 };
 
 // Trainings API calls
@@ -111,6 +120,7 @@ export const trainingsAPI = {
   createTraining: (data: {
     title: string;
     description?: string;
+    category?: string;
     companyId: number;
   }) => api.post('/trainings', data),
   
@@ -156,6 +166,35 @@ export const testsAPI = {
   updateTest: (id: number, data: any) => api.put(`/tests/${id}`, data),
   
   deleteTest: (id: number) => api.delete(`/tests/${id}`),
+};
+
+// Users Management API calls (admin functions)
+export const usersManagementAPI = {
+  getUsers: (params?: { 
+    page?: number; 
+    limit?: number; 
+    search?: string;
+    role?: string;
+    company?: string;
+  }) => api.get('/users-management', { params }),
+  
+  updateUserRole: (id: number, role: 'admin' | 'superuser' | 'contact_person' | 'regular_user') =>
+    api.put(`/users-management/${id}/role`, { role }),
+  
+  getCompanyUsers: (companyId: number, params?: { page?: number; limit?: number }) =>
+    api.get(`/users-management/company/${companyId}`, { params }),
+  
+  createCompanyUser: (companyId: number, userData: {
+    name: string;
+    email: string;
+    password: string;
+    role?: 'regular_user' | 'contact_person';
+    phone?: string;
+  }) => api.post(`/users-management/company/${companyId}`, userData),
+  
+  getUserStats: () => api.get('/users-management/stats/roles'),
+  
+  deleteUser: (id: number) => api.delete(`/users-management/${id}`),
 };
 
 export default api;

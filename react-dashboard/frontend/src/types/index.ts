@@ -3,7 +3,7 @@ export interface User {
   id: number;
   name: string;
   email: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'superuser' | 'contact_person' | 'regular_user';
   companyId?: number;
   phone?: string;
   language?: string;
@@ -16,8 +16,11 @@ export interface User {
 export interface Company {
   id: number;
   name: string;
+  ico?: string;
+  contactPersonId?: number;
   created_at?: string;
   Users?: User[];
+  ContactPerson?: User;
   Trainings?: Training[];
 }
 
@@ -26,6 +29,7 @@ export interface Training {
   id: number;
   title: string;
   description?: string;
+  category?: string;
   companyId: number;
   created_at?: string;
   Company?: Company;
@@ -48,6 +52,8 @@ export interface Lesson {
 export interface Test {
   id: number;
   title: string;
+  lessonId: number;
+  orderNumber: number;
   questions: Question[];
   trainingId: number;
   created_at?: string;
@@ -176,6 +182,46 @@ export interface AuthContextType {
 export interface ProtectedRouteProps {
   children: React.ReactNode;
   adminOnly?: boolean;
+}
+
+// Contact Person types
+export interface ContactPerson {
+  id: number;
+  name: string;
+  email: string;
+  role: 'contact_person' | 'superuser' | 'admin';
+  companyName?: string;
+  isAvailable: boolean;
+}
+
+// User Management types
+export interface UserStats {
+  roleStats: Array<{
+    role: string;
+    count: number;
+  }>;
+  companyStats: Array<{
+    companyName: string;
+    userCount: number;
+  }>;
+}
+
+// Extended User types with additional fields
+export interface ExtendedUser extends User {
+  ManagedCompanies?: Company[];
+}
+
+// Role definitions
+export type UserRole = 'admin' | 'superuser' | 'contact_person' | 'regular_user';
+
+// Permissions helper
+export interface RolePermissions {
+  canManageUsers: boolean;
+  canManageCompanies: boolean;
+  canManageTrainings: boolean;
+  canManageTests: boolean;
+  canViewAllData: boolean;
+  canOnlyViewOwnCompany: boolean;
 }
 
 export interface DataTableProps<T> {
