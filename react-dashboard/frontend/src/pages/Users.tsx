@@ -223,7 +223,7 @@ const Users: React.FC = () => {
     try {
       setLoading(true);
       const data = await userService.getUsers();
-      setUsers(data);
+      setUsers(data.users);
     } catch (err) {
       console.error('Error fetching users:', err);
       setError('Nepodařilo se načíst uživatele');
