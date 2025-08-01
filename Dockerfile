@@ -1,5 +1,7 @@
 # FINAL VERSION - React Dashboard Production Build
 # This Dockerfile builds the lecture-final React dashboard application
+
+# Build timestamp: Fri Aug  1 07:02:15 CEST 2025
 FROM node:20-alpine AS build_stage
 
 # Create app directory  
