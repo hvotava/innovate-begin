@@ -107,7 +107,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, change }
             }}
           >
             {React.cloneElement(icon as React.ReactElement, {
-              sx: { fontSize: { xs: 24, sm: 32 } }
+              fontSize: isMobile ? 'medium' : 'large'
             })}
           </Box>
         </Box>
