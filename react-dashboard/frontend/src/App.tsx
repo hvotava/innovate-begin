@@ -1,11 +1,18 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Box } from '@mui/material';
 
+// Contexts
+import { AuthProvider } from './contexts/AuthContext';
+
 // Components
 import Sidebar from './components/Sidebar';
+import Login from './components/Login';
+import ProtectedRoute from './components/ProtectedRoute';
+
+// Pages
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Lessons from './pages/Lessons';
@@ -73,33 +80,104 @@ const theme = createTheme({
   },
 });
 
+// Layout component for authenticated pages
+const AuthenticatedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <Sidebar />
+    <Box
+      component="main"
+      sx={{
+        flexGrow: 1,
+        p: 3,
+        backgroundColor: 'background.default',
+        minHeight: '100vh',
+      }}
+    >
+      {children}
+    </Box>
+  </Box>
+);
+
 function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router>
-        <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-          <Sidebar />
-          <Box
-            component="main"
-            sx={{
-              flexGrow: 1,
-              p: 3,
-              backgroundColor: 'background.default',
-              minHeight: '100vh',
-            }}
-          >
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/users" element={<Users />} />
-              <Route path="/lessons" element={<Lessons />} />
-              <Route path="/tests" element={<Tests />} />
-              <Route path="/analytics" element={<Analytics />} />
-            </Routes>
-          </Box>
-        </Box>
-      </Router>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/login" element={<Login />} />
+            
+            {/* Protected routes */}
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Navigate to="/dashboard" replace />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <AuthenticatedLayout>
+                    <Dashboard />
+                  </AuthenticatedLayout>
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/users"
+              element={
+                <ProtectedRoute adminOnly>
+                  <AuthenticatedLayout>
+                    <Users />
+                  </AuthenticatedLayout>
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/lessons"
+              element={
+                <ProtectedRoute>
+                  <AuthenticatedLayout>
+                    <Lessons />
+                  </AuthenticatedLayout>
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/tests"
+              element={
+                <ProtectedRoute>
+                  <AuthenticatedLayout>
+                    <Tests />
+                  </AuthenticatedLayout>
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute adminOnly>
+                  <AuthenticatedLayout>
+                    <Analytics />
+                  </AuthenticatedLayout>
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Catch all route */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

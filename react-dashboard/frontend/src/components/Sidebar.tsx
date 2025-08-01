@@ -10,6 +10,9 @@ import {
   Typography,
   Box,
   Divider,
+  Avatar,
+  Button,
+  Chip,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -17,22 +20,40 @@ import {
   School as SchoolIcon,
   Quiz as QuizIcon,
   Analytics as AnalyticsIcon,
-  Settings as SettingsIcon,
+  Business as BusinessIcon,
+  Logout as LogoutIcon,
+  AdminPanelSettings as AdminIcon,
+  Person as UserIcon,
 } from '@mui/icons-material';
+import { useAuth } from '../contexts/AuthContext';
 
 const drawerWidth = 280;
 
+// Menu items s rolemi
 const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-  { text: 'Uživatelé', icon: <PeopleIcon />, path: '/users' },
-  { text: 'Lekce', icon: <SchoolIcon />, path: '/lessons' },
-  { text: 'Testy', icon: <QuizIcon />, path: '/tests' },
-  { text: 'Analytika', icon: <AnalyticsIcon />, path: '/analytics' },
+  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', roles: ['admin', 'user'] },
+  { text: 'Uživatelé', icon: <PeopleIcon />, path: '/users', roles: ['admin'] },
+  { text: 'Společnosti', icon: <BusinessIcon />, path: '/companies', roles: ['admin'] },
+  { text: 'Školení', icon: <SchoolIcon />, path: '/trainings', roles: ['admin', 'user'] },
+  { text: 'Lekce', icon: <SchoolIcon />, path: '/lessons', roles: ['admin', 'user'] },
+  { text: 'Testy', icon: <QuizIcon />, path: '/tests', roles: ['admin', 'user'] },
+  { text: 'Analytika', icon: <AnalyticsIcon />, path: '/analytics', roles: ['admin'] },
 ];
 
 const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout, isAdmin } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  // Filter menu items based on user role
+  const filteredMenuItems = menuItems.filter(item => 
+    item.roles.includes(user?.role || 'user')
+  );
 
   return (
     <Drawer
@@ -61,15 +82,81 @@ const Sidebar: React.FC = () => {
           📚 Lecture
         </Typography>
         <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 0.5 }}>
-          Admin Dashboard
+          {isAdmin ? 'Admin Dashboard' : 'Uživatelský panel'}
         </Typography>
       </Box>
 
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
 
+      {/* User Info */}
+      {user && (
+        <Box sx={{ p: 3 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              p: 2,
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              borderRadius: 2,
+            }}
+          >
+            <Avatar
+              sx={{
+                bgcolor: isAdmin ? '#f59e0b' : '#06b6d4',
+                width: 40,
+                height: 40,
+              }}
+            >
+              {isAdmin ? <AdminIcon /> : <UserIcon />}
+            </Avatar>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: 'white',
+                  fontWeight: 600,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {user.name}
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{
+                  color: 'rgba(255, 255, 255, 0.6)',
+                  display: 'block',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {user.email}
+              </Typography>
+              <Chip
+                label={isAdmin ? 'Admin' : 'Uživatel'}
+                size="small"
+                sx={{
+                  mt: 0.5,
+                  height: 20,
+                  fontSize: '0.7rem',
+                  bgcolor: isAdmin ? 'rgba(245, 158, 11, 0.2)' : 'rgba(6, 182, 212, 0.2)',
+                  color: isAdmin ? '#fbbf24' : '#67e8f9',
+                  border: `1px solid ${isAdmin ? 'rgba(245, 158, 11, 0.3)' : 'rgba(6, 182, 212, 0.3)'}`,
+                }}
+              />
+            </Box>
+          </Box>
+        </Box>
+      )}
+
+      <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+
       {/* Navigation */}
-      <List sx={{ px: 2, py: 3 }}>
-        {menuItems.map((item) => {
+      <List sx={{ px: 2, py: 2, flex: 1 }}>
+        {filteredMenuItems.map((item) => {
           const isActive = location.pathname === item.path;
           
           return (
@@ -109,8 +196,28 @@ const Sidebar: React.FC = () => {
         })}
       </List>
 
-      {/* Footer */}
-      <Box sx={{ mt: 'auto', p: 3 }}>
+      {/* Logout Button */}
+      <Box sx={{ p: 3 }}>
+        <Button
+          fullWidth
+          variant="outlined"
+          startIcon={<LogoutIcon />}
+          onClick={handleLogout}
+          sx={{
+            color: 'rgba(255, 255, 255, 0.8)',
+            borderColor: 'rgba(255, 255, 255, 0.2)',
+            mb: 2,
+            '&:hover': {
+              borderColor: 'rgba(239, 68, 68, 0.5)',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              color: '#fca5a5',
+            },
+          }}
+        >
+          Odhlásit se
+        </Button>
+
+        {/* Footer */}
         <Box
           sx={{
             p: 2,
@@ -123,7 +230,7 @@ const Sidebar: React.FC = () => {
             SynQFlows Lecture
           </Typography>
           <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-            v1.0.0
+            v2.0.0
           </Typography>
         </Box>
       </Box>
