@@ -45,4 +45,4 @@ EXPOSE 5000
 
 # Start backend server
 WORKDIR /application/backend
-CMD ["node", "server.js"] Build timestamp: Fri Aug  1 07:02:15 CEST 2025
+CMD ["node", "server.js"]
