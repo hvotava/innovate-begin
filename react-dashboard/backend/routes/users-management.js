@@ -4,6 +4,7 @@ const { User, Company, Training, Lesson, Test, UserTraining, TestSession } = req
 const { auth, adminOnly, superuserOrAdmin, contactPersonOrHigher, requireRoles, checkCompanyAccess } = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
 const router = express.Router();
+const { Op } = require('sequelize');
 
 // Helper function to assign user to first available training and test
 async function assignUserToFirstTrainingAndTest(userId, companyId) {
@@ -66,59 +67,46 @@ async function assignUserToFirstTrainingAndTest(userId, companyId) {
 }
 
 // GET všichni uživatelé s filtry (admin only)
-router.get('/', auth, adminOnly, async (req, res) => {
+router.get('/', [auth, adminOnly], async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const offset = (page - 1) * limit;
-    const search = req.query.search || '';
-    const role = req.query.role || '';
-    const company = req.query.company || '';
-
-    let whereClause = {};
-    let includeClause = [
-      {
-        model: Company,
-        attributes: ['id', 'name'],
-        required: false
-      }
-    ];
-
-    // Search filter
+    const { search, role, company } = req.query;
+    
+    const whereConditions = {};
+    
     if (search) {
-      whereClause[require('sequelize').Op.or] = [
-        { name: { [require('sequelize').Op.iLike]: `%${search}%` } },
-        { email: { [require('sequelize').Op.iLike]: `%${search}%` } }
+      whereConditions[Op.or] = [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { email: { [Op.iLike]: `%${search}%` } }
       ];
     }
-
-    // Role filter
+    
     if (role) {
-      whereClause.role = role;
+      whereConditions.role = role;
     }
-
-    // Company filter
+    
     if (company) {
-      whereClause.companyId = parseInt(company);
+      whereConditions.companyId = company;
     }
 
-    const { count, rows } = await User.findAndCountAll({
-      where: whereClause,
-      include: includeClause,
+    const users = await User.findAll({
+      where: whereConditions,
       attributes: { exclude: ['password'] },
-      limit,
-      offset,
-      order: [['id', 'DESC']]
+      include: [
+        {
+          model: Company,
+          attributes: ['id', 'name']
+        }
+      ],
+      order: [
+        ['role', 'ASC'],
+        ['name', 'ASC']
+      ]
     });
 
-    res.json({
-      users: rows,
-      totalUsers: count,
-      totalPages: Math.ceil(count / limit),
-      currentPage: page
-    });
+    console.log(`📊 Found ${users.length} users matching filters`);
+    res.json({ users });
   } catch (error) {
-    console.error('Get users error:', error);
+    console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Failed to fetch users' });
   }
 });

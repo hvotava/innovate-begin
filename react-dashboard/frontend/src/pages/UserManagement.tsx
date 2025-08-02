@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
+  Card,
+  CardContent,
   Typography,
   Button,
   Dialog,
@@ -8,44 +10,38 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  FormControl,
-  InputLabel,
   Select,
   MenuItem,
+  FormControl,
+  InputLabel,
   Chip,
-  Alert,
-  Snackbar,
-  Paper,
-  useMediaQuery,
-  useTheme,
-  Card,
-  CardContent,
-  CardActions,
-  Fab,
-  Grid,
   IconButton,
-  Tooltip,
-  Tab,
-  Tabs,
+  Snackbar,
+  Alert,
+  useTheme,
+  useMediaQuery,
+  Fab,
+  Paper,
   Divider,
-  LinearProgress
+  Stack,
+  Tooltip
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
+import { DataGrid, GridColDef, GridActionsCellItem } from '@mui/x-data-grid';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Person as PersonIcon,
   Business as BusinessIcon,
-  Search as SearchIcon,
-  AdminPanelSettings as AdminIcon,
-  SupervisorAccount as SuperuserIcon,
-  ContactPhone as ContactIcon,
-  PersonOutline as UserIcon,
+  FilterList as FilterIcon,
   Analytics as AnalyticsIcon,
   Phone as PhoneIcon,
-  Language as LanguageIcon
+  Language as LanguageIcon,
+  Email as EmailIcon,
+  School as SchoolIcon,
+  Group as GroupIcon
 } from '@mui/icons-material';
-import { DataGrid, GridColDef, GridActionsCellItem } from '@mui/x-data-grid';
 import { usersManagementAPI, companiesAPI, userService } from '../services/api';
 import { User, Company, UserStats, UserRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -57,9 +53,10 @@ interface UserFormData {
   email: string;
   password: string;
   role: UserRole;
-  companyId: number | '';
+  companyId: string;
   phone: string;
   language: string;
+  current_lesson_level: number;
 }
 
 interface TabPanelProps {
@@ -100,7 +97,8 @@ const UserManagement: React.FC = () => {
     role: 'regular_user',
     companyId: '',
     phone: '',
-    language: 'cs'
+    language: 'cs',
+    current_lesson_level: 0
   });
   
   // Filters
@@ -187,7 +185,8 @@ const UserManagement: React.FC = () => {
         role: targetUser.role,
         companyId: targetUser.companyId || '',
         phone: targetUser.phone || '',
-        language: targetUser.language || 'cs'
+        language: targetUser.language || 'cs',
+        current_lesson_level: targetUser.current_lesson_level || 0
       });
     } else {
       setEditingUser(null);
@@ -198,7 +197,8 @@ const UserManagement: React.FC = () => {
         role: 'regular_user',
         companyId: '',
         phone: '',
-        language: 'cs'
+        language: 'cs',
+        current_lesson_level: 0
       });
     }
     setDialogOpen(true);
@@ -214,7 +214,8 @@ const UserManagement: React.FC = () => {
       role: 'regular_user',
       companyId: '',
       phone: '',
-      language: 'cs'
+      language: 'cs',
+      current_lesson_level: 0
     });
   };
 
@@ -230,6 +231,7 @@ const UserManagement: React.FC = () => {
           language: string;
           password?: string;
           phone?: string;
+          current_lesson_level?: number;
         } = {
           name: formData.name,
           email: formData.email,
@@ -249,6 +251,10 @@ const UserManagement: React.FC = () => {
         }
         // Pokud je prázdný, tak vůbec neposíláme phone field
 
+        if (formData.current_lesson_level !== editingUser.current_lesson_level) {
+          updateData.current_lesson_level = formData.current_lesson_level;
+        }
+
         console.log('🔄 UserManagement updating user:', editingUser.id, 'with data:', updateData);
         await userService.updateUser(editingUser.id, updateData);
         console.log('✅ UserManagement update successful');
@@ -267,6 +273,7 @@ const UserManagement: React.FC = () => {
           role: UserRole;
           companyId: number;
           language: string;
+          current_lesson_level: number;
           phone?: string;
         } = {
           name: formData.name,
@@ -274,7 +281,8 @@ const UserManagement: React.FC = () => {
           password: formData.password,
           role: formData.role,
           companyId: Number(formData.companyId),
-          language: formData.language
+          language: formData.language,
+          current_lesson_level: formData.current_lesson_level
         };
 
         // Přidej telefon pouze pokud není prázdný
@@ -370,16 +378,6 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const getRoleIcon = (role: UserRole) => {
-    switch (role) {
-      case 'admin': return <AdminIcon />;
-      case 'superuser': return <SuperuserIcon />;
-      case 'contact_person': return <ContactIcon />;
-      case 'regular_user': return <UserIcon />;
-      default: return <PersonIcon />;
-    }
-  };
-
   // Desktop DataGrid columns
   const columns: GridColDef[] = [
     {
@@ -399,155 +397,102 @@ const UserManagement: React.FC = () => {
       headerName: 'Role',
       width: 150,
       renderCell: (params) => (
+        <Chip 
+          label={getRoleDisplayName(params.value)} 
+          color={getRoleColor(params.value)} 
+          size="small" 
+        />
+      )
+    },
+    {
+      field: 'Company',
+      headerName: 'Společnost',
+      width: 180,
+      valueGetter: (params) => params.row.Company?.name || 'Bez společnosti',
+      renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {getRoleIcon(params.value)}
-          <Chip 
-            label={getRoleDisplayName(params.value)}
-            color={getRoleColor(params.value)}
-            size="small"
-          />
+          <BusinessIcon fontSize="small" color="action" />
+          <Typography variant="body2">
+            {params.row.Company?.name || 'Bez společnosti'}
+          </Typography>
         </Box>
       )
     },
     {
-      field: 'company',
-      headerName: 'Společnost',
-      width: 180,
-      renderCell: (params) => {
-        const company = params.row.Company;
-        return company ? (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <BusinessIcon fontSize="small" />
-            <Typography variant="body2">{company.name}</Typography>
-          </Box>
-        ) : '—';
-      }
-    },
-    {
       field: 'phone',
       headerName: 'Telefon',
-      width: 130,
-      renderCell: (params) => params.value || '—'
+      width: 140,
+      renderCell: (params) => (
+        params.value ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <PhoneIcon fontSize="small" color="success" />
+            <Typography variant="body2">{params.value}</Typography>
+          </Box>
+        ) : (
+          <Chip label="Bez telefonu" color="warning" variant="outlined" size="small" />
+        )
+      )
+    },
+    {
+      field: 'current_lesson_level',
+      headerName: 'Úroveň',
+      width: 100,
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <SchoolIcon fontSize="small" color="primary" />
+          <Typography variant="body2" color="primary">
+            {params.value || 0}
+          </Typography>
+        </Box>
+      )
     },
     {
       field: 'language',
       headerName: 'Jazyk',
-      width: 80,
+      width: 100,
       renderCell: (params) => (
-        <Chip label={params.value || 'cs'} size="small" variant="outlined" />
+        <Chip 
+          label={params.value === 'cs' ? 'ČS' : params.value === 'sk' ? 'SK' : 'EN'} 
+          variant="outlined" 
+          size="small" 
+        />
       )
     },
     {
       field: 'actions',
       type: 'actions',
       headerName: 'Akce',
-      width: 180,
+      width: 200,
       getActions: (params) => [
-        <GridActionsCellItem
-          icon={<PhoneIcon />}
-          label="Zavolat"
-          onClick={() => handleCallUser(params.row)}
-        />,
         <GridActionsCellItem
           icon={<EditIcon />}
           label="Upravit"
           onClick={() => handleOpenDialog(params.row)}
+          color="primary"
         />,
         <GridActionsCellItem
-          icon={<AdminIcon />}
-          label="Změnit roli"
+          icon={<GroupIcon />}
+          label="Role"
           onClick={() => handleOpenRoleDialog(params.row)}
+          color="secondary"
+        />,
+        <GridActionsCellItem
+          icon={<PhoneIcon />}
+          label="Zavolat"
+          onClick={() => handleCallUser(params.row)}
+          color="success"
+          disabled={!params.row.phone}
         />,
         <GridActionsCellItem
           icon={<DeleteIcon />}
           label="Smazat"
-          onClick={() => handleDeleteUser(params.row)}
+          onClick={() => handleDeleteUser(params.row.id)}
+          color="error"
           disabled={params.row.id === user?.id}
         />
       ]
     }
   ];
-
-  // Mobile Card Component
-  const UserCard: React.FC<{ user: User }> = ({ user: targetUser }) => (
-    <Card sx={{ mb: 2 }}>
-      <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          {getRoleIcon(targetUser.role)}
-          <Box sx={{ ml: 1, flexGrow: 1 }}>
-            <Typography variant="h6" component="div">
-              {targetUser.name}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {targetUser.email}
-            </Typography>
-          </Box>
-          <Chip 
-            label={getRoleDisplayName(targetUser.role)}
-            color={getRoleColor(targetUser.role)}
-            size="small"
-          />
-        </Box>
-        
-        {targetUser.Company && (
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <BusinessIcon fontSize="small" sx={{ mr: 1 }} />
-            <Typography variant="body2">
-              {targetUser.Company.name}
-            </Typography>
-          </Box>
-        )}
-        
-        {targetUser.phone && (
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <PhoneIcon fontSize="small" sx={{ mr: 1 }} />
-            <Typography variant="body2">
-              {targetUser.phone}
-            </Typography>
-          </Box>
-        )}
-
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-          <LanguageIcon fontSize="small" sx={{ mr: 1 }} />
-          <Chip label={targetUser.language || 'cs'} size="small" variant="outlined" />
-        </Box>
-      </CardContent>
-      
-      <CardActions>
-        <Button 
-          size="small" 
-          startIcon={<PhoneIcon />}
-          onClick={() => handleCallUser(targetUser)}
-          color="primary"
-        >
-          Zavolat
-        </Button>
-        <Button 
-          size="small" 
-          startIcon={<EditIcon />}
-          onClick={() => handleOpenDialog(targetUser)}
-        >
-          Upravit
-        </Button>
-        <Button 
-          size="small" 
-          startIcon={<AdminIcon />}
-          onClick={() => handleOpenRoleDialog(targetUser)}
-        >
-          Role
-        </Button>
-        <Button 
-          size="small" 
-          startIcon={<DeleteIcon />}
-          color="error"
-          onClick={() => handleDeleteUser(targetUser)}
-          disabled={targetUser.id === user?.id}
-        >
-          Smazat
-        </Button>
-      </CardActions>
-    </Card>
-  );
 
   // Statistics Component
   const StatsPanel: React.FC = () => (
@@ -563,10 +508,11 @@ const UserManagement: React.FC = () => {
             <Box key={stat.role} sx={{ mb: 2 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {getRoleIcon(stat.role as UserRole)}
-                  <Typography variant="body2">
-                    {getRoleDisplayName(stat.role as UserRole)}
-                  </Typography>
+                  <Chip 
+                    label={getRoleDisplayName(stat.role as UserRole)} 
+                    color={getRoleColor(stat.role as UserRole)} 
+                    size="small" 
+                  />
                 </Box>
                 <Typography variant="body2" fontWeight="bold">
                   {stat.count}
@@ -720,9 +666,161 @@ const UserManagement: React.FC = () => {
         {/* Content */}
         {isMobile ? (
           <>
-            {/* Mobile Card View */}
-            {users.map((targetUser) => (
-              <UserCard key={targetUser.id} user={targetUser} />
+            {/* User Cards for Mobile */}
+            {users.map((user) => (
+              <Card key={user.id} sx={{ mb: 2 }}>
+                <CardContent>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <PersonIcon color="primary" />
+                        <Typography variant="h6" component="h3">
+                          {user.name}
+                        </Typography>
+                        <Chip 
+                          label={getRoleDisplayName(user.role)} 
+                          color={getRoleColor(user.role)} 
+                          size="small" 
+                        />
+                      </Box>
+                      
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <EmailIcon fontSize="small" color="action" />
+                        <Typography variant="body2" color="text.secondary">
+                          {user.email}
+                        </Typography>
+                      </Box>
+                      
+                      {user.phone && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                          <PhoneIcon fontSize="small" color="action" />
+                          <Typography variant="body2" color="text.secondary">
+                            {user.phone}
+                          </Typography>
+                        </Box>
+                      )}
+                      
+                      {user.Company && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                          <BusinessIcon fontSize="small" color="action" />
+                          <Typography variant="body2" color="text.secondary">
+                            {user.Company.name}
+                          </Typography>
+                        </Box>
+                      )}
+
+                      {/* Nové informace: Lesson Level & Language */}
+                      <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                        {user.current_lesson_level && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <SchoolIcon fontSize="small" color="primary" />
+                            <Typography variant="caption" color="primary">
+                              Úroveň: {user.current_lesson_level}
+                            </Typography>
+                          </Box>
+                        )}
+                        
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <LanguageIcon fontSize="small" color="action" />
+                          <Typography variant="caption" color="text.secondary">
+                            {user.language === 'cs' ? 'Čeština' : user.language === 'sk' ? 'Slovenština' : 'English'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Grid>
+                    
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        gap: 1, 
+                        flexWrap: 'wrap',
+                        justifyContent: { xs: 'flex-start', sm: 'flex-end' }
+                      }}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleOpenDialog(user)}
+                          color="primary"
+                          title="Upravit uživatele"
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        
+                        <IconButton
+                          size="small"
+                          onClick={() => handleOpenRoleDialog(user)}
+                          color="secondary"
+                          title="Změnit role"
+                        >
+                          <GroupIcon />
+                        </IconButton>
+                        
+                        <IconButton
+                          size="small"
+                          onClick={() => handleCallUser(user)}
+                          color="success"
+                          title="Zavolat přes Twilio"
+                          disabled={!user.phone}
+                        >
+                          <PhoneIcon />
+                        </IconButton>
+                        
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeleteUser(user.id)}
+                          color="error"
+                          title="Smazat uživatele"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Box>
+                      
+                      {/* Status indicators */}
+                      <Box sx={{ 
+                        display: 'flex', 
+                        gap: 1, 
+                        mt: 1,
+                        justifyContent: { xs: 'flex-start', sm: 'flex-end' }
+                      }}>
+                        {user.phone ? (
+                          <Chip 
+                            icon={<PhoneIcon />} 
+                            label="Telefon OK" 
+                            color="success" 
+                            variant="outlined" 
+                            size="small" 
+                          />
+                        ) : (
+                          <Chip 
+                            icon={<PhoneIcon />} 
+                            label="Bez telefonu" 
+                            color="warning" 
+                            variant="outlined" 
+                            size="small" 
+                          />
+                        )}
+                        
+                        {user.Company ? (
+                          <Chip 
+                            icon={<BusinessIcon />} 
+                            label="Přiřazen" 
+                            color="success" 
+                            variant="outlined" 
+                            size="small" 
+                          />
+                        ) : (
+                          <Chip 
+                            icon={<BusinessIcon />} 
+                            label="Bez firmy" 
+                            color="error" 
+                            variant="outlined" 
+                            size="small" 
+                          />
+                        )}
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
             ))}
             
             {/* Mobile FAB */}
@@ -854,12 +952,12 @@ const UserManagement: React.FC = () => {
                 <InputLabel>Společnost</InputLabel>
                 <Select
                   value={formData.companyId}
-                  onChange={(e) => setFormData({ ...formData, companyId: e.target.value as number })}
+                  onChange={(e) => setFormData({ ...formData, companyId: e.target.value as string })}
                   label="Společnost"
                   required
                 >
                   {companies.map((company) => (
-                    <MenuItem key={company.id} value={company.id}>
+                    <MenuItem key={company.id} value={company.id.toString()}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <BusinessIcon fontSize="small" />
                         <Typography>{company.name}</Typography>
@@ -895,6 +993,23 @@ const UserManagement: React.FC = () => {
                       English
                     </Box>
                   </MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Úroveň lekce</InputLabel>
+                <Select
+                  value={formData.current_lesson_level}
+                  onChange={(e) => setFormData({ ...formData, current_lesson_level: Number(e.target.value) })}
+                  label="Úroveň lekce"
+                >
+                  <MenuItem value={0}>Nezařazen</MenuItem>
+                  <MenuItem value={1}>1. úroveň</MenuItem>
+                  <MenuItem value={2}>2. úroveň</MenuItem>
+                  <MenuItem value={3}>3. úroveň</MenuItem>
+                  <MenuItem value={4}>4. úroveň</MenuItem>
+                  <MenuItem value={5}>5. úroveň</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
