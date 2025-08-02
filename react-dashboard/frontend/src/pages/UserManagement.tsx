@@ -24,7 +24,10 @@ import {
   Paper,
   Divider,
   Stack,
-  Tooltip
+  Tooltip,
+  LinearProgress,
+  Tabs,
+  Tab
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import { DataGrid, GridColDef, GridActionsCellItem } from '@mui/x-data-grid';
@@ -40,7 +43,12 @@ import {
   Language as LanguageIcon,
   Email as EmailIcon,
   School as SchoolIcon,
-  Group as GroupIcon
+  Group as GroupIcon,
+  Search as SearchIcon,
+  AdminPanelSettings as AdminIcon,
+  SupervisorAccount as SuperuserIcon,
+  ContactPhone as ContactIcon,
+  PersonOutline as UserIcon
 } from '@mui/icons-material';
 import { usersManagementAPI, companiesAPI, userService } from '../services/api';
 import { User, Company, UserStats, UserRole } from '../types';
