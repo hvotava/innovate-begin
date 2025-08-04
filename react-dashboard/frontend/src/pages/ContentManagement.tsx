@@ -137,27 +137,38 @@ const ContentManagement: React.FC = () => {
 
   // File upload handling
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (!user?.companyId || acceptedFiles.length === 0) return;
+    console.log('📁 onDrop called with files:', acceptedFiles);
+    console.log('👤 User:', user);
+    console.log('🏢 Company ID:', user?.companyId);
+    
+    if (!user?.companyId || acceptedFiles.length === 0) {
+      console.log('❌ Early return - no company or files');
+      return;
+    }
 
     setUploading(true);
     setError(null);
     setSuccess(null);
 
     try {
+      console.log('📤 Starting upload process...');
       const formData = new FormData();
       formData.append('company_id', user.companyId.toString());
       formData.append('title', uploadTitle || acceptedFiles[0].name);
       formData.append('content_type', acceptedFiles[0].type.includes('pdf') ? 'pdf' : 'text');
       
       acceptedFiles.forEach(file => {
+        console.log('📎 Adding file:', file.name, file.type, file.size);
         formData.append('files', file);
       });
 
+      console.log('🚀 Making API call to /api/content/upload');
       const response = await api.post('/api/content/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
+      console.log('✅ Upload response:', response.data);
 
       if (response.data.success) {
         setSuccess(`Successfully uploaded ${acceptedFiles.length} file(s)`);
@@ -167,9 +178,12 @@ const ContentManagement: React.FC = () => {
         setError('Upload failed');
       }
     } catch (err: any) {
-      console.error('Upload error:', err);
+      console.error('❌ Upload error:', err);
+      console.error('📋 Error details:', err.response?.data);
+      console.error('🔢 Status code:', err.response?.status);
       setError(err.response?.data?.error || 'Upload failed');
     } finally {
+      console.log('🏁 Upload process finished');
       setUploading(false);
     }
   }, [user?.companyId, uploadTitle, loadContentSources]);
