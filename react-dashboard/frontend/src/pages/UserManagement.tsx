@@ -398,8 +398,7 @@ const UserManagement: React.FC = () => {
       field: 'email',
       headerName: 'Email',
       flex: 1,
-      minWidth: isMobile ? 150 : 200,
-      hide: isMobile ? false : false // Vždy zobrazit email
+      minWidth: isMobile ? 150 : 200
     },
     {
       field: 'role',
@@ -417,7 +416,6 @@ const UserManagement: React.FC = () => {
       field: 'Company',
       headerName: 'Společnost',
       width: isMobile ? 140 : 180,
-      hide: isMobile, // Skrýt na mobilech
       valueGetter: (params) => params.row.Company?.name || 'Bez společnosti',
       renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -432,7 +430,6 @@ const UserManagement: React.FC = () => {
       field: 'phone',
       headerName: 'Telefon',
       width: isMobile ? 100 : 140,
-      hide: isMobile, // Skrýt na mobilech
       renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <PhoneIcon fontSize="small" color="action" />
@@ -446,7 +443,6 @@ const UserManagement: React.FC = () => {
       field: 'current_lesson_level',
       headerName: 'Úroveň',
       width: isMobile ? 80 : 100,
-      hide: isMobile, // Skrýt na mobilech
       renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <SchoolIcon fontSize="small" color="primary" />
@@ -460,7 +456,6 @@ const UserManagement: React.FC = () => {
       field: 'language',
       headerName: 'Jazyk',
       width: isMobile ? 70 : 90,
-      hide: isMobile, // Skrýt na mobilech
       renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <LanguageIcon fontSize="small" color="action" />
