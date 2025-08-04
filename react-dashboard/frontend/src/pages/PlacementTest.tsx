@@ -31,7 +31,7 @@ import {
   Timer as TimerIcon,
   School as SchoolIcon
 } from '@mui/icons-material';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 
 interface PlacementTestData {

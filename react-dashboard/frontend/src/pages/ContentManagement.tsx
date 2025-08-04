@@ -52,7 +52,7 @@ import {
   TextFields as TextFieldsIcon
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 
 interface ContentSource {
