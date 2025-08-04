@@ -1811,7 +1811,7 @@ async def voice_call_handler(request: Request):
         <Stream 
             name="ai_assistant_stream"
             url="wss://lecture-app-production.up.railway.app/audio" 
-            track="both_tracks" 
+            track="both" 
             statusCallback="https://lecture-app-production.up.railway.app/stream-callback"
             statusCallbackMethod="POST"
         />
