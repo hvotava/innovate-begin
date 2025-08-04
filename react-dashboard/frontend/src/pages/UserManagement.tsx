@@ -191,7 +191,7 @@ const UserManagement: React.FC = () => {
         email: targetUser.email,
         password: '', // Necháme prázdné pro bezpečnost
         role: targetUser.role,
-        companyId: targetUser.companyId || '',
+        companyId: targetUser.companyId ? String(targetUser.companyId) : '',
         phone: targetUser.phone || '',
         language: targetUser.language || 'cs',
         current_lesson_level: targetUser.current_lesson_level || 0
