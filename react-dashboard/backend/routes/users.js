@@ -352,33 +352,51 @@ router.post('/:id/call', auth, adminOnly, async (req, res) => {
     // Twilio integration
     if (twilioClient && process.env.TWILIO_PHONE_NUMBER) {
       try {
-        // Určit správnou backend URL pro webhooks - vždycky použijeme lecture-app doménu
-        const getBackendUrl = () => {
+        // Určit správnou backend URL pro webhooks
+        const getVoiceBackendUrl = () => {
           // Pro lokální development
           if (process.env.NODE_ENV === 'development') {
             return 'http://localhost:5000';
           }
-          // Vždycky použijeme správnou lecture-app doménu pro Twilio webhooks
+          // Voice webhook směřuje na lecture-app server
           return 'https://lecture-app-production.up.railway.app';
         };
 
-        const backendUrl = getBackendUrl();
-        console.log('🔍 Using backend URL for Twilio webhooks:', backendUrl);
+        const getStatusBackendUrl = () => {
+          // Pro lokální development
+          if (process.env.NODE_ENV === 'development') {
+            return 'http://localhost:5000';
+          }
+          // Status callback směřuje na React dashboard server (kde je /api/twilio/status endpoint)
+          if (process.env.BACKEND_URL) {
+            return process.env.BACKEND_URL.startsWith('http') ? process.env.BACKEND_URL : `https://${process.env.BACKEND_URL}`;
+          }
+          if (process.env.RAILWAY_STATIC_URL) {
+            return process.env.RAILWAY_STATIC_URL.startsWith('http') ? process.env.RAILWAY_STATIC_URL : `https://${process.env.RAILWAY_STATIC_URL}`;
+          }
+          // Fallback pro React dashboard
+          return 'https://lecture-final-production.up.railway.app';
+        };
+
+        const voiceBackendUrl = getVoiceBackendUrl();
+        const statusBackendUrl = getStatusBackendUrl();
+        console.log('🔍 Using voice backend URL for Twilio webhooks:', voiceBackendUrl);
+        console.log('🔍 Using status backend URL for Twilio webhooks:', statusBackendUrl);
 
         const call = await twilioClient.calls.create({
           to: user.phone,
           from: process.env.TWILIO_PHONE_NUMBER,
-          url: `${backendUrl}/audio/`,
+          url: `${voiceBackendUrl}/audio/`,
           method: 'POST',
           record: true,
-          statusCallback: `${backendUrl}/api/twilio/status`,
+          statusCallback: `${statusBackendUrl}/api/twilio/status`,
           statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
           statusCallbackMethod: 'POST'
         });
 
         console.log(`✅ Twilio call initiated to ${user.name} (${user.phone}): ${call.sid}`);
-        console.log(`📞 Voice webhook: ${backendUrl}/api/twilio/voice`);
-        console.log(`📊 Status webhook: ${backendUrl}/api/twilio/status`);
+        console.log(`📞 Voice webhook: ${voiceBackendUrl}/audio/`);
+        console.log(`📊 Status webhook: ${statusBackendUrl}/api/twilio/status`);
 
         res.json({
           message: `Volání úspěšně zahájeno pro uživatele ${user.name} ${lessonInfo}`,
