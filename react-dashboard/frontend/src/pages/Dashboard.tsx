@@ -291,7 +291,15 @@ const Dashboard: React.FC = () => {
       <Grid container spacing={{ xs: 2, sm: 3 }}>
         {/* Activity Chart */}
         <Grid xs={12} lg={8}>
-          <Paper sx={{ p: { xs: 2, sm: 3 }, height: { xs: 300, sm: 400 } }}>
+          <Paper sx={{ 
+            p: { xs: 2, sm: 3 }, 
+            height: { xs: 300, sm: 400 },
+            '& .recharts-wrapper': {
+              '& .recharts-cartesian-axis-tick-value': {
+                fontSize: { xs: '10px', sm: '12px' }
+              }
+            }
+          }}>
             <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
               <TrendingUpIcon sx={{ mr: 1 }} />
               Aktivita za posledních 7 dní

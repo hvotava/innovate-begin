@@ -392,18 +392,19 @@ const UserManagement: React.FC = () => {
       field: 'name',
       headerName: 'Jméno',
       flex: 1,
-      minWidth: 150
+      minWidth: isMobile ? 120 : 150
     },
     {
       field: 'email',
       headerName: 'Email',
       flex: 1,
-      minWidth: 200
+      minWidth: isMobile ? 150 : 200,
+      hide: isMobile ? false : false // Vždy zobrazit email
     },
     {
       field: 'role',
       headerName: 'Role',
-      width: 150,
+      width: isMobile ? 100 : 150,
       renderCell: (params) => (
         <Chip 
           label={getRoleDisplayName(params.value)} 
@@ -415,7 +416,8 @@ const UserManagement: React.FC = () => {
     {
       field: 'Company',
       headerName: 'Společnost',
-      width: 180,
+      width: isMobile ? 140 : 180,
+      hide: isMobile, // Skrýt na mobilech
       valueGetter: (params) => params.row.Company?.name || 'Bez společnosti',
       renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -429,22 +431,22 @@ const UserManagement: React.FC = () => {
     {
       field: 'phone',
       headerName: 'Telefon',
-      width: 140,
+      width: isMobile ? 100 : 140,
+      hide: isMobile, // Skrýt na mobilech
       renderCell: (params) => (
-        params.value ? (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <PhoneIcon fontSize="small" color="success" />
-            <Typography variant="body2">{params.value}</Typography>
-          </Box>
-        ) : (
-          <Chip label="Bez telefonu" color="warning" variant="outlined" size="small" />
-        )
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <PhoneIcon fontSize="small" color="action" />
+          <Typography variant="body2">
+            {params.value || '-'}
+          </Typography>
+        </Box>
       )
     },
     {
       field: 'current_lesson_level',
       headerName: 'Úroveň',
-      width: 100,
+      width: isMobile ? 80 : 100,
+      hide: isMobile, // Skrýt na mobilech
       renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <SchoolIcon fontSize="small" color="primary" />
@@ -457,48 +459,64 @@ const UserManagement: React.FC = () => {
     {
       field: 'language',
       headerName: 'Jazyk',
-      width: 100,
+      width: isMobile ? 70 : 90,
+      hide: isMobile, // Skrýt na mobilech
       renderCell: (params) => (
-        <Chip 
-          label={params.value === 'cs' ? 'ČS' : params.value === 'sk' ? 'SK' : 'EN'} 
-          variant="outlined" 
-          size="small" 
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <LanguageIcon fontSize="small" color="action" />
+          <Typography variant="body2">
+            {params.value === 'cs' ? 'CZ' : params.value === 'sk' ? 'SK' : 'EN'}
+          </Typography>
+        </Box>
       )
     },
     {
       field: 'actions',
       type: 'actions',
       headerName: 'Akce',
-      width: 200,
-      getActions: (params) => [
-        <GridActionsCellItem
-          icon={<EditIcon />}
-          label="Upravit"
-          onClick={() => handleOpenDialog(params.row)}
-          color="primary"
-        />,
-        <GridActionsCellItem
-          icon={<GroupIcon />}
-          label="Role"
-          onClick={() => handleOpenRoleDialog(params.row)}
-          color="secondary"
-        />,
-        <GridActionsCellItem
-          icon={<PhoneIcon />}
-          label="Zavolat"
-          onClick={() => handleCallUser(params.row)}
-          color="success"
-          disabled={!params.row.phone}
-        />,
-        <GridActionsCellItem
-          icon={<DeleteIcon />}
-          label="Smazat"
-          onClick={() => handleDeleteUser(params.row)}
-          color="error"
-          disabled={params.row.id === user?.id}
-        />
-      ]
+      width: isMobile ? 120 : 200,
+      getActions: (params) => {
+        const actions = [
+          <GridActionsCellItem
+            icon={<EditIcon />}
+            label="Upravit"
+            onClick={() => handleOpenDialog(params.row)}
+            color="primary"
+          />
+        ];
+
+        // Přidat další akce pouze na desktop
+        if (!isMobile) {
+          actions.push(
+            <GridActionsCellItem
+              icon={<GroupIcon />}
+              label="Role"
+              onClick={() => handleOpenRoleDialog(params.row)}
+              color="secondary"
+            />,
+            <GridActionsCellItem
+              icon={<PhoneIcon />}
+              label="Volat"
+              onClick={() => handleCallUser(params.row)}
+              color="success"
+              disabled={!params.row.phone}
+            />
+          );
+        }
+
+        // Delete akce vždy
+        actions.push(
+          <GridActionsCellItem
+            icon={<DeleteIcon />}
+            label="Smazat"
+            onClick={() => handleDeleteUser(params.row)}
+            color="error"
+            disabled={params.row.id === user?.id}
+          />
+        );
+
+        return actions;
+      }
     }
   ];
 
@@ -675,9 +693,30 @@ const UserManagement: React.FC = () => {
         {isMobile ? (
           <>
             {/* User Cards for Mobile */}
-            {users.map((user) => (
-              <Card key={user.id} sx={{ mb: 2 }}>
-                <CardContent>
+            <Box sx={{ 
+              maxHeight: '70vh',
+              overflow: 'auto',
+              '&::-webkit-scrollbar': {
+                width: '4px'
+              },
+              '&::-webkit-scrollbar-track': {
+                backgroundColor: '#f1f1f1'
+              },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: '#c1c1c1',
+                borderRadius: '4px'
+              }
+            }}>
+              {users.map((user) => (
+                <Card key={user.id} sx={{ 
+                  mb: 2,
+                  '&:hover': {
+                    boxShadow: 3,
+                    transform: 'translateY(-1px)',
+                    transition: 'all 0.2s ease-in-out'
+                  }
+                }}>
+                  <CardContent>
                   <Grid container spacing={2} alignItems="center">
                     <Grid item xs={12} sm={6}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -828,8 +867,9 @@ const UserManagement: React.FC = () => {
                     </Grid>
                   </Grid>
                 </CardContent>
-              </Card>
-            ))}
+                  </Card>
+                ))}
+              </Box>
             
             {/* Mobile FAB */}
             <Fab
@@ -843,7 +883,20 @@ const UserManagement: React.FC = () => {
           </>
         ) : (
           // Desktop DataGrid
-          <Paper sx={{ height: 600, width: '100%' }}>
+          <Paper sx={{ 
+            height: 600, 
+            width: '100%',
+            '& .MuiDataGrid-root': {
+              border: 'none'
+            },
+            '& .MuiDataGrid-cell': {
+              borderBottom: '1px solid #e0e0e0'
+            },
+            '& .MuiDataGrid-columnHeaders': {
+              backgroundColor: '#f5f5f5',
+              borderBottom: '2px solid #e0e0e0'
+            }
+          }}>
             <DataGrid
               rows={users}
               columns={columns}
@@ -854,6 +907,14 @@ const UserManagement: React.FC = () => {
               initialState={{
                 pagination: {
                   paginationModel: { pageSize: 25 }
+                }
+              }}
+              sx={{
+                '& .MuiDataGrid-cell:focus': {
+                  outline: 'none'
+                },
+                '& .MuiDataGrid-row:hover': {
+                  backgroundColor: '#f8f9fa'
                 }
               }}
             />

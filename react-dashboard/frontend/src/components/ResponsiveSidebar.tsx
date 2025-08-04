@@ -30,6 +30,11 @@ import {
   AdminPanelSettings as AdminIcon,
   Person as UserIcon,
   Menu as MenuIcon,
+  Assignment as AssignmentIcon,
+  CloudUpload as CloudUploadIcon,
+  Psychology as PsychologyIcon,
+  Insights as InsightsIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { canManageUsers, canManageCompanies, canManageTrainings, canViewAllData, getRoleDisplayName, getRoleColor } from '../utils/permissions';
@@ -43,6 +48,20 @@ const getMenuItems = (user: any) => {
   const items = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', show: true },
   ];
+
+  // Placement test pro všechny uživatele (pokud nemají dokončený)
+  if (!user.placement_completed) {
+    items.push(
+      { text: 'Placement Test', icon: <AssignmentIcon />, path: '/placement-test', show: true }
+    );
+  }
+
+  // Review Dashboard pro všechny uživatele (kteří už začali učení)
+  if (user.placement_completed) {
+    items.push(
+      { text: 'Review Dashboard', icon: <RefreshIcon />, path: '/review-dashboard', show: true }
+    );
+  }
 
   // Role-based menu items
   if (canManageUsers(user.role)) {
@@ -61,7 +80,9 @@ const getMenuItems = (user: any) => {
     items.push(
       { text: 'Školení', icon: <SchoolIcon />, path: '/trainings', show: true },
       { text: 'Lekce', icon: <SchoolIcon />, path: '/lessons', show: true },
-      { text: 'Testy', icon: <QuizIcon />, path: '/tests', show: true }
+      { text: 'Testy', icon: <QuizIcon />, path: '/tests', show: true },
+      { text: 'Správa obsahu', icon: <CloudUploadIcon />, path: '/content-management', show: true },
+      { text: 'Správa otázek', icon: <PsychologyIcon />, path: '/question-manager', show: true }
     );
   }
 
@@ -82,7 +103,8 @@ const getMenuItems = (user: any) => {
   // Analytics jen pro admin
   if (user.role === 'admin') {
     items.push(
-      { text: 'Analytika', icon: <AnalyticsIcon />, path: '/analytics', show: true }
+      { text: 'Analytika', icon: <AnalyticsIcon />, path: '/analytics', show: true },
+      { text: 'Progress Analytics', icon: <InsightsIcon />, path: '/progress-analytics', show: true }
     );
   }
 

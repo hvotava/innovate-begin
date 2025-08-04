@@ -20,6 +20,11 @@ import Trainings from './pages/Trainings';
 import Lessons from './pages/Lessons';
 import Tests from './pages/Tests';
 import Analytics from './pages/Analytics';
+import PlacementTest from './pages/PlacementTest';
+import ContentManagement from './pages/ContentManagement';
+import ProgressAnalytics from './pages/ProgressAnalytics';
+import QuestionManager from './pages/QuestionManager';
+import ReviewDashboard from './pages/ReviewDashboard';
 
 // Enhanced responsive theme
 const theme = createTheme({
@@ -233,6 +238,61 @@ function App() {
                 <ProtectedRoute adminOnly>
                   <ResponsiveSidebar>
                     <Analytics />
+                  </ResponsiveSidebar>
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/placement-test"
+              element={
+                <ProtectedRoute>
+                  <ResponsiveSidebar>
+                    <PlacementTest />
+                  </ResponsiveSidebar>
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/content-management"
+              element={
+                <ProtectedRoute adminOnly>
+                  <ResponsiveSidebar>
+                    <ContentManagement />
+                  </ResponsiveSidebar>
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/progress-analytics"
+              element={
+                <ProtectedRoute adminOnly>
+                  <ResponsiveSidebar>
+                    <ProgressAnalytics />
+                  </ResponsiveSidebar>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/question-manager"
+              element={
+                <ProtectedRoute adminOnly>
+                  <ResponsiveSidebar>
+                    <QuestionManager />
+                  </ResponsiveSidebar>
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/review-dashboard"
+              element={
+                <ProtectedRoute>
+                  <ResponsiveSidebar>
+                    <ReviewDashboard />
                   </ResponsiveSidebar>
                 </ProtectedRoute>
               }

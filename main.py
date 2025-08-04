@@ -1660,6 +1660,798 @@ async def admin_lesson_0_questions_post(request: Request):
     finally:
         session.close()
 
+# ==========================================
+# NOVÉ API ENDPOINTY PRO AI LEKTOR SYSTÉM
+# ==========================================
+
+# Import AI služeb
+from app.ai_services import AIServiceFactory, AIServiceError
+import os
+from fastapi import UploadFile, File
+import aiofiles
+
+# Inicializace AI služeb
+ai_factory = AIServiceFactory(openai_api_key=os.getenv("OPENAI_API_KEY"))
+
+# Placement Test API
+@app.post("/api/placement-test/analyze")
+async def analyze_placement_test(request: Request):
+    """Analyze user's placement test text and determine level"""
+    try:
+        body = await request.json()
+        user_id = body.get("user_id")
+        text_input = body.get("text", "").strip()
+        company_id = body.get("company_id")
+        
+        if not text_input or len(text_input) < 50:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Text must be at least 50 characters long"}
+            )
+        
+        session = SessionLocal()
+        try:
+            # Get user
+            user = session.query(User).filter(User.id == user_id).first()
+            if not user:
+                return JSONResponse(status_code=404, content={"error": "User not found"})
+            
+            # Get or create placement test for company
+            placement_test = session.query(PlacementTest).filter(
+                PlacementTest.company_id == company_id,
+                PlacementTest.is_active == True
+            ).first()
+            
+            if not placement_test:
+                # Create default placement test
+                placement_test = PlacementTest(
+                    company_id=company_id,
+                    title="Default English Placement Test",
+                    instructions="Write about any topic to help us assess your English level.",
+                    questions=[],
+                    scoring_matrix={},
+                    time_limit=30,
+                    min_text_length=100,
+                    is_active=True
+                )
+                session.add(placement_test)
+                session.commit()
+            
+            # Analyze text with AI
+            placement_service = ai_factory.get_placement_service()
+            analysis = await placement_service.analyze_placement_text(text_input)
+            
+            # Save placement result
+            placement_result = PlacementResult(
+                user_id=user_id,
+                placement_test_id=placement_test.id,
+                raw_text_input=text_input,
+                ai_analysis=analysis,
+                determined_level=analysis["level"],
+                confidence_score=analysis["confidence"],
+                strengths=analysis.get("strengths", []),
+                weaknesses=analysis.get("weaknesses", []),
+                recommended_focus=analysis.get("recommended_focus", [])
+            )
+            session.add(placement_result)
+            
+            # Update user
+            user.placement_completed = True
+            user.placement_score = analysis["confidence"]
+            user.level = analysis["level"]
+            
+            session.commit()
+            
+            return JSONResponse(content={
+                "success": True,
+                "analysis": analysis,
+                "placement_result_id": placement_result.id,
+                "user_updated": True
+            })
+            
+        except AIServiceError as e:
+            session.rollback()
+            logger.error(f"AI service error in placement test: {e}")
+            return JSONResponse(status_code=400, content={"error": str(e)})
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error in placement test analysis: {e}")
+            return JSONResponse(status_code=500, content={"error": "Internal server error"})
+        finally:
+            session.close()
+            
+    except Exception as e:
+        logger.error(f"Request processing error: {e}")
+        return JSONResponse(status_code=400, content={"error": "Invalid request format"})
+
+@app.get("/api/placement-test/{company_id}")
+async def get_placement_test(company_id: int):
+    """Get placement test for a company"""
+    session = SessionLocal()
+    try:
+        placement_test = session.query(PlacementTest).filter(
+            PlacementTest.company_id == company_id,
+            PlacementTest.is_active == True
+        ).first()
+        
+        if not placement_test:
+            # Return default placement test structure
+            return JSONResponse(content={
+                "title": "English Placement Test",
+                "instructions": "Please write at least 100 words about any topic you're comfortable with. This could be about your hobbies, work, family, or any subject you enjoy discussing. We'll use this to assess your current English level.",
+                "time_limit": 30,
+                "min_text_length": 100
+            })
+        
+        return JSONResponse(content={
+            "title": placement_test.title,
+            "instructions": placement_test.instructions,
+            "time_limit": placement_test.time_limit,
+            "min_text_length": placement_test.min_text_length
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting placement test: {e}")
+        return JSONResponse(status_code=500, content={"error": "Internal server error"})
+    finally:
+        session.close()
+
+# Content Management API
+@app.post("/api/content/upload")
+async def upload_content(
+    company_id: int,
+    title: str,
+    files: List[UploadFile] = File(...),
+    content_type: str = "pdf"
+):
+    """Upload content files for processing"""
+    session = SessionLocal()
+    try:
+        # Validate company
+        company = session.query(Company).filter(Company.id == company_id).first()
+        if not company:
+            return JSONResponse(status_code=404, content={"error": "Company not found"})
+        
+        uploaded_sources = []
+        
+        for file in files:
+            # Save file
+            upload_dir = f"uploads/company_{company_id}"
+            os.makedirs(upload_dir, exist_ok=True)
+            
+            file_path = f"{upload_dir}/{file.filename}"
+            
+            async with aiofiles.open(file_path, 'wb') as f:
+                content = await file.read()
+                await f.write(content)
+            
+            # Create content source
+            content_source = ContentSource(
+                company_id=company_id,
+                title=title or file.filename,
+                content_type=ContentType(content_type),
+                file_path=file_path,
+                file_size=len(content),
+                processing_status=ProcessingStatus.PROCESSING
+            )
+            session.add(content_source)
+            session.commit()  # Commit to get ID
+            
+            # Process content asynchronously
+            try:
+                content_service = ai_factory.get_content_service()
+                
+                if content_type == "pdf":
+                    raw_text = await content_service.extract_text_from_pdf(file_path)
+                else:
+                    raw_text = content.decode('utf-8')
+                
+                content_source.raw_content = raw_text
+                content_source.metadata = {
+                    "word_count": len(raw_text.split()),
+                    "char_count": len(raw_text),
+                    "processing_date": datetime.utcnow().isoformat()
+                }
+                content_source.processing_status = ProcessingStatus.READY
+                content_source.processed_at = datetime.utcnow()
+                
+            except Exception as e:
+                logger.error(f"Content processing error: {e}")
+                content_source.processing_status = ProcessingStatus.ERROR
+                content_source.processing_error = str(e)
+            
+            session.commit()
+            uploaded_sources.append({
+                "id": content_source.id,
+                "title": content_source.title,
+                "status": content_source.processing_status.value,
+                "file_size": content_source.file_size,
+                "word_count": content_source.metadata.get("word_count", 0) if content_source.metadata else 0
+            })
+        
+        return JSONResponse(content={
+            "success": True,
+            "uploaded_sources": uploaded_sources,
+            "message": f"Uploaded {len(files)} file(s) successfully"
+        })
+        
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Content upload error: {e}")
+        return JSONResponse(status_code=500, content={"error": f"Upload failed: {str(e)}"})
+    finally:
+        session.close()
+
+@app.post("/api/content/{content_source_id}/generate-course")
+async def generate_course_from_content(content_source_id: int, target_lessons: int = 10):
+    """Generate course from content source"""
+    session = SessionLocal()
+    try:
+        # Get content source
+        content_source = session.query(ContentSource).filter(
+            ContentSource.id == content_source_id
+        ).first()
+        
+        if not content_source:
+            return JSONResponse(status_code=404, content={"error": "Content source not found"})
+        
+        if content_source.processing_status != ProcessingStatus.READY:
+            return JSONResponse(status_code=400, content={"error": "Content not ready for processing"})
+        
+        # Generate course with AI
+        content_service = ai_factory.get_content_service()
+        course_data = await content_service.process_content_to_course(
+            content_source, target_lessons
+        )
+        
+        # Create course
+        course = Course(
+            company_id=content_source.company_id,
+            content_source_id=content_source_id,
+            title=course_data["course_title"],
+            description=course_data.get("course_description", ""),
+            total_lessons=len(course_data["lessons"]),
+            difficulty_levels=course_data.get("difficulty_levels", ["beginner", "intermediate", "advanced"]),
+            estimated_duration=course_data.get("total_estimated_hours", 0),
+            status=CourseStatus.DRAFT
+        )
+        session.add(course)
+        session.commit()  # Get course ID
+        
+        # Create lessons
+        created_lessons = []
+        for lesson_data in course_data["lessons"]:
+            lesson = Lesson(
+                course_id=course.id,
+                title=lesson_data["title"],
+                content=lesson_data["content"],
+                learning_objectives=lesson_data.get("learning_objectives", []),
+                lesson_number=lesson_data["lesson_number"],
+                order_in_course=lesson_data["lesson_number"],
+                base_difficulty=lesson_data.get("difficulty", "medium"),
+                estimated_duration=lesson_data.get("estimated_duration", 30),
+                lesson_type="teaching",
+                ai_generated=True,
+                questions={"all": [], "current": ""}  # Will be generated separately
+            )
+            session.add(lesson)
+            created_lessons.append(lesson)
+        
+        session.commit()
+        
+        # Update content source
+        content_source.processed_content = course_data
+        session.commit()
+        
+        return JSONResponse(content={
+            "success": True,
+            "course": {
+                "id": course.id,
+                "title": course.title,
+                "description": course.description,
+                "total_lessons": course.total_lessons,
+                "estimated_duration": course.estimated_duration
+            },
+            "lessons_created": len(created_lessons),
+            "message": "Course generated successfully"
+        })
+        
+    except AIServiceError as e:
+        session.rollback()
+        logger.error(f"AI service error in course generation: {e}")
+        return JSONResponse(status_code=400, content={"error": str(e)})
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Course generation error: {e}")
+        return JSONResponse(status_code=500, content={"error": f"Course generation failed: {str(e)}"})
+    finally:
+        session.close()
+
+@app.get("/api/content/company/{company_id}")
+async def get_company_content(company_id: int):
+    """Get all content sources for a company"""
+    session = SessionLocal()
+    try:
+        content_sources = session.query(ContentSource).filter(
+            ContentSource.company_id == company_id
+        ).order_by(ContentSource.created_at.desc()).all()
+        
+        sources_data = []
+        for source in content_sources:
+            sources_data.append({
+                "id": source.id,
+                "title": source.title,
+                "content_type": source.content_type.value,
+                "processing_status": source.processing_status.value,
+                "file_size": source.file_size,
+                "word_count": source.metadata.get("word_count", 0) if source.metadata else 0,
+                "created_at": source.created_at.isoformat(),
+                "processed_at": source.processed_at.isoformat() if source.processed_at else None,
+                "has_course": len(source.courses) > 0
+            })
+        
+        return JSONResponse(content={
+            "content_sources": sources_data,
+            "total": len(sources_data)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting company content: {e}")
+        return JSONResponse(status_code=500, content={"error": "Internal server error"})
+    finally:
+        session.close()
+
+# Course Management API
+@app.get("/api/courses/company/{company_id}")
+async def get_company_courses(company_id: int):
+    """Get all courses for a company"""
+    session = SessionLocal()
+    try:
+        courses = session.query(Course).filter(
+            Course.company_id == company_id
+        ).order_by(Course.created_at.desc()).all()
+        
+        courses_data = []
+        for course in courses:
+            courses_data.append({
+                "id": course.id,
+                "title": course.title,
+                "description": course.description,
+                "total_lessons": course.total_lessons,
+                "status": course.status.value,
+                "estimated_duration": course.estimated_duration,
+                "difficulty_levels": course.difficulty_levels,
+                "created_at": course.created_at.isoformat(),
+                "lesson_count": len(course.lessons)
+            })
+        
+        return JSONResponse(content={
+            "courses": courses_data,
+            "total": len(courses_data)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting company courses: {e}")
+        return JSONResponse(status_code=500, content={"error": "Internal server error"})
+    finally:
+        session.close()
+
+@app.post("/api/courses/{course_id}/activate")
+async def activate_course(course_id: int):
+    """Activate a course for use"""
+    session = SessionLocal()
+    try:
+        course = session.query(Course).filter(Course.id == course_id).first()
+        if not course:
+            return JSONResponse(status_code=404, content={"error": "Course not found"})
+        
+        course.status = CourseStatus.ACTIVE
+        session.commit()
+        
+        return JSONResponse(content={
+            "success": True,
+            "message": "Course activated successfully"
+        })
+        
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Course activation error: {e}")
+        return JSONResponse(status_code=500, content={"error": "Activation failed"})
+    finally:
+        session.close()
+
+# Question Generation API
+@app.post("/api/lessons/{lesson_id}/generate-questions")
+async def generate_questions_for_lesson(lesson_id: int, question_count: int = 10, difficulty: str = "medium"):
+    """Generate questions for a specific lesson"""
+    session = SessionLocal()
+    try:
+        # Get lesson
+        lesson = session.query(Lesson).filter(Lesson.id == lesson_id).first()
+        if not lesson:
+            return JSONResponse(status_code=404, content={"error": "Lesson not found"})
+        
+        # Generate questions with AI
+        question_service = ai_factory.get_question_service()
+        questions_data = await question_service.generate_questions_for_lesson(
+            lesson.content or lesson.script, difficulty, question_count
+        )
+        
+        # Create or update question bank
+        existing_bank = session.query(QuestionBank).filter(
+            QuestionBank.lesson_id == lesson_id,
+            QuestionBank.difficulty == DifficultyLevel(difficulty)
+        ).first()
+        
+        if existing_bank:
+            existing_bank.questions = questions_data["questions"]
+            existing_bank.usage_count = 0
+            existing_bank.avg_success_rate = 0.0
+            existing_bank.last_updated = datetime.utcnow()
+        else:
+            question_bank = QuestionBank(
+                lesson_id=lesson_id,
+                questions=questions_data["questions"],
+                difficulty=DifficultyLevel(difficulty),
+                categories=["grammar", "vocabulary", "comprehension"],
+                usage_count=0,
+                avg_success_rate=0.0
+            )
+            session.add(question_bank)
+        
+        # Update lesson questions for compatibility
+        lesson.questions = {
+            "all": questions_data["questions"],
+            "current": questions_data["questions"][0]["question"] if questions_data["questions"] else ""
+        }
+        
+        session.commit()
+        
+        return JSONResponse(content={
+            "success": True,
+            "questions_generated": len(questions_data["questions"]),
+            "difficulty": difficulty,
+            "questions": questions_data["questions"][:3],  # Preview
+            "message": f"Generated {len(questions_data['questions'])} questions successfully"
+        })
+        
+    except AIServiceError as e:
+        session.rollback()
+        logger.error(f"AI service error in question generation: {e}")
+        return JSONResponse(status_code=400, content={"error": str(e)})
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Question generation error: {e}")
+        return JSONResponse(status_code=500, content={"error": f"Question generation failed: {str(e)}"})
+    finally:
+        session.close()
+
+@app.get("/api/lessons/{lesson_id}/questions")
+async def get_lesson_questions(lesson_id: int, difficulty: str = "medium"):
+    """Get questions for a lesson"""
+    session = SessionLocal()
+    try:
+        question_bank = session.query(QuestionBank).filter(
+            QuestionBank.lesson_id == lesson_id,
+            QuestionBank.difficulty == DifficultyLevel(difficulty)
+        ).first()
+        
+        if not question_bank:
+            return JSONResponse(content={
+                "questions": [],
+                "has_questions": False,
+                "message": "No questions available for this lesson"
+            })
+        
+        return JSONResponse(content={
+            "questions": question_bank.questions,
+            "has_questions": True,
+            "difficulty": question_bank.difficulty.value,
+            "usage_count": question_bank.usage_count,
+            "avg_success_rate": question_bank.avg_success_rate,
+            "last_updated": question_bank.last_updated.isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting lesson questions: {e}")
+        return JSONResponse(status_code=500, content={"error": "Failed to get questions"})
+    finally:
+        session.close()
+
+# Progress Analytics API  
+@app.get("/api/analytics/company/{company_id}/overview")
+async def get_company_analytics_overview(company_id: int, days: int = 30):
+    """Get company analytics overview"""
+    session = SessionLocal()
+    try:
+        # Get company
+        company = session.query(Company).filter(Company.id == company_id).first()
+        if not company:
+            return JSONResponse(status_code=404, content={"error": "Company not found"})
+        
+        # Get users in company
+        users = session.query(User).filter(User.company_id == company_id).all()
+        user_ids = [user.id for user in users]
+        
+        if not user_ids:
+            return JSONResponse(content={
+                "total_users": 0,
+                "active_users": 0,
+                "completion_rate": 0,
+                "avg_progress": 0,
+                "trends": {},
+                "top_performers": [],
+                "struggling_users": []
+            })
+        
+        # Calculate metrics
+        total_users = len(users)
+        
+        # Active users (with recent activity)
+        from datetime import datetime, timedelta
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        
+        recent_attempts = session.query(Attempt).filter(
+            Attempt.user_id.in_(user_ids),
+            Attempt.created_at >= cutoff_date
+        ).count()
+        
+        active_users = session.query(Attempt.user_id.distinct()).filter(
+            Attempt.user_id.in_(user_ids),
+            Attempt.created_at >= cutoff_date
+        ).count()
+        
+        # Progress data
+        progress_records = session.query(UserProgress).filter(
+            UserProgress.user_id.in_(user_ids)
+        ).all()
+        
+        total_progress = sum(p.completion_percentage for p in progress_records)
+        avg_progress = total_progress / len(progress_records) if progress_records else 0
+        
+        completed_courses = len([p for p in progress_records if p.completion_percentage >= 100])
+        completion_rate = (completed_courses / len(progress_records)) * 100 if progress_records else 0
+        
+        # Top performers
+        top_performers = sorted(progress_records, key=lambda x: x.completion_percentage, reverse=True)[:5]
+        top_performers_data = [
+            {
+                "user_id": p.user_id,
+                "user_name": next((u.name for u in users if u.id == p.user_id), "Unknown"),
+                "completion_percentage": p.completion_percentage,
+                "study_streak": p.study_streak,
+                "total_study_time": p.total_study_time
+            }
+            for p in top_performers
+        ]
+        
+        # Struggling users (low progress)
+        struggling = [p for p in progress_records if p.completion_percentage < 20][:5]
+        struggling_data = [
+            {
+                "user_id": p.user_id,
+                "user_name": next((u.name for u in users if u.id == p.user_id), "Unknown"),
+                "completion_percentage": p.completion_percentage,
+                "weak_areas": p.weak_areas[:3],  # Top 3 weak areas
+                "last_accessed": p.last_accessed.isoformat() if p.last_accessed else None
+            }
+            for p in struggling
+        ]
+        
+        return JSONResponse(content={
+            "company_name": company.name,
+            "total_users": total_users,
+            "active_users": active_users,
+            "completion_rate": round(completion_rate, 2),
+            "avg_progress": round(avg_progress, 2),
+            "recent_attempts": recent_attempts,
+            "top_performers": top_performers_data,
+            "struggling_users": struggling_data,
+            "period_days": days
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting company analytics: {e}")
+        return JSONResponse(status_code=500, content={"error": "Failed to get analytics"})
+    finally:
+        session.close()
+
+@app.get("/api/analytics/user/{user_id}/progress")
+async def get_user_progress_analytics(user_id: int):
+    """Get detailed user progress analytics"""
+    session = SessionLocal()
+    try:
+        # Get user
+        user = session.query(User).filter(User.id == user_id).first()
+        if not user:
+            return JSONResponse(status_code=404, content={"error": "User not found"})
+        
+        # Get user progress
+        progress = session.query(UserProgress).filter(UserProgress.user_id == user_id).all()
+        
+        # Get recent attempts
+        recent_attempts = session.query(Attempt).filter(
+            Attempt.user_id == user_id
+        ).order_by(Attempt.created_at.desc()).limit(20).all()
+        
+        # Analyze progress with AI
+        progress_service = ai_factory.get_progress_service()
+        
+        if progress and recent_attempts:
+            analysis = await progress_service.analyze_user_progress(
+                progress[0], recent_attempts, session
+            )
+        else:
+            analysis = {
+                "overall_assessment": "insufficient_data",
+                "progress_trend": "unknown", 
+                "learning_velocity": "unknown",
+                "engagement_level": "low",
+                "recommendations": [],
+                "predicted_completion_date": None,
+                "risk_factors": ["No learning activity"],
+                "celebration_points": []
+            }
+        
+        # Format progress data
+        progress_data = []
+        for p in progress:
+            progress_data.append({
+                "course_id": p.course_id,
+                "completion_percentage": p.completion_percentage,
+                "lessons_completed": len(p.lessons_completed),
+                "lesson_scores": p.lesson_scores,
+                "weak_areas": p.weak_areas,
+                "strong_areas": p.strong_areas,
+                "study_streak": p.study_streak,
+                "total_study_time": p.total_study_time,
+                "last_accessed": p.last_accessed.isoformat() if p.last_accessed else None
+            })
+        
+        # Format recent attempts
+        attempts_data = [
+            {
+                "lesson_id": a.lesson_id,
+                "score": a.score,
+                "status": a.status,
+                "created_at": a.created_at.isoformat(),
+                "completed_at": a.completed_at.isoformat() if a.completed_at else None
+            }
+            for a in recent_attempts
+        ]
+        
+        return JSONResponse(content={
+            "user": {
+                "id": user.id,
+                "name": user.name,
+                "level": user.level,
+                "placement_completed": user.placement_completed,
+                "placement_score": user.placement_score
+            },
+            "progress": progress_data,
+            "recent_attempts": attempts_data,
+            "ai_analysis": analysis
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting user progress analytics: {e}")
+        return JSONResponse(status_code=500, content={"error": "Failed to get user analytics"})
+    finally:
+        session.close()
+
+# Spaced Repetition API
+@app.post("/api/users/{user_id}/schedule-review")
+async def schedule_spaced_review(user_id: int, lesson_id: int, performance: float):
+    """Schedule spaced repetition review based on performance"""
+    session = SessionLocal()
+    try:
+        # Get user progress
+        user_progress = session.query(UserProgress).filter(
+            UserProgress.user_id == user_id,
+            UserProgress.current_lesson_id == lesson_id
+        ).first()
+        
+        if not user_progress:
+            return JSONResponse(status_code=404, content={"error": "User progress not found"})
+        
+        # Calculate next review date based on performance
+        intervals = [1, 3, 7, 14, 30, 90]  # Days
+        
+        # Get review count for this lesson
+        review_count = user_progress.lesson_scores.get(str(lesson_id), {}).get("review_count", 0)
+        
+        # Base interval
+        base_interval = intervals[min(review_count, len(intervals) - 1)]
+        
+        # Adjust based on performance
+        if performance >= 0.8:  # Strong performance
+            interval = int(base_interval * 1.3)
+        elif performance >= 0.6:  # Medium performance  
+            interval = base_interval
+        else:  # Weak performance
+            interval = max(1, int(base_interval * 0.5))
+        
+        # Schedule next review
+        next_review = datetime.utcnow() + timedelta(days=interval)
+        user_progress.next_review_date = next_review
+        
+        # Update lesson scores
+        if not user_progress.lesson_scores:
+            user_progress.lesson_scores = {}
+        
+        lesson_key = str(lesson_id)
+        if lesson_key not in user_progress.lesson_scores:
+            user_progress.lesson_scores[lesson_key] = {}
+        
+        user_progress.lesson_scores[lesson_key].update({
+            "last_score": performance,
+            "review_count": review_count + 1,
+            "next_review": next_review.isoformat(),
+            "interval_days": interval
+        })
+        
+        session.commit()
+        
+        return JSONResponse(content={
+            "success": True,
+            "next_review_date": next_review.isoformat(),
+            "interval_days": interval,
+            "review_count": review_count + 1,
+            "message": f"Review scheduled for {interval} days"
+        })
+        
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Error scheduling review: {e}")
+        return JSONResponse(status_code=500, content={"error": "Failed to schedule review"})
+    finally:
+        session.close()
+
+@app.get("/api/users/{user_id}/due-reviews")
+async def get_due_reviews(user_id: int):
+    """Get lessons due for review"""
+    session = SessionLocal()
+    try:
+        # Get user progress with due reviews
+        progress_records = session.query(UserProgress).filter(
+            UserProgress.user_id == user_id,
+            UserProgress.next_review_date <= datetime.utcnow()
+        ).all()
+        
+        due_reviews = []
+        for progress in progress_records:
+            # Get lesson info
+            lesson = session.query(Lesson).filter(
+                Lesson.id == progress.current_lesson_id
+            ).first()
+            
+            if lesson:
+                due_reviews.append({
+                    "lesson_id": lesson.id,
+                    "lesson_title": lesson.title,
+                    "course_id": progress.course_id,
+                    "last_score": progress.lesson_scores.get(str(lesson.id), {}).get("last_score", 0),
+                    "review_count": progress.lesson_scores.get(str(lesson.id), {}).get("review_count", 0),
+                    "due_date": progress.next_review_date.isoformat() if progress.next_review_date else None,
+                    "priority": "high" if progress.next_review_date and progress.next_review_date < datetime.utcnow() - timedelta(days=1) else "normal"
+                })
+        
+        return JSONResponse(content={
+            "due_reviews": due_reviews,
+            "total_due": len(due_reviews),
+            "high_priority": len([r for r in due_reviews if r["priority"] == "high"])
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting due reviews: {e}")
+        return JSONResponse(status_code=500, content={"error": "Failed to get due reviews"})
+    finally:
+        session.close()
+
+# ==========================================
+# KONEC NOVÝCH API ENDPOINTŮ
+# ==========================================
+
 # Připojení admin routeru
 app.include_router(admin_router)
 app.include_router(system_router) # Připojení nového routeru
@@ -2016,7 +2808,21 @@ async def process_speech(request: Request):
         # Kontrola confidence threshold pro ASR
         confidence_float = float(confidence) if confidence else 0.0
 
-    LOW_CONFIDENCE_THRESHOLD = 0.5  # Zvýšený práh pro lepší kontrolu
+    LOW_CONFIDENCE_THRESHOLD = 0.5  # Práh pro žádání o zopakování
+
+    # DŮLEŽITÉ: Přímé řešení pro nízkou confidence < 0.5
+    if confidence_float < LOW_CONFIDENCE_THRESHOLD and speech_result:
+        logger.info(f"❌ Nízká confidence ({confidence_float:.2f} < {LOW_CONFIDENCE_THRESHOLD}) - vyžaduji zopakování")
+        response.say(
+            "Omlouvám se, nerozuměl jsem vám dobře. Můžete zopakovat svou odpověď pomaleji a jasněji?",
+            language="cs-CZ",
+            rate="0.9",
+            voice="Google.cs-CZ-Standard-A"
+        )
+        
+        # Zachováváme původní parametry pro opakovaný pokus
+        response.redirect(f"/voice/process?attempt_id={attempt_id}&original_text={original_text}&is_reminder={is_reminder}&confidence_retry=true")
+        return Response(content=str(response), media_type="text/xml")
 
     # Pokud máme speech_result ale confidence je 0, pravděpodobně je to false positive
     # Twilio někdy neposkytne confidence i když rozpoznání bylo úspěšné
@@ -2696,7 +3502,7 @@ async def wav_to_mulaw(audio_data: bytes) -> bytes:
         return b""
 
 async def send_tts_to_twilio(websocket: WebSocket, text: str, stream_sid: str, client):
-    """Odešle TTS audio do Twilio WebSocket streamu"""
+    """Odešle TTS audio do Twilio WebSocket streamu ve správném μ-law formátu"""
     try:
         # Kontrola jestli je WebSocket stále připojen
         try:
@@ -2710,7 +3516,7 @@ async def send_tts_to_twilio(websocket: WebSocket, text: str, stream_sid: str, c
             
         logger.info(f"🔊 Generuji TTS pro text: '{text[:50]}...'")
         
-        # Generace TTS pomocí OpenAI
+        # Generace TTS pomocí OpenAI - používáme WAV pro lepší kvalitu převodu
         response = client.audio.speech.create(
             model="tts-1",
             voice="nova",
@@ -2718,15 +3524,20 @@ async def send_tts_to_twilio(websocket: WebSocket, text: str, stream_sid: str, c
             response_format="wav"
         )
         
-        # Převod na G.711 μ-law pro Twilio
+        # Převod WAV na G.711 μ-law pro Twilio
         audio_data = response.content
+        mulaw_audio = await wav_to_mulaw(audio_data)
         
-        # Zde by měla být konverze na G.711, ale pro jednoduchost použijeme base64
+        if not mulaw_audio:
+            logger.error("❌ Nepodařilo se převést audio na μ-law formát")
+            return
+        
+        # Enkódování do base64
         import base64
-        audio_b64 = base64.b64encode(audio_data).decode()
+        audio_b64 = base64.b64encode(mulaw_audio).decode()
         
-        # Rozdělíme na chunky a pošleme
-        chunk_size = 1000  # Base64 chunky
+        # Rozdělíme na chunky a pošleme s správným track="outbound"
+        chunk_size = 1000  # Base64 chunky pro optimální přenos
         for i in range(0, len(audio_b64), chunk_size):
             chunk = audio_b64[i:i+chunk_size]
             
@@ -2734,18 +3545,21 @@ async def send_tts_to_twilio(websocket: WebSocket, text: str, stream_sid: str, c
                 "event": "media",
                 "streamSid": stream_sid,
                 "media": {
-                    "payload": chunk
+                    "payload": chunk,
+                    "track": "outbound"  # DŮLEŽITÉ: Správný track pro odpovědi do Twilia
                 }
             }
             
             if stream_sid:  # Pouze pokud máme stream_sid
                 await websocket.send_text(json.dumps(media_message))
-                await asyncio.sleep(0.05)  # 50ms mezi chunky
+                await asyncio.sleep(0.05)  # 50ms mezi chunky pro stabilní přenos
         
-        logger.info("✅ TTS audio odesláno")
+        logger.info("✅ TTS audio odesláno ve správném μ-law formátu s track=outbound")
         
     except Exception as e:
         logger.error(f"Chyba při TTS: {e}")
+        import traceback
+        logger.error(f"TTS Error traceback: {traceback.format_exc()}")
 
 async def process_audio_chunk(websocket: WebSocket, audio_data: bytes, 
                              stream_sid: str, client, assistant_id: str, thread_id: str):
@@ -3122,7 +3936,7 @@ Vždy zůstávaj v roli učitele jazyků a komunikuj pouze v češtině.""",
                         logger.info(f"📤 OUTBOUND TRACK - ignoruji (track: {track})")
                     
                 elif event == "stop":
-                    logger.info("Media Stream ukončen")
+                    logger.info("🛑 Media Stream ukončen - Twilio poslal stop event")
                     websocket_active = False
                     
                     # Zpracujeme zbývající audio i když je malé
@@ -3132,6 +3946,14 @@ Vždy zůstávaj v roli učitele jazyků a komunikuj pouze v češtině.""",
                             websocket, bytes(audio_buffer), stream_sid, 
                             client, assistant_id, thread.id
                         )
+                    
+                    # DŮLEŽITÉ: Explicitní uzavření WebSocket po stop eventu
+                    try:
+                        await websocket.close(code=1000, reason="Media stream stopped")
+                        logger.info("✅ WebSocket explicitně uzavřen po stop eventu")
+                    except Exception as close_error:
+                        logger.warning(f"Varování při uzavírání WebSocket: {close_error}")
+                    
                     break
                     
             except json.JSONDecodeError as e:
@@ -3983,3 +4805,52 @@ def admin_new_lesson_get(request: Request):
         "description.errors": [], "lesson_number.errors": [], "lesson_type.errors": [], "required_score.errors": []
     }
     return templates.TemplateResponse("admin/lesson_form.html", {"request": request, "lesson": None, "form": form})
+
+@app.get("/api/courses/{course_id}/lessons")
+async def get_course_lessons(course_id: int):
+    """Get all lessons for a specific course"""
+    session = SessionLocal()
+    try:
+        # Get course
+        course = session.query(Course).filter(Course.id == course_id).first()
+        if not course:
+            return JSONResponse(status_code=404, content={"error": "Course not found"})
+        
+        # Get lessons
+        lessons = session.query(Lesson).filter(
+            Lesson.course_id == course_id
+        ).order_by(Lesson.order_in_course.asc()).all()
+        
+        lessons_data = []
+        for lesson in lessons:
+            lessons_data.append({
+                "id": lesson.id,
+                "title": lesson.title,
+                "content": lesson.content,
+                "description": lesson.description,
+                "lesson_number": lesson.lesson_number,
+                "order_in_course": lesson.order_in_course,
+                "difficulty": lesson.base_difficulty,
+                "lesson_type": lesson.lesson_type,
+                "estimated_duration": lesson.estimated_duration,
+                "ai_generated": lesson.ai_generated,
+                "learning_objectives": lesson.learning_objectives,
+                "created_at": lesson.created_at.isoformat()
+            })
+        
+        return JSONResponse(content={
+            "course": {
+                "id": course.id,
+                "title": course.title,
+                "description": course.description,
+                "status": course.status.value
+            },
+            "lessons": lessons_data,
+            "total_lessons": len(lessons_data)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting course lessons: {e}")
+        return JSONResponse(status_code=500, content={"error": "Internal server error"})
+    finally:
+        session.close()
