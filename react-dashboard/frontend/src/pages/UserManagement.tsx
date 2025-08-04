@@ -494,7 +494,7 @@ const UserManagement: React.FC = () => {
         <GridActionsCellItem
           icon={<DeleteIcon />}
           label="Smazat"
-          onClick={() => handleDeleteUser(params.row.id)}
+          onClick={() => handleDeleteUser(params.row)}
           color="error"
           disabled={params.row.id === user?.id}
         />
@@ -774,7 +774,7 @@ const UserManagement: React.FC = () => {
                         
                         <IconButton
                           size="small"
-                          onClick={() => handleDeleteUser(user.id)}
+                          onClick={() => handleDeleteUser(user)}
                           color="error"
                           title="Smazat uživatele"
                         >
