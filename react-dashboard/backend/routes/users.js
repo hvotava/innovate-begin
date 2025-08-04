@@ -352,22 +352,13 @@ router.post('/:id/call', auth, adminOnly, async (req, res) => {
     // Twilio integration
     if (twilioClient && process.env.TWILIO_PHONE_NUMBER) {
       try {
-        // Určit správnou backend URL pro webhooks
+        // Určit správnou backend URL pro webhooks - vždycky použijeme lecture-app doménu
         const getBackendUrl = () => {
-          if (process.env.BACKEND_URL) {
-            // Zajistit, že URL má protokol
-            return process.env.BACKEND_URL.startsWith('http') ? process.env.BACKEND_URL : `https://${process.env.BACKEND_URL}`;
-          }
-          // Railway automaticky nastavuje RAILWAY_STATIC_URL
-          if (process.env.RAILWAY_STATIC_URL) {
-            // Railway URL může být bez protokolu
-            return process.env.RAILWAY_STATIC_URL.startsWith('http') ? process.env.RAILWAY_STATIC_URL : `https://${process.env.RAILWAY_STATIC_URL}`;
-          }
           // Pro lokální development
           if (process.env.NODE_ENV === 'development') {
             return 'http://localhost:5000';
           }
-          // Fallback pro Railway (používáme správnou lecture-app doménu)
+          // Vždycky použijeme správnou lecture-app doménu pro Twilio webhooks
           return 'https://lecture-app-production.up.railway.app';
         };
 
