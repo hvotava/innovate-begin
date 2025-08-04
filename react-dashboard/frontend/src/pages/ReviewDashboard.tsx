@@ -29,7 +29,7 @@ import { useTheme } from '@mui/material/styles';
 import {
   Refresh as RefreshIcon,
   Schedule as ScheduleIcon,
-  Priority as PriorityIcon,
+  PriorityHigh as PriorityIcon,
   PlayArrow as PlayArrowIcon,
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
