@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+const fileUpload = require('express-fileupload');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
@@ -31,6 +32,13 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// File upload middleware
+app.use(fileUpload({
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max file size
+  abortOnLimit: true,
+  responseOnLimit: 'File size too large'
+}));
+
 // Serve static assets from the React build folder
 app.use(express.static(path.join(__dirname, '..', 'frontend', 'build')));
 
@@ -47,6 +55,138 @@ app.use('/api/lessons', require('./routes/lessons'));
 app.use('/api/tests', require('./routes/tests'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/twilio', require('./routes/twilio'));
+app.use('/api/content', require('./routes/content'));
+
+// AI Tutor API Proxy - forward these paths to Python backend
+const pythonBackendUrl = process.env.PYTHON_BACKEND_URL || 'https://lecture-app-production.up.railway.app';
+
+// Placement Test API
+app.use('/api/placement-test', async (req, res) => {
+  try {
+    console.log(`🔄 Proxying ${req.method} ${req.path} to Python backend`);
+    const response = await require('axios')({
+      method: req.method,
+      url: `${pythonBackendUrl}/api/placement-test${req.path}`,
+      data: req.body,
+      params: req.query,
+      timeout: 30000
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error('Placement test proxy error:', error.message);
+    res.status(error.response?.status || 500).json({
+      error: error.response?.data?.error || error.message
+    });
+  }
+});
+
+// Courses API
+app.use('/api/courses', async (req, res) => {
+  try {
+    console.log(`🔄 Proxying ${req.method} ${req.path} to Python backend`);
+    const response = await require('axios')({
+      method: req.method,
+      url: `${pythonBackendUrl}/api/courses${req.path}`,
+      data: req.body,
+      params: req.query,
+      timeout: 30000
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error('Courses proxy error:', error.message);
+    res.status(error.response?.status || 500).json({
+      error: error.response?.data?.error || error.message
+    });
+  }
+});
+
+// Analytics API
+app.use('/api/analytics', async (req, res) => {
+  try {
+    console.log(`🔄 Proxying ${req.method} ${req.path} to Python backend`);
+    const response = await require('axios')({
+      method: req.method,
+      url: `${pythonBackendUrl}/api/analytics${req.path}`,
+      data: req.body,
+      params: req.query,
+      timeout: 30000
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error('Analytics proxy error:', error.message);
+    res.status(error.response?.status || 500).json({
+      error: error.response?.data?.error || error.message
+    });
+  }
+});
+
+// Specific AI Lesson endpoints (questions generation)
+app.post('/api/lessons/:lessonId/generate-questions', async (req, res) => {
+  try {
+    console.log(`🔄 Proxying lesson questions generation to Python backend`);
+    const response = await require('axios').post(
+      `${pythonBackendUrl}/api/lessons/${req.params.lessonId}/generate-questions`,
+      req.body,
+      { timeout: 30000 }
+    );
+    res.json(response.data);
+  } catch (error) {
+    console.error('Generate questions proxy error:', error.message);
+    res.status(error.response?.status || 500).json({
+      error: error.response?.data?.error || error.message
+    });
+  }
+});
+
+app.get('/api/lessons/:lessonId/questions', async (req, res) => {
+  try {
+    console.log(`🔄 Proxying lesson questions get to Python backend`);
+    const response = await require('axios').get(
+      `${pythonBackendUrl}/api/lessons/${req.params.lessonId}/questions`,
+      { timeout: 30000 }
+    );
+    res.json(response.data);
+  } catch (error) {
+    console.error('Get questions proxy error:', error.message);
+    res.status(error.response?.status || 500).json({
+      error: error.response?.data?.error || error.message
+    });
+  }
+});
+
+// Specific AI User endpoints (schedule-review, due-reviews)
+app.post('/api/users/:userId/schedule-review', async (req, res) => {
+  try {
+    console.log(`🔄 Proxying user schedule review to Python backend`);
+    const response = await require('axios').post(
+      `${pythonBackendUrl}/api/users/${req.params.userId}/schedule-review`,
+      req.body,
+      { timeout: 30000 }
+    );
+    res.json(response.data);
+  } catch (error) {
+    console.error('Schedule review proxy error:', error.message);
+    res.status(error.response?.status || 500).json({
+      error: error.response?.data?.error || error.message
+    });
+  }
+});
+
+app.get('/api/users/:userId/due-reviews', async (req, res) => {
+  try {
+    console.log(`🔄 Proxying user due reviews to Python backend`);
+    const response = await require('axios').get(
+      `${pythonBackendUrl}/api/users/${req.params.userId}/due-reviews`,
+      { timeout: 30000 }
+    );
+    res.json(response.data);
+  } catch (error) {
+    console.error('Due reviews proxy error:', error.message);
+    res.status(error.response?.status || 500).json({
+      error: error.response?.data?.error || error.message
+    });
+  }
+});
 
 // Health check
 app.get('/api/health', (req, res) => {
