@@ -2,6 +2,7 @@ const express = require('express');
 const { User, Company, Training, Lesson, Test, TestSession, Attempt } = require('../models');
 const { auth, adminOnly } = require('../middleware/auth');
 const { Op } = require('sequelize');
+const sequelize = require('../config/database');
 const router = express.Router();
 
 // DEBUG endpoint pro diagnostiku
@@ -80,7 +81,7 @@ router.get('/stats', auth, adminOnly, async (req, res) => {
     });
 
     // Společnosti s počtem uživatelů - použijeme raw query pro spolehlivost
-    const companiesWithUsersRaw = await require('sequelize').query(`
+    const companiesWithUsersRaw = await sequelize.query(`
       SELECT 
         c.id,
         c.name,
@@ -91,7 +92,7 @@ router.get('/stats', auth, adminOnly, async (req, res) => {
       ORDER BY COUNT(u.id) DESC
       LIMIT 5
     `, {
-      type: require('sequelize').QueryTypes.SELECT
+      type: sequelize.QueryTypes.SELECT
     });
 
     console.log('📊 Companies with users raw result:', companiesWithUsersRaw);

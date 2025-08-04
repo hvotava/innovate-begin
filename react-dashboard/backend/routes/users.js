@@ -355,18 +355,20 @@ router.post('/:id/call', auth, adminOnly, async (req, res) => {
         // Určit správnou backend URL pro webhooks
         const getBackendUrl = () => {
           if (process.env.BACKEND_URL) {
-            return process.env.BACKEND_URL;
+            // Zajistit, že URL má protokol
+            return process.env.BACKEND_URL.startsWith('http') ? process.env.BACKEND_URL : `https://${process.env.BACKEND_URL}`;
           }
           // Railway automaticky nastavuje RAILWAY_STATIC_URL
           if (process.env.RAILWAY_STATIC_URL) {
-            return process.env.RAILWAY_STATIC_URL;
+            // Railway URL může být bez protokolu
+            return process.env.RAILWAY_STATIC_URL.startsWith('http') ? process.env.RAILWAY_STATIC_URL : `https://${process.env.RAILWAY_STATIC_URL}`;
           }
           // Pro lokální development
           if (process.env.NODE_ENV === 'development') {
             return 'http://localhost:5000';
           }
-          // Fallback pro Railway (může být app specific)
-          return `https://${process.env.RAILWAY_PROJECT_NAME || 'lecture-final'}.railway.app`;
+          // Fallback pro Railway (používáme správnou lecture-app doménu)
+          return 'https://lecture-app-production.up.railway.app';
         };
 
         const backendUrl = getBackendUrl();
@@ -375,7 +377,7 @@ router.post('/:id/call', auth, adminOnly, async (req, res) => {
         const call = await twilioClient.calls.create({
           to: user.phone,
           from: process.env.TWILIO_PHONE_NUMBER,
-          url: `${backendUrl}/api/twilio/voice`,
+          url: `${backendUrl}/audio/`,
           method: 'POST',
           record: true,
           statusCallback: `${backendUrl}/api/twilio/status`,
