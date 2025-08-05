@@ -61,12 +61,13 @@ app.use('/api/content', require('./routes/content'));
 const pythonBackendUrl = process.env.PYTHON_BACKEND_URL || 'https://lecture-app-production.up.railway.app';
 
 // Placement Test API
-app.use('/api/placement-test', async (req, res) => {
+app.all('/api/placement-test/*', async (req, res) => {
   try {
-    console.log(`🔄 Proxying ${req.method} ${req.path} to Python backend`);
+    const path = req.path.replace('/api/placement-test', '');
+    console.log(`🔄 Proxying ${req.method} /api/placement-test${path} to Python backend`);
     const response = await require('axios')({
       method: req.method,
-      url: `${pythonBackendUrl}/api/placement-test${req.path}`,
+      url: `${pythonBackendUrl}/api/placement-test${path}`,
       data: req.body,
       params: req.query,
       timeout: 30000
@@ -74,6 +75,7 @@ app.use('/api/placement-test', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     console.error('Placement test proxy error:', error.message);
+    console.error('Error details:', error.response?.data);
     res.status(error.response?.status || 500).json({
       error: error.response?.data?.error || error.message
     });
@@ -81,12 +83,13 @@ app.use('/api/placement-test', async (req, res) => {
 });
 
 // Courses API
-app.use('/api/courses', async (req, res) => {
+app.all('/api/courses/*', async (req, res) => {
   try {
-    console.log(`🔄 Proxying ${req.method} ${req.path} to Python backend`);
+    const path = req.path.replace('/api/courses', '');
+    console.log(`🔄 Proxying ${req.method} /api/courses${path} to Python backend`);
     const response = await require('axios')({
       method: req.method,
-      url: `${pythonBackendUrl}/api/courses${req.path}`,
+      url: `${pythonBackendUrl}/api/courses${path}`,
       data: req.body,
       params: req.query,
       timeout: 30000
@@ -94,6 +97,7 @@ app.use('/api/courses', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     console.error('Courses proxy error:', error.message);
+    console.error('Error details:', error.response?.data);
     res.status(error.response?.status || 500).json({
       error: error.response?.data?.error || error.message
     });
@@ -101,12 +105,13 @@ app.use('/api/courses', async (req, res) => {
 });
 
 // Analytics API
-app.use('/api/analytics', async (req, res) => {
+app.all('/api/analytics/*', async (req, res) => {
   try {
-    console.log(`🔄 Proxying ${req.method} ${req.path} to Python backend`);
+    const path = req.path.replace('/api/analytics', '');
+    console.log(`🔄 Proxying ${req.method} /api/analytics${path} to Python backend`);
     const response = await require('axios')({
       method: req.method,
-      url: `${pythonBackendUrl}/api/analytics${req.path}`,
+      url: `${pythonBackendUrl}/api/analytics${path}`,
       data: req.body,
       params: req.query,
       timeout: 30000
@@ -114,6 +119,7 @@ app.use('/api/analytics', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     console.error('Analytics proxy error:', error.message);
+    console.error('Error details:', error.response?.data);
     res.status(error.response?.status || 500).json({
       error: error.response?.data?.error || error.message
     });

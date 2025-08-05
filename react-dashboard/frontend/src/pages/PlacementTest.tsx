@@ -87,11 +87,15 @@ const PlacementTest: React.FC = () => {
     const loadPlacementTest = async () => {
       try {
         setLoading(true);
+        console.log('🔄 Loading placement test for company:', user?.companyId);
         const response = await api.get(`/api/placement-test/${user?.companyId || 1}`);
+        console.log('✅ Placement test loaded:', response.data);
         setPlacementTest(response.data);
         setError(null);
       } catch (err: any) {
-        console.error('Error loading placement test:', err);
+        console.error('❌ Error loading placement test:', err);
+        console.error('📋 Error details:', err.response?.data);
+        console.error('🔢 Status code:', err.response?.status);
         setError('Failed to load placement test');
       } finally {
         setLoading(false);
@@ -113,11 +117,20 @@ const PlacementTest: React.FC = () => {
     setError(null);
 
     try {
+      console.log('🚀 Submitting placement test analysis...');
+      console.log('📝 Data:', {
+        user_id: user?.id,
+        company_id: user?.companyId,
+        text_length: userText.length
+      });
+      
       const response = await api.post('/api/placement-test/analyze', {
         user_id: user?.id,
         company_id: user?.companyId,
         text: userText
       });
+      
+      console.log('✅ Analysis response:', response.data);
 
       if (response.data.success) {
         setAnalysisResult(response.data.analysis);
@@ -126,9 +139,12 @@ const PlacementTest: React.FC = () => {
         setError('Analysis failed. Please try again.');
       }
     } catch (err: any) {
-      console.error('Error analyzing placement test:', err);
+      console.error('❌ Error analyzing placement test:', err);
+      console.error('📋 Error details:', err.response?.data);
+      console.error('🔢 Status code:', err.response?.status);
       setError(err.response?.data?.error || 'Failed to analyze text. Please try again.');
     } finally {
+      console.log('🏁 Placement test analysis finished');
       setIsSubmitting(false);
     }
   };
