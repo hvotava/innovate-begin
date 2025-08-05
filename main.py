@@ -5,7 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import logging
 from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
-from app.models import Attempt, Lesson, User, Answer, Base, TestSession
+from app.models import (
+    Attempt, Lesson, User, Answer, Base, TestSession,
+    Company, ContentSource, Course, PlacementTest, PlacementResult,
+    QuestionBank, UserProgress, LearningPath
+)
 from sqlalchemy.orm import mapped_column
 from fastapi import Query
 from fastapi.templating import Jinja2Templates
@@ -78,6 +82,16 @@ async def startup_event():
         asyncio.create_task(test_connections_async())
     except Exception as e:
         print(f"⚠️  Async connection test failed: {e}")
+    
+    # Initialize database tables for AI tutor system
+    try:
+        from app.database import engine
+        from app.models import Base
+        print("🔧 Creating database tables...")
+        Base.metadata.create_all(bind=engine)
+        print("✅ Database tables created successfully")
+    except Exception as e:
+        print(f"❌ Database initialization failed: {e}")
     
     print("=== STARTUP COMPLETE ===")
 
