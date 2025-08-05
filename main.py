@@ -1685,7 +1685,17 @@ from fastapi import UploadFile, File
 import aiofiles
 
 # Inicializace AI služeb
-ai_factory = AIServiceFactory(openai_api_key=os.getenv("OPENAI_API_KEY"))
+try:
+    ai_factory = AIServiceFactory(openai_api_key=os.getenv("OPENAI_API_KEY"))
+    print("✅ AI Factory initialized successfully")
+except Exception as e:
+    print(f"❌ AI Factory initialization failed: {e}")
+    ai_factory = None
+
+# DEBUG: Test endpoint to verify endpoints are being registered
+@app.get("/api/debug/test")
+async def debug_test():
+    return {"status": "AI endpoints are being registered", "ai_factory": ai_factory is not None}
 
 # Placement Test API
 @app.post("/api/placement-test/analyze")
