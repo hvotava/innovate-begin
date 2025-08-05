@@ -17,6 +17,10 @@ from fastapi import APIRouter, Form, status, Depends
 from starlette.requests import Request
 from typing import Optional
 from fastapi import Path
+# EARLY DEBUG: Test endpoint at the very beginning
+@app.get("/api/debug/early")
+async def debug_early():
+    return {"status": "Early debug endpoint works", "timestamp": "2025-08-05T18:30:00"}
 import socket
 import requests
 from sqlalchemy import text
