@@ -88,7 +88,7 @@ const PlacementTest: React.FC = () => {
       try {
         setLoading(true);
         console.log('🔄 Loading placement test for company:', user?.companyId);
-        const response = await api.get(`/api/placement-test/${user?.companyId || 1}`);
+        const response = await api.get(`/api/ai-proxy/placement-test/${user?.companyId || 1}`);
         console.log('✅ Placement test loaded:', response.data);
         setPlacementTest(response.data);
         setError(null);
@@ -124,7 +124,7 @@ const PlacementTest: React.FC = () => {
         text_length: userText.length
       });
       
-      const response = await api.post('/api/placement-test/analyze', {
+      const response = await api.post('/api/ai-proxy/placement-test/analyze', {
         user_id: user?.id,
         company_id: user?.companyId,
         text: userText

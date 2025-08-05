@@ -108,7 +108,7 @@ const ContentManagement: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await api.get(`/api/content/company/${user.companyId}`);
+      const response = await api.get(`/api/ai-proxy/content/company/${user.companyId}`);
       setContentSources(response.data.content_sources || []);
     } catch (err: any) {
       console.error('Error loading content sources:', err);
@@ -163,7 +163,7 @@ const ContentManagement: React.FC = () => {
       });
 
       console.log('🚀 Making API call to /api/content/upload');
-      const response = await api.post('/api/content/upload', formData, {
+      const response = await api.post('/api/ai-proxy/content/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -215,7 +215,7 @@ const ContentManagement: React.FC = () => {
       formData.append('content_type', 'text');
       formData.append('files', file);
 
-      const response = await api.post('/api/content/upload', formData, {
+      const response = await api.post('/api/ai-proxy/content/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
