@@ -1679,7 +1679,7 @@ async def admin_lesson_0_questions_post(request: Request):
 # ==========================================
 
 # Import AI služeb
-from app.ai_services import AIServiceFactory, AIServiceError
+# from app.ai_services import AIServiceFactory, AIServiceError
 import os
 from fastapi import UploadFile, File
 import aiofiles
@@ -1696,8 +1696,9 @@ async def simple_placement_test():
 
 # Inicializace AI služeb - moved after simple endpoints
 try:
-    ai_factory = AIServiceFactory(openai_api_key=os.getenv("OPENAI_API_KEY"))
-    print("✅ AI Factory initialized successfully")
+    # ai_factory = AIServiceFactory(openai_api_key=os.getenv("OPENAI_API_KEY"))
+    ai_factory = None  # TEMP: Disabled for testing
+    print("✅ AI Factory disabled for testing")
 except Exception as e:
     print(f"❌ AI Factory initialization failed: {e}")
     ai_factory = None
