@@ -142,6 +142,80 @@ class AIEvaluator {
     return vocabularies[trainingType] || [];
   }
   
+  // Identify strengths in response
+  static identifyStrengths(response, trainingType) {
+    const strengths = [];
+    
+    if (response.length > 100) {
+      strengths.push("Dostatečně dlouhá odpověď");
+    }
+    
+    const professionalWords = this.getProfessionalWords(trainingType);
+    const usedProfessional = professionalWords.filter(word =>
+      response.toLowerCase().includes(word.toLowerCase())
+    );
+    
+    if (usedProfessional.length > 0) {
+      strengths.push("Používání odborné terminologie");
+    }
+    
+    const sentences = response.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    if (sentences.length > 2) {
+      strengths.push("Strukturovaná odpověď ve větách");
+    }
+    
+    return strengths;
+  }
+  
+  // Identify areas for improvement
+  static identifyImprovements(response, trainingType) {
+    const improvements = [];
+    
+    if (response.length < 50) {
+      improvements.push("Rozviňte odpověď více do detailu");
+    }
+    
+    if (!response.includes('.') && !response.includes('!')) {
+      improvements.push("Používejte kompletní věty s interpunkcí");
+    }
+    
+    const professionalWords = this.getProfessionalWords(trainingType);
+    const usedProfessional = professionalWords.filter(word =>
+      response.toLowerCase().includes(word.toLowerCase())
+    );
+    
+    if (usedProfessional.length === 0) {
+      improvements.push("Zkuste používat více odborných termínů souvisejících s tématem");
+    }
+    
+    return improvements;
+  }
+  
+  // Find keyword matches between question and response
+  static findKeywordMatches(question, response, trainingType) {
+    const questionWords = question.toLowerCase().split(/\s+/)
+      .filter(word => word.length > 3)
+      .filter(word => !['what', 'how', 'when', 'where', 'why', 'který', 'jaký', 'jakým'].includes(word));
+    
+    const responseWords = response.toLowerCase().split(/\s+/);
+    
+    return questionWords.filter(qWord =>
+      responseWords.some(rWord => rWord.includes(qWord) || qWord.includes(rWord))
+    );
+  }
+  
+  // Analyze response length characteristics
+  static analyzeResponseLength(response) {
+    return {
+      characters: response.length,
+      words: response.split(/\s+/).length,
+      sentences: response.split(/[.!?]+/).filter(s => s.trim().length > 0).length,
+      averageWordsPerSentence: response.split(/[.!?]+/).filter(s => s.trim().length > 0).length > 0
+        ? Math.round(response.split(/\s+/).length / response.split(/[.!?]+/).filter(s => s.trim().length > 0).length)
+        : 0
+    };
+  }
+  
   // Default evaluation for error cases
   static getDefaultEvaluation() {
     return {

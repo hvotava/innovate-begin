@@ -196,7 +196,7 @@ const UserManagement: React.FC = () => {
         companyId: targetUser.companyId ? String(targetUser.companyId) : '',
         phone: targetUser.phone || '',
         language: targetUser.language || 'cs',
-        training_type: targetUser.training_type || 0
+        training_type: targetUser.training_type || ''
       });
     } else {
       setEditingUser(null);

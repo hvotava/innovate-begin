@@ -8,6 +8,8 @@ export interface User {
   phone?: string;
   language?: string;
   current_lesson_level?: number;
+  training_type?: string;
+  placement_completed?: boolean;
   created_at?: string;
   Company?: Company;
 }
@@ -144,6 +146,8 @@ export interface UserFormData {
   role: 'admin' | 'user';
   companyId?: number;
   phone?: string;
+  language?: string;
+  training_type?: string;
 }
 
 export interface CompanyFormData {

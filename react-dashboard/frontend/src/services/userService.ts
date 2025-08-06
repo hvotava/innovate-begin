@@ -7,6 +7,8 @@ export interface User {
   phone: string;
   language: string;
   current_lesson_level: number;
+  training_type?: string;
+  placement_completed?: boolean;
 }
 
 export interface CreateUserData {
