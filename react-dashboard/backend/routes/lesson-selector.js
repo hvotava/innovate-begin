@@ -151,7 +151,13 @@ async function loadTestQuestionsFromDB(lessonId) {
     console.log(`📝 Using test: ${test.title} (ID: ${test.id})`);
     console.log(`📝 Raw questions data:`, test.questions);
     
-    const questions = JSON.parse(test.questions || '[]');
+    // Handle both JSON string and already parsed object
+    let questions;
+    if (typeof test.questions === 'string') {
+      questions = JSON.parse(test.questions || '[]');
+    } else {
+      questions = test.questions || [];
+    }
     
     console.log(`✅ Loaded ${questions.length} questions from database:`, questions.map(q => q.question || q.text));
     
