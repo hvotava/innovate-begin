@@ -94,15 +94,16 @@ class ConversationManager {
         state.score++;
         feedback = "Správně! ";
       } else {
-        const correctOption = currentQuestion.options.find(opt => opt.correct);
-        feedback = `Bohužel ne. Správná odpověď je: ${correctOption?.text || 'neznámá'}. `;
+        // Get correct answer using correctAnswer index
+        const correctAnswerText = currentQuestion.options[currentQuestion.correctAnswer] || 'neznámá';
+        feedback = `Bohužel ne. Správná odpověď je: ${correctAnswerText}. `;
       }
       
       // Store user answer
       state.userAnswers.push({
         question: currentQuestion.question || currentQuestion.text,
         userAnswer: transcribedText,
-        correctAnswer: currentQuestion.options.find(opt => opt.correct)?.text || 'Neznámá',
+        correctAnswer: currentQuestion.options[currentQuestion.correctAnswer] || 'Neznámá',
         isCorrect: isCorrect
       });
       
@@ -316,19 +317,20 @@ class ConversationManager {
   
   // Check if user's answer matches correct answer
   static checkTestAnswer(transcribedText, questionObj) {
-    const correctAnswer = questionObj.correct_answer || questionObj.answer;
     const userText = transcribedText.toLowerCase().trim();
+    const correctAnswerIndex = questionObj.correctAnswer;
+    const correctAnswerText = questionObj.options[correctAnswerIndex];
     
     // Check for letter answers (A, B, C, D)
     const letterMatch = userText.match(/[abcd]/);
-    if (letterMatch && correctAnswer) {
-      const correctLetter = correctAnswer.toLowerCase();
-      return letterMatch[0] === correctLetter;
+    if (letterMatch) {
+      const userLetterIndex = letterMatch[0].charCodeAt(0) - 97; // a=0, b=1, c=2, d=3
+      return userLetterIndex === correctAnswerIndex;
     }
     
-    // Check for partial text match
-    if (correctAnswer && typeof correctAnswer === 'string') {
-      return userText.includes(correctAnswer.toLowerCase());
+    // Check for partial text match with correct answer
+    if (correctAnswerText && typeof correctAnswerText === 'string') {
+      return userText.includes(correctAnswerText.toLowerCase());
     }
     
     return false;
