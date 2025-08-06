@@ -1,7 +1,6 @@
-const { User } = require('../models');
-const { loadContentForTraining } = require('./content-loader');
+const { User, Lesson } = require('../models');
 
-// Get lesson content for user based on their progress and uploaded content
+// Get lesson content for user - start with first available database lesson
 async function getLessonForUser(phoneNumber) {
   try {
     console.log(`🎯 Finding lesson for phone: ${phoneNumber}`);
@@ -12,69 +11,69 @@ async function getLessonForUser(phoneNumber) {
     });
     
     if (!user) {
-      console.log(`❌ User not found for phone: ${phoneNumber}`);
+      console.log(`❌ User not found for phone: ${phoneNumber}, using default lesson`);
+      // Get first available lesson from database
+      const firstLesson = await Lesson.findOne({
+        order: [['id', 'ASC']]
+      });
+      
+      if (firstLesson) {
+        return {
+          type: 'lesson',
+          lesson_id: firstLesson.id,
+          title: firstLesson.title,
+          message: `Vítejte! Začneme s lekcí "${firstLesson.title}".`,
+          content: firstLesson.content || firstLesson.description || 'Praktické školení podle materiálů.',
+          questions: generateQuestionsFromLesson(firstLesson)
+        };
+      }
+      
       return {
-        type: 'placement_test',
-        title: 'Úvodní test',
-        message: 'Vítejte! Prosím odpovězte na několik otázek k určení vaší úrovně.',
-        questions: [
-          'Představte se anglicky - řekněte své jméno a odkud jste.',
-          'Popište svou práci nebo školu anglicky.',
-          'Co děláte ve volném čase? Odpovězte anglicky.'
-        ]
+        type: 'error',
+        message: 'Omlouvám se, nejsou k dispozici žádné lekce. Kontaktujte administrátora.'
       };
     }
     
     console.log(`✅ Found user: ${user.name}, training type: ${user.training_type}`);
     
-    // If no training type set, start with placement test
-    if (!user.training_type || user.training_type === '') {
+    // Get lesson by user's training_type (which is now lesson ID) or first lesson
+    let targetLesson = null;
+    
+    if (user.training_type && user.training_type !== '') {
+      // Try to find lesson by ID (training_type now contains lesson ID)
+      targetLesson = await Lesson.findByPk(parseInt(user.training_type));
+      console.log(`🔍 Looking for lesson ID: ${user.training_type}, found: ${targetLesson ? 'YES' : 'NO'}`);
+    }
+    
+    // If no specific lesson or lesson not found, get first available lesson
+    if (!targetLesson) {
+      targetLesson = await Lesson.findOne({
+        order: [['id', 'ASC']]
+      });
+      console.log(`📚 Using first available lesson: ${targetLesson ? targetLesson.title : 'NONE'}`);
+    }
+    
+    if (!targetLesson) {
       return {
-        type: 'placement_test',
-        user_id: user.id,
-        title: 'Úvodní test pro ' + user.name,
-        message: `Dobrý den ${user.name}! Začneme úvodním testem k určení vaší úrovně a vhodného školení.`,
-        questions: [
-          'Představte se a řekněte své jméno a odkud jste.',
-          'Popište svou práci nebo činnost.',
-          'Co očekáváte od tohoto školení a jaké máte zkušenosti s tímto tématem?'
-        ]
+        type: 'error',
+        message: 'Omlouvám se, nejsou k dispozici žádné lekce. Kontaktujte administrátora.'
       };
     }
     
-        // Load actual content for this training type and company
-    const contentData = await loadContentForTraining(user.training_type, user.companyId);
-    
-    // Get training type display names
-    const trainingTitles = {
-      'english_basic': 'Základní Školení',
-      'english_business': 'Business Školení', 
-      'english_technical': 'Technické Školení',
-      'german_basic': 'Speciální Školení',
-      'safety_training': 'Bezpečnostní Školení'
-    };
-    
-    const trainingTitle = trainingTitles[user.training_type] || 'Obecné Školení';
-    
-    // Create lesson based on loaded content
+    // Create lesson response
     const lesson = {
       type: 'lesson',
-      training: user.training_type,
-      title: trainingTitle,
-      hasUploadedContent: contentData.hasContent,
-      contentTitle: contentData.contentTitle || null,
-      message: contentData.hasContent 
-        ? `Dobrý den ${user.name}! Budeme procvičovat podle nahraného materiálu "${contentData.contentTitle}".`
-        : `Dobrý den ${user.name}! Začneme s obecným školením pro ${trainingTitle.toLowerCase()}.`,
-      content: contentData.hasContent
-        ? `Projdeme si obsah z nahraného materiálu a otestujeme vaše porozumění.`
-        : `Probereme základní témata a zjistíme vaše současné znalosti.`,
-      questions: contentData.questions
+      lesson_id: targetLesson.id,
+      user_id: user.id,
+      title: targetLesson.title,
+      message: `Dobrý den ${user.name}! Začneme s lekcí "${targetLesson.title}".`,
+      content: targetLesson.content || targetLesson.description || 'Praktické školení podle nahraných materiálů.',
+      questions: generateQuestionsFromLesson(targetLesson)
     };
     
     console.log(`📋 Generated lesson:`, {
+      id: lesson.lesson_id,
       title: lesson.title,
-      hasContent: lesson.hasUploadedContent,
       questionsCount: lesson.questions.length
     });
     
@@ -86,6 +85,36 @@ async function getLessonForUser(phoneNumber) {
       type: 'error',
       message: 'Omlouvám se, došlo k chybě. Zkuste to prosím později.'
     };
+  }
+}
+
+// Generate practical questions based on lesson content
+function generateQuestionsFromLesson(lesson) {
+  const lessonTitle = lesson.title.toLowerCase();
+  
+  // Generate specific questions based on lesson topic
+  if (lessonTitle.includes('obráběcí kapaliny')) {
+    return [
+      'Co víte o obráběcích kapalinách a jejich použití?',
+      'Jaké druhy obráběcích kapalin znáte?',
+      'Jak se používají obráběcí kapaliny ve vaší práci?',
+      'Jaká bezpečnostní opatření dodržujete při práci s obráběcími kapalinami?'
+    ];
+  } else if (lessonTitle.includes('lidské tělo')) {
+    return [
+      'Popište mi hlavní části lidského těla.',
+      'Co víte o anatomii člověka?',
+      'Jak fungují základní tělesné systémy?',
+      'Jaké orgány považujete za nejdůležitější a proč?'
+    ];
+  } else {
+    // Generic questions for any lesson
+    return [
+      `Na základě lekce "${lesson.title}", vysvětlete mi hlavní téma.`,
+      'Co je podle vás nejdůležitější informace z této lekce?',
+      'Jak byste využili tyto znalosti ve své práci nebo životě?',
+      'Máte k probranému tématu nějaké dotazy nebo připomínky?'
+    ];
   }
 }
 
