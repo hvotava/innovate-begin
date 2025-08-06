@@ -294,3 +294,10 @@ const { intelligentVoiceCall } = require('./twilio-voice-intelligent');
 
 // REPLACE the simple voice/call with intelligent version
 router.post('/voice/call-intelligent', intelligentVoiceCall);
+
+// Import smart voice processors
+const { smartVoiceProcess, smartTranscribeProcess } = require('./smart-voice-process');
+
+// Replace basic endpoints with SMART versions
+router.post('/voice/process-smart', smartVoiceProcess);
+router.post('/voice/transcribe-smart', smartTranscribeProcess);

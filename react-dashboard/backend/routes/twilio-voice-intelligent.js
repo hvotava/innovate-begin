@@ -25,13 +25,13 @@ async function intelligentVoiceCall(req, res) {
     <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
         První otázka: ${lessonData.questions[0]}
     </Say>
-    <Record 
-        timeout="15"
+    <Record finishOnKey="#" 
+        timeout="8"
         maxLength="60"
-        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process"
+        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
         method="POST"
         transcribe="true"
-        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe"
+        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
     />
     <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">
         Děkuji za odpověď. Pokračujeme další otázkou.
@@ -50,13 +50,13 @@ async function intelligentVoiceCall(req, res) {
     <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
         Zkusme první otázku: ${lessonData.questions[0]}
     </Say>
-    <Record 
-        timeout="15"
+    <Record finishOnKey="#" 
+        timeout="8"
         maxLength="45"
-        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process"
+        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
         method="POST"
         transcribe="true"
-        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe"
+        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
     />
 </Response>`;
     } else {
@@ -91,3 +91,14 @@ async function intelligentVoiceCall(req, res) {
 }
 
 module.exports = { intelligentVoiceCall };
+
+// Add instruction helper for users
+function addFinishInstruction(twimlResponse) {
+  return twimlResponse.replace(
+    '</Response>',
+    `    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+        Stiskněte mřížku když dokončíte svou odpověď.
+    </Say>
+</Response>`
+  );
+}
