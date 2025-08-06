@@ -49,6 +49,28 @@ async function intelligentVoiceCall(req, res) {
     </Say>
 </Response>`;
     } else if (lessonData.type === 'lesson') {
+      // Format first question properly (could be object with multiple choice)
+      let firstQuestion = lessonData.questions[0];
+      
+      console.log(`🎯 First question structure:`, firstQuestion);
+      
+      if (typeof firstQuestion === 'object' && firstQuestion.question) {
+        // This is a test question with multiple choice
+        let questionText = firstQuestion.question;
+        
+        if (firstQuestion.options && firstQuestion.options.length > 0) {
+          questionText += " Možnosti: ";
+          firstQuestion.options.forEach((option, index) => {
+            const letter = String.fromCharCode(65 + index); // A, B, C, D
+            questionText += `${letter}: ${option.text}. `;
+          });
+        }
+        
+        firstQuestion = questionText;
+      }
+      
+      console.log(`🎯 Formatted first question:`, firstQuestion);
+      
       // Regular lesson TwiML
       twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -56,10 +78,7 @@ async function intelligentVoiceCall(req, res) {
         ${lessonData.message}
     </Say>
     <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
-        ${lessonData.content}
-    </Say>
-    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
-        Zkusme první otázku: ${lessonData.questions[0]}
+        První otázka: ${firstQuestion}
     </Say>
     <Record finishOnKey="#" 
         timeout="3"

@@ -67,53 +67,101 @@ class ConversationManager {
     }
   }
   
-  // Handle lesson phase responses
+  // Handle test questions phase (now loading from database from start)
   static async handleLessonPhase(transcribedText, state, callSid) {
-    state.lessonQuestionsAnswered++;
+    console.log(`📚 TEST PHASE: Question ${(state.currentQuestionIndex || 0) + 1}/${state.lesson.questions.length}`);
+    console.log(`📝 User answer: "${transcribedText}"`);
     
-    console.log(`📚 Lesson progress: ${state.lessonQuestionsAnswered}/4 questions answered`);
-    console.log(`📚 Current lesson:`, { id: state.lesson.lesson_id, title: state.lesson.title });
+    // Initialize if this is the first question
+    if (!state.currentQuestionIndex) state.currentQuestionIndex = 0;
+    if (!state.score) state.score = 0;
+    if (!state.userAnswers) state.userAnswers = [];
     
-    // Simple lesson feedback
-    const feedback = this.analyzeLessonResponse(transcribedText, state.lesson);
+    const currentQuestionIndex = state.currentQuestionIndex;
+    const currentQuestion = state.lesson.questions[currentQuestionIndex];
     
-    // After 4 lesson questions, move to test
-    if (state.lessonQuestionsAnswered >= 4) {
-      console.log(`📝 Lesson completed! Loading test for lesson ID: ${state.lesson.lesson_id}`);
-      console.log(`📝 Lesson object:`, JSON.stringify(state.lesson, null, 2));
+    console.log(`🎯 Current question:`, currentQuestion);
+    
+    let feedback = "";
+    let isCorrect = false;
+    
+    // Check if this is a test question with multiple choice options
+    if (currentQuestion && typeof currentQuestion === 'object' && currentQuestion.options) {
+      // This is a multiple choice test question from database
+      isCorrect = this.checkTestAnswer(transcribedText, currentQuestion);
       
-      // Load test questions from database
-      const testQuestions = await this.loadTestQuestions(state.lesson.lesson_id);
+      if (isCorrect) {
+        state.score++;
+        feedback = "Správně! ";
+      } else {
+        const correctOption = currentQuestion.options.find(opt => opt.correct);
+        feedback = `Bohužel ne. Správná odpověď je: ${correctOption?.text || 'neznámá'}. `;
+      }
       
-      if (testQuestions.length > 0) {
-        console.log(`✅ Test loaded successfully, ${testQuestions.length} questions found`);
-        state.state = STATES.TEST;
-        state.testQuestions = testQuestions;
-        state.currentQuestionIndex = 0;
+      // Store user answer
+      state.userAnswers.push({
+        question: currentQuestion.question || currentQuestion.text,
+        userAnswer: transcribedText,
+        correctAnswer: currentQuestion.options.find(opt => opt.correct)?.text || 'Neznámá',
+        isCorrect: isCorrect
+      });
+      
+      console.log(`📊 Score: ${state.score}/${state.userAnswers.length} (${isCorrect ? 'CORRECT' : 'WRONG'})`);
+      
+    } else {
+      // This is a text question - give general feedback
+      feedback = this.analyzeLessonResponse(transcribedText, state.lesson) + " ";
+    }
+    
+    // Move to next question
+    state.currentQuestionIndex++;
+    
+    // Check if we've completed all questions
+    if (state.currentQuestionIndex >= state.lesson.questions.length) {
+      console.log(`🎓 ALL QUESTIONS COMPLETED!`);
+      
+      if (state.userAnswers && state.userAnswers.length > 0) {
+        // We have test results to show
+        const finalScore = state.score;
+        const totalQuestions = state.userAnswers.length;
+        const percentage = Math.round((finalScore / totalQuestions) * 100);
         
+        const resultMessage = `Test "${state.lesson.title}" dokončen! Získali jste ${finalScore} z ${totalQuestions} bodů (${percentage}%). `;
+        
+        console.log(`🏆 FINAL RESULT: ${finalScore}/${totalQuestions} = ${percentage}%`);
+        
+        state.state = STATES.RESULTS;
         return {
-          feedback: feedback + " Výborně! Nyní přejdeme k testu.",
-          nextQuestion: this.formatTestQuestion(testQuestions[0], 1),
-          questionType: 'test_start'
+          feedback: feedback + resultMessage + "Hovor bude ukončen.",
+          nextQuestion: "",
+          questionType: 'session_complete'
         };
       } else {
-        console.log(`❌ No test questions loaded for lesson ${state.lesson.lesson_id}`);
         return {
-          feedback: feedback + " Lekce dokončena! Test není k dispozici.",
-          nextQuestion: "Děkuji za pozornost. Hovor ukončujeme.",
-          questionType: 'lesson_complete'
+          feedback: feedback + "Test dokončen! Hovor bude ukončen.",
+          nextQuestion: "",
+          questionType: 'session_complete'
         };
       }
     }
     
-    // Continue with lesson questions
-    const nextLessonQ = state.lesson.questions[state.lessonQuestionsAnswered] || 
-      "Máte k této lekci ještě nějaké dotazy?";
+    // Continue with next question
+    const nextQuestion = state.lesson.questions[state.currentQuestionIndex];
+    let formattedNextQuestion = "";
+    
+    // If next question is a test question object, format it properly
+    if (typeof nextQuestion === 'object' && nextQuestion.question) {
+      formattedNextQuestion = this.formatTestQuestion(nextQuestion, state.currentQuestionIndex + 1);
+    } else if (typeof nextQuestion === 'string') {
+      formattedNextQuestion = nextQuestion;
+    } else {
+      formattedNextQuestion = "Další otázka není k dispozici.";
+    }
     
     return {
       feedback: feedback,
-      nextQuestion: nextLessonQ,
-      questionType: 'lesson_continue'
+      nextQuestion: formattedNextQuestion,
+      questionType: 'test_continue'
     };
   }
   

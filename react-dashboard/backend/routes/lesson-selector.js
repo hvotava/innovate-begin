@@ -1,4 +1,4 @@
-const { User, Lesson } = require('../models');
+const { User, Lesson, Test } = require('../models');
 
 // Get lesson content for user - start with first available database lesson
 async function getLessonForUser(phoneNumber) {
@@ -67,15 +67,19 @@ async function getLessonForUser(phoneNumber) {
       };
     }
     
+    // Load test questions from database instead of hardcoded ones
+    console.log(`📚 Loading test questions for lesson ID: ${targetLesson.id}`);
+    const testQuestions = await loadTestQuestionsFromDB(targetLesson.id);
+    
     // Create lesson response
     const lesson = {
       type: 'lesson',
       lesson_id: targetLesson.id,
       user_id: user.id,
       title: targetLesson.title,
-      message: `Dobrý den ${user.name}! Začneme s lekcí "${targetLesson.title}".`,
+      message: `Dobrý den ${user.name}! Začneme s testem "${targetLesson.title}".`,
       content: targetLesson.content || targetLesson.description || 'Praktické školení podle nahraných materiálů.',
-      questions: generateQuestionsFromLesson(targetLesson)
+      questions: testQuestions.length > 0 ? testQuestions : generateQuestionsFromLesson(targetLesson)  // Fallback to hardcoded if no DB questions
     };
     
     console.log(`📋 Generated lesson:`, {
@@ -122,6 +126,40 @@ function generateQuestionsFromLesson(lesson) {
       'Jak byste využili tyto znalosti ve své práci nebo životě?',
       'Máte k probranému tématu nějaké dotazy nebo připomínky?'
     ];
+  }
+}
+
+// Load test questions from database for a lesson
+async function loadTestQuestionsFromDB(lessonId) {
+  try {
+    console.log(`🔍 Loading test questions for lesson ID: ${lessonId}`);
+    
+    // Find tests for this lesson
+    const tests = await Test.findAll({
+      where: { lessonId: lessonId }
+    });
+    
+    console.log(`📋 Found ${tests.length} tests for lesson ${lessonId}`);
+    
+    if (tests.length === 0) {
+      console.log(`❌ No tests found for lesson ${lessonId}`);
+      return [];
+    }
+    
+    // Get questions from the first test
+    const test = tests[0];
+    console.log(`📝 Using test: ${test.title} (ID: ${test.id})`);
+    console.log(`📝 Raw questions data:`, test.questions);
+    
+    const questions = JSON.parse(test.questions || '[]');
+    
+    console.log(`✅ Loaded ${questions.length} questions from database:`, questions.map(q => q.question || q.text));
+    
+    return questions;
+    
+  } catch (error) {
+    console.error(`❌ Error loading test questions from DB:`, error.message);
+    return [];
   }
 }
 
