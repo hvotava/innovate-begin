@@ -4,6 +4,7 @@ const { ConversationManager } = require('./ai-conversation');
 
 async function intelligentVoiceCall(req, res) {
   console.log('🧠 INTELLIGENT Voice/call handler CALLED');
+  console.log('🔥 DEPLOYMENT VERSION: 2025-08-06-19:06 - FORCE DATABASE QUESTIONS!');
   console.log('📝 Request body:', JSON.stringify(req.body, null, 2));
   
   const userPhone = req.body.To; // The user's phone number being called
