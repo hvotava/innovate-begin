@@ -68,6 +68,7 @@ interface TestResponse {
       characters: number;
       words: number;
       sentences: number;
+      averageWordsPerSentence: number;
     };
   };
   callSid: string;
