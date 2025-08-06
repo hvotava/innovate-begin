@@ -345,6 +345,7 @@ const startServer = async () => {
     
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🔥 DATABASE QUESTIONS DEPLOYMENT - Version 2025-08-06-16:48`);
       console.log(`📊 Dashboard API: http://localhost:${PORT}/api`);
       console.log(`🏥 Health check: http://localhost:${PORT}/api/health`);
     });
