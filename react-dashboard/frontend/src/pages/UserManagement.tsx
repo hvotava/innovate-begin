@@ -52,7 +52,7 @@ import {
   Engineering as EngineeringIcon,
   Security as SecurityIcon
 } from '@mui/icons-material';
-import { usersManagementAPI, companiesAPI, userService } from '../services/api';
+import { usersManagementAPI, companiesAPI, userService, lessonsAPI } from '../services/api';
 import { User, Company, UserStats, UserRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { canManageUsers } from '../utils/permissions';
@@ -171,10 +171,9 @@ const UserManagement: React.FC = () => {
 
   const fetchLessons = async () => {
     try {
-      const response = await fetch('/api/lessons');
-      const data = await response.json();
-      console.log('🔍 Fetched lessons for training_type selector:', data);
-      setLessons(data.lessons || []);
+      const response = await lessonsAPI.getLessons();
+      console.log('🔍 Fetched lessons for training_type selector:', response.data);
+      setLessons(response.data.lessons || []);
     } catch (error) {
       console.error('Error fetching lessons:', error);
       showSnackbar('Nepodařilo se načíst lekce', 'error');
