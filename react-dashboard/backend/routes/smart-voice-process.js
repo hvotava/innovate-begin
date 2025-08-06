@@ -19,8 +19,10 @@ async function smartVoiceProcess(req, res) {
         Omlouvám se, nerozuměl jsem. Můžete to zopakovat?
     </Say>
     <Record 
-        timeout="8"
+        timeout="3"
         maxLength="30"
+        playBeep="false"
+        finishOnKey="#"
         action="https://lecture-final-production.up.railway.app/api/twilio/voice/process"
         method="POST"
         transcribe="true"
@@ -45,8 +47,9 @@ async function smartVoiceProcess(req, res) {
         Nyní mi řekněte o vaší práci nebo studiu v angličtině.
     </Say>
     <Record 
-        timeout="8"
+        timeout="3"
         maxLength="30"
+        playBeep="false"
         finishOnKey="#"
         action="https://lecture-final-production.up.railway.app/api/twilio/voice/process"
         method="POST"

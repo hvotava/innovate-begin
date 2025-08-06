@@ -92,6 +92,7 @@ const UserManagement: React.FC = () => {
   
   const [users, setUsers] = useState<User[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [lessons, setLessons] = useState<any[]>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [tabValue, setTabValue] = useState(0);
@@ -138,6 +139,7 @@ const UserManagement: React.FC = () => {
     
     fetchUsers();
     fetchCompanies();
+    fetchLessons();
     fetchStats();
   }, [canManage, searchTerm, roleFilter, companyFilter]);
 
@@ -164,6 +166,18 @@ const UserManagement: React.FC = () => {
       setCompanies(response.data.companies);
     } catch (error) {
       console.error('Error fetching companies:', error);
+    }
+  };
+
+  const fetchLessons = async () => {
+    try {
+      const response = await fetch('/api/lessons');
+      const data = await response.json();
+      console.log('🔍 Fetched lessons for training_type selector:', data);
+      setLessons(data.lessons || []);
+    } catch (error) {
+      console.error('Error fetching lessons:', error);
+      showSnackbar('Nepodařilo se načíst lekce', 'error');
     }
   };
 
@@ -446,15 +460,18 @@ const UserManagement: React.FC = () => {
       headerName: 'Školení',
       width: isMobile ? 120 : 160,
       renderCell: (params) => {
-        const getTrainingDisplay = (type: string) => {
-          switch(type) {
-            case 'english_basic': return { name: 'Základní', icon: <SchoolIcon />, color: 'primary' };
-            case 'english_business': return { name: 'Business', icon: <BusinessIcon />, color: 'secondary' };
-            case 'english_technical': return { name: 'Technické', icon: <EngineeringIcon />, color: 'warning' };
-            case 'german_basic': return { name: 'Speciální', icon: <LanguageIcon />, color: 'success' };
-            case 'safety_training': return { name: 'Bezpečnost', icon: <SecurityIcon />, color: 'error' };
-            default: return { name: 'Nezařazen', icon: <SchoolIcon />, color: 'disabled' };
+        const getTrainingDisplay = (lessonId: string) => {
+          if (!lessonId) {
+            return { name: 'Nezařazen', icon: <SchoolIcon />, color: 'disabled' };
           }
+          
+          // Najdi lekci podle ID z databáze
+          const lesson = lessons.find(l => l.id.toString() === lessonId);
+          if (lesson) {
+            return { name: lesson.title, icon: <SchoolIcon />, color: 'primary' };
+          }
+          
+          return { name: 'Nezařazen', icon: <SchoolIcon />, color: 'disabled' };
         };
         const display = getTrainingDisplay(params.value);
         return (
@@ -1091,36 +1108,16 @@ const UserManagement: React.FC = () => {
                       Nezařazen
                     </Box>
                   </MenuItem>
-                  <MenuItem value="english_basic">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <SchoolIcon fontSize="small" color="primary" />
-                      Základní Školení
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="english_business">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <BusinessIcon fontSize="small" color="secondary" />
-                      Business Školení
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="english_technical">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <EngineeringIcon fontSize="small" color="warning" />
-                      Technické Školení
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="german_basic">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <LanguageIcon fontSize="small" color="success" />
-                      Speciální Školení
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="safety_training">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <SecurityIcon fontSize="small" color="error" />
-                      Bezpečnostní Školení
-                    </Box>
-                  </MenuItem>
+                  
+                  {/* Vaše lekce z databáze */}
+                  {lessons.map((lesson) => (
+                    <MenuItem key={lesson.id} value={lesson.id.toString()}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <SchoolIcon fontSize="small" color="primary" />
+                        {lesson.title}
+                      </Box>
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
             </Grid>

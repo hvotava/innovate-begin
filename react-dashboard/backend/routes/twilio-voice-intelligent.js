@@ -26,8 +26,9 @@ async function intelligentVoiceCall(req, res) {
         První otázka: ${lessonData.questions[0]}
     </Say>
     <Record finishOnKey="#" 
-        timeout="8"
-        maxLength="60"
+        timeout="3"
+        maxLength="30"
+        playBeep="false"
         action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
         method="POST"
         transcribe="true"
@@ -51,8 +52,9 @@ async function intelligentVoiceCall(req, res) {
         Zkusme první otázku: ${lessonData.questions[0]}
     </Say>
     <Record finishOnKey="#" 
-        timeout="8"
-        maxLength="45"
+        timeout="3"
+        maxLength="30"
+        playBeep="false"
         action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
         method="POST"
         transcribe="true"
