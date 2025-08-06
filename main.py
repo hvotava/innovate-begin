@@ -2789,13 +2789,11 @@ async def voice_call_handler(request: Request):
     twiml_response = f'''<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">Vítejte u AI asistenta pro výuku jazyků.</Say>
-    <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">WebSocket test - pokud slyšíte tuto zprávu, HTTP funguje.</Say>
-    <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">Nyní testuji WebSocket připojení.</Say>
     <Start>
         <Stream 
             name="ai_assistant_stream"
             url="wss://lecture-app-production.up.railway.app/audio" 
-            track="both" 
+            track="both_tracks" 
             statusCallback="https://lecture-app-production.up.railway.app/stream-callback"
             statusCallbackMethod="POST"
         />
@@ -3656,7 +3654,7 @@ async def voice_start_stream(request: Request):
         Vítejte u AI asistenta pro výuku jazyků.
     </Say>
     <Start>
-        <Stream url="wss://lecture-app-production.up.railway.app/audio" track="both" />
+        <Stream url="wss://lecture-app-production.up.railway.app/audio" track="both_tracks" />
     </Start>
 </Response>
 """
