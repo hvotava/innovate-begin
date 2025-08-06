@@ -386,7 +386,7 @@ router.post('/:id/call', auth, adminOnly, async (req, res) => {
         const call = await twilioClient.calls.create({
           to: user.phone,
           from: process.env.TWILIO_PHONE_NUMBER,
-          url: `${statusBackendUrl}/api/twilio/voice/call`,
+          url: `${statusBackendUrl}/api/twilio/voice/call-intelligent`,
           method: 'POST',
           record: true,
           statusCallback: `${statusBackendUrl}/api/twilio/status`,
@@ -395,7 +395,7 @@ router.post('/:id/call', auth, adminOnly, async (req, res) => {
         });
 
         console.log(`✅ Twilio call initiated to ${user.name} (${user.phone}): ${call.sid}`);
-        console.log(`📞 Voice webhook: ${statusBackendUrl}/api/twilio/voice/call`);
+        console.log(`📞 Voice webhook: ${statusBackendUrl}/api/twilio/voice/call-intelligent`);
         console.log(`📊 Status webhook: ${statusBackendUrl}/api/twilio/status`);
 
         res.json({

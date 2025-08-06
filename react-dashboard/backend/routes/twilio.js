@@ -245,3 +245,52 @@ router.post('/voice/call', (req, res) => {
   res.set('Content-Type', 'application/xml');
   res.send(twimlResponse);
 });
+
+// Voice processing endpoint - handles recorded speech
+router.post('/voice/process', async (req, res) => {
+  console.log('🎙️ Voice processing called');
+  console.log('📝 Request body:', req.body);
+  console.log('🎵 RecordingUrl:', req.body.RecordingUrl);
+  
+  const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">
+        Děkuji za vaši odpověď. Pokračujte v konverzaci nebo stiskněte hvězdičku pro ukončení.
+    </Say>
+    <Record 
+        timeout="10"
+        maxLength="30"
+        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process"
+        method="POST"
+        transcribe="true"
+        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe"
+    />
+</Response>`;
+
+  console.log('✅ Process TwiML response sent');
+  res.set('Content-Type', 'application/xml');
+  res.send(twimlResponse);
+});
+
+// Transcription callback - handles speech-to-text results
+router.post('/voice/transcribe', async (req, res) => {
+  console.log('📝 Transcription callback received');
+  console.log('🎯 CallSid:', req.body.CallSid);
+  console.log('📄 TranscriptionText:', req.body.TranscriptionText);
+  console.log('📊 TranscriptionStatus:', req.body.TranscriptionStatus);
+  
+  // Here we could process the transcribed text and generate AI response
+  const transcribedText = req.body.TranscriptionText;
+  if (transcribedText) {
+    console.log(`�� User said: "${transcribedText}"`);
+    // TODO: Send to AI for processing and generate response
+  }
+  
+  res.send('OK');
+});
+
+// Import intelligent voice handler
+const { intelligentVoiceCall } = require('./twilio-voice-intelligent');
+
+// REPLACE the simple voice/call with intelligent version
+router.post('/voice/call-intelligent', intelligentVoiceCall);
