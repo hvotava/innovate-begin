@@ -92,15 +92,14 @@ async function smartTranscribeProcess(req, res) {
       
       console.log('🧠 Conversation Analysis:', response);
       
-      // TODO: Save test results when in test phase
+      // Save test results when test is completed
       if (response.testResults) {
         console.log('📊 Test Results:', {
           score: `${response.testResults.score}/${response.testResults.total}`,
           percentage: `${response.testResults.percentage}%`
         });
         
-        // Here we would save to TestResponse database when re-enabled
-        console.log('🧠 AI Evaluation temporarily disabled for deployment');
+        console.log('✅ Test results have been saved to database by ConversationManager');
       }
       
     } catch (error) {

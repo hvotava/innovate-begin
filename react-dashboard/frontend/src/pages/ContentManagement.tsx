@@ -97,6 +97,13 @@ const ContentManagement: React.FC = () => {
   const [textContent, setTextContent] = useState('');
   const [showTextDialog, setShowTextDialog] = useState(false);
   
+  // Lesson assignment state
+  const [lessons, setLessons] = useState<any[]>([]);
+  const [selectedLessonId, setSelectedLessonId] = useState<string>('');
+  const [createNewLesson, setCreateNewLesson] = useState(false);
+  const [newLessonTitle, setNewLessonTitle] = useState('');
+  const [lessonCategory, setLessonCategory] = useState('General');
+  
   // Course generation state
   const [generatingCourse, setGeneratingCourse] = useState(false);
   const [selectedSourceId, setSelectedSourceId] = useState<number | null>(null);

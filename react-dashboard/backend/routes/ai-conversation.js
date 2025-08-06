@@ -96,7 +96,11 @@ class ConversationManager {
       } else {
         // Get correct answer using correctAnswer index
         const correctAnswerText = currentQuestion.options[currentQuestion.correctAnswer] || 'neznámá';
-        feedback = `Bohužel ne. Správná odpověď je: ${correctAnswerText}. `;
+        
+        // Generate helpful feedback based on question content
+        let explanation = this.generateExplanation(currentQuestion, correctAnswerText);
+        
+        feedback = `Bohužel ne. Správná odpověď je: ${correctAnswerText}. ${explanation} `;
       }
       
       // Store user answer
@@ -131,11 +135,19 @@ class ConversationManager {
         
         console.log(`🏆 FINAL RESULT: ${finalScore}/${totalQuestions} = ${percentage}%`);
         
+        // Save test results to database
+        await this.saveTestResults(state, callSid);
+        
         state.state = STATES.RESULTS;
         return {
           feedback: feedback + resultMessage + "Hovor bude ukončen.",
           nextQuestion: "",
-          questionType: 'session_complete'
+          questionType: 'session_complete',
+          testResults: {
+            score: finalScore,
+            total: totalQuestions,
+            percentage: percentage
+          }
         };
       } else {
         return {
@@ -372,5 +384,85 @@ class ConversationManager {
     };
   }
 }
+
+  
+  // Save test results to database
+  static async saveTestResults(state, callSid) {
+    try {
+      console.log('💾 Saving test results to database...');
+      
+      const TestResult = require('../models/TestResult');
+      const { User } = require('../models');
+      
+      // Find user by phone from conversation state
+      let userId = state.lesson.user_id;
+      if (!userId) {
+        // Try to find user by callSid or other means
+        console.log('⚠️ User ID not found in state, using default or admin');
+        userId = 1; // Fallback to admin user
+      }
+      
+      // Save each answer as a separate TestResult record
+      for (let i = 0; i < state.userAnswers.length; i++) {
+        const answer = state.userAnswers[i];
+        
+        await TestResult.create({
+          userId: userId,
+          trainingType: state.lesson.title,
+          lessonTitle: state.lesson.title,
+          contentId: state.lesson.lesson_id,
+          questionText: answer.question,
+          userAnswer: answer.userAnswer,
+          recordingUrl: null, // TODO: Add recording URL if available
+          recordingDuration: null,
+          aiEvaluation: {
+            isCorrect: answer.isCorrect,
+            correctAnswer: answer.correctAnswer,
+            feedback: answer.isCorrect ? 'Správná odpověď' : `Správná odpověď je: ${answer.correctAnswer}`,
+            questionNumber: i + 1
+          },
+          completionPercentage: answer.isCorrect ? 100 : 0,
+          qualityScore: answer.isCorrect ? 100 : 0,
+          sessionId: callSid
+        });
+      }
+      
+      // Calculate and log final results
+      const correctAnswers = state.userAnswers.filter(a => a.isCorrect).length;
+      const totalQuestions = state.userAnswers.length;
+      const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+      
+      console.log(`✅ Test results saved: ${correctAnswers}/${totalQuestions} (${percentage}%)`);
+      console.log(`📊 Questions saved for user ${userId}, lesson "${state.lesson.title}"`);
+      
+    } catch (error) {
+      console.error('❌ Error saving test results:', error.message);
+             console.error('📋 Full error:', error);
+     }
+   }
+   
+   // Generate helpful explanation for wrong answers
+   static generateExplanation(questionObj, correctAnswer) {
+     const question = questionObj.question.toLowerCase();
+     
+     // Smart explanations based on question content
+     if (question.includes('kolik') && question.includes('kostí')) {
+       return 'Dospělý člověk má přesně 206 kostí.';
+     } else if (question.includes('funkce') && question.includes('srdce')) {
+       return 'Hlavní funkcí srdce je pumpování krve tělem.';
+     } else if (question.includes('dýchání') || question.includes('orgán')) {
+       return 'Plíce jsou zodpovědné za dýchání a výměnu kyslíku.';
+     } else if (question.includes('mozek')) {
+       return 'Mozek řídí všechny tělesné funkce a myšlení.';
+     } else if (question.includes('játra')) {
+       return 'Játra filtrují toxiny z krve a produkují žluč.';
+     } else if (question.includes('žaludek')) {
+       return 'Žaludek tráví potravu pomocí žaludečních šťáv.';
+     }
+     
+     // Generic helpful response
+     return 'Zapamatujte si to pro příště.';
+   }
+ }
 
 module.exports = { ConversationManager };

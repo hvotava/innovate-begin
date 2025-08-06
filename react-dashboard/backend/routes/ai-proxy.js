@@ -126,24 +126,100 @@ router.post('/content/upload', async (req, res) => {
       body: Object.keys(req.body)
     });
 
-    // Mock successful upload
+    const { Lesson, Training } = require('../models');
+    
+    // Extract text content from uploaded files
+    let textContent = '';
+    let fileName = '';
+    
+    if (req.files && req.files.files) {
+      const files = Array.isArray(req.files.files) ? req.files.files : [req.files.files];
+      for (const file of files) {
+        fileName = file.name;
+        
+        if (file.mimetype === 'text/plain') {
+          textContent += file.data.toString('utf8') + '\n';
+        } else if (file.mimetype === 'application/pdf') {
+          // For now, just note that it's a PDF
+          textContent += `[PDF Content from ${file.name}]\n`;
+          console.log('📄 PDF upload detected, content extraction not yet implemented');
+        }
+      }
+    }
+    
+    // Get lesson assignment parameters
+    const lessonId = req.body.lessonId;
+    const createNewLesson = req.body.createNewLesson === 'true';
+    const newLessonTitle = req.body.newLessonTitle;
+    const lessonCategory = req.body.lessonCategory || 'General';
+    
+    let targetLessonId = lessonId;
+    
+    // Create new lesson if requested
+    if (createNewLesson && newLessonTitle) {
+      console.log(`📚 Creating new lesson: ${newLessonTitle}`);
+      
+      // Find or create a default training for this content
+      let training = await Training.findOne({ 
+        where: { title: 'Uploaded Content Training' } 
+      });
+      
+      if (!training) {
+        training = await Training.create({
+          title: 'Uploaded Content Training',
+          description: 'Training created from uploaded content',
+          category: lessonCategory,
+          companyId: req.body.company_id || 1
+        });
+      }
+      
+      const newLesson = await Lesson.create({
+        title: newLessonTitle,
+        description: `Generated from uploaded file: ${fileName}`,
+        content: textContent,
+        lesson_type: 'lesson',
+        level: 1,
+        trainingId: training.id
+      });
+      
+      targetLessonId = newLesson.id;
+      console.log(`✅ New lesson created with ID: ${targetLessonId}`);
+      
+    } else if (lessonId) {
+      // Update existing lesson with new content
+      console.log(`📝 Updating existing lesson ID: ${lessonId}`);
+      
+      const lesson = await Lesson.findByPk(lessonId);
+      if (lesson) {
+        await lesson.update({
+          content: (lesson.content || '') + '\n\n' + textContent,
+          description: lesson.description + ` (Updated with ${fileName})`
+        });
+        console.log(`✅ Lesson ${lessonId} updated with new content`);
+      }
+    }
+
     const uploadedSources = [{
       id: Date.now(),
-      title: req.body.title || 'Uploaded Content',
+      title: req.body.title || fileName || 'Uploaded Content',
       status: 'ready',
-      file_size: req.files && req.files.files ? req.files.files.size || 1000 : 1000,
-      word_count: Math.floor(Math.random() * 500) + 100
+      file_size: req.files && req.files.files ? req.files.files.size || textContent.length : textContent.length,
+      word_count: textContent.split(' ').length,
+      lesson_id: targetLessonId,
+      content_preview: textContent.substring(0, 200) + '...'
     }];
 
     console.log('✅ Content upload successful:', uploadedSources[0]);
     res.json({
       success: true,
       uploaded_sources: uploadedSources,
-      message: `Successfully uploaded content: ${uploadedSources[0].title}`
+      message: `Successfully uploaded content: ${uploadedSources[0].title}`,
+      lesson_assignment: targetLessonId ? `Assigned to lesson ID: ${targetLessonId}` : 'No lesson assignment'
     });
 
   } catch (error) {
     console.error('❌ Content upload error:', error.message);
+    console.error('📋 Error stack:', error.stack);
     res.status(500).json({ success: false, error: error.message });
   }
 });
