@@ -71,17 +71,22 @@ class ConversationManager {
   static async handleLessonPhase(transcribedText, state, callSid) {
     state.lessonQuestionsAnswered++;
     
+    console.log(`📚 Lesson progress: ${state.lessonQuestionsAnswered}/4 questions answered`);
+    console.log(`📚 Current lesson:`, { id: state.lesson.lesson_id, title: state.lesson.title });
+    
     // Simple lesson feedback
     const feedback = this.analyzeLessonResponse(transcribedText, state.lesson);
     
     // After 4 lesson questions, move to test
     if (state.lessonQuestionsAnswered >= 4) {
-      console.log(`📝 Lesson completed, loading test for lesson ID: ${state.lesson.lesson_id}`);
+      console.log(`📝 Lesson completed! Loading test for lesson ID: ${state.lesson.lesson_id}`);
+      console.log(`📝 Lesson object:`, JSON.stringify(state.lesson, null, 2));
       
       // Load test questions from database
       const testQuestions = await this.loadTestQuestions(state.lesson.lesson_id);
       
       if (testQuestions.length > 0) {
+        console.log(`✅ Test loaded successfully, ${testQuestions.length} questions found`);
         state.state = STATES.TEST;
         state.testQuestions = testQuestions;
         state.currentQuestionIndex = 0;
@@ -92,6 +97,7 @@ class ConversationManager {
           questionType: 'test_start'
         };
       } else {
+        console.log(`❌ No test questions loaded for lesson ${state.lesson.lesson_id}`);
         return {
           feedback: feedback + " Lekce dokončena! Test není k dispozici.",
           nextQuestion: "Děkuji za pozornost. Hovor ukončujeme.",
@@ -195,24 +201,43 @@ class ConversationManager {
     try {
       console.log(`📚 Loading tests for lesson ID: ${lessonId}`);
       
+      // Debug: Check what lessons exist
+      const allLessons = await Lesson.findAll({ attributes: ['id', 'title'] });
+      console.log(`🔍 All lessons in DB:`, allLessons.map(l => ({ id: l.id, title: l.title })));
+      
+      // Debug: Check what tests exist  
+      const allTests = await Test.findAll({ attributes: ['id', 'title', 'lessonId'] });
+      console.log(`🔍 All tests in DB:`, allTests.map(t => ({ id: t.id, title: t.title, lessonId: t.lessonId })));
+      
       const tests = await Test.findAll({
-        where: { lessonId: lessonId }
+        where: { lessonId: lessonId },
+        include: [{ 
+          model: Lesson, 
+          attributes: ['id', 'title'] 
+        }]
       });
+      
+      console.log(`🔍 Tests found for lessonId ${lessonId}:`, tests.length);
       
       if (tests.length === 0) {
         console.log(`❌ No tests found for lesson ${lessonId}`);
+        console.log(`❌ Try checking if lessonId exists and tests are properly linked`);
         return [];
       }
       
       // Extract questions from first test
       const test = tests[0];
+      console.log(`📝 Test details:`, { id: test.id, title: test.title, lessonId: test.lessonId });
+      console.log(`📝 Raw questions data:`, test.questions);
+      
       const questions = JSON.parse(test.questions || '[]');
       
-      console.log(`✅ Loaded ${questions.length} test questions`);
+      console.log(`✅ Loaded ${questions.length} test questions:`, questions);
       return questions;
       
     } catch (error) {
       console.error(`❌ Error loading test questions:`, error.message);
+      console.error(`❌ Full error:`, error);
       return [];
     }
   }
