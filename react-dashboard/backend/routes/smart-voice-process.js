@@ -79,7 +79,7 @@ async function smartTranscribeProcess(req, res) {
   const transcribedText = req.body.TranscriptionText;
   const callSid = req.body.CallSid;
   
-  if (transcribedText && req.body.TranscriptionStatus === 'completed') {
+  if (req.body.TranscriptionStatus === 'completed' && transcribedText) {
     console.log(`💬 User said: "${transcribedText}"`);
     
     try {
@@ -106,6 +106,28 @@ async function smartTranscribeProcess(req, res) {
       console.error('❌ Transcription processing error:', error.message);
       console.error('📋 Error details:', error.stack);
     }
+  } else if (req.body.TranscriptionStatus === 'failed') {
+    console.log('❌ Transcription failed, but continuing with conversation');
+    console.log('📋 Recording URL:', req.body.RecordingUrl);
+    
+    try {
+      // Continue conversation even with failed transcription
+      const response = await ConversationManager.processUserResponse(
+        '[Nerozpoznaná odpověď]', // Fallback text
+        callSid,
+        req.body.Called || req.body.Caller
+      );
+      
+      console.log('🧠 Conversation continued despite transcription failure:', response);
+    } catch (error) {
+      console.error('❌ Error handling failed transcription:', error.message);
+    }
+  } else {
+    console.log('⚠️ No transcription text available:', {
+      status: req.body.TranscriptionStatus,
+      text: transcribedText,
+      hasText: !!transcribedText
+    });
   }
   
   res.send('OK');

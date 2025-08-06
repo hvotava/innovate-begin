@@ -37,9 +37,9 @@ async function intelligentVoiceCall(req, res) {
         První otázka: ${lessonData.questions[0]}
     </Say>
     <Record finishOnKey="#" 
-        timeout="3"
+        timeout="10"
         maxLength="30"
-        playBeep="false"
+        playBeep="true"
         action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
         method="POST"
         transcribe="true"
@@ -82,6 +82,9 @@ async function intelligentVoiceCall(req, res) {
     </Say>
     <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
         První otázka: ${firstQuestion}
+    </Say>
+    <Say language="cs-CZ" rate="0.7" voice="Google.cs-CZ-Standard-A">
+        Po pípnutí řekněte svoji odpověď nahlas a jasně. Stiskněte mřížku když dokončíte.
     </Say>
     <Record finishOnKey="#" 
         timeout="3"

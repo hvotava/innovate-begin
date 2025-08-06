@@ -383,8 +383,6 @@ class ConversationManager {
       questionType: 'error'
     };
   }
-}
-
   
   // Save test results to database
   static async saveTestResults(state, callSid) {
@@ -460,9 +458,9 @@ class ConversationManager {
        return 'Žaludek tráví potravu pomocí žaludečních šťáv.';
      }
      
-     // Generic helpful response
-     return 'Zapamatujte si to pro příště.';
-   }
- }
+         // Generic helpful response
+    return 'Zapamatujte si to pro příště.';
+  }
+}
 
 module.exports = { ConversationManager };
