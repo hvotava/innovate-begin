@@ -354,4 +354,4 @@ const startServer = async () => {
   }
 };
 
-startServer(); 
+startServer(); // Force Railway redeploy - Wed Aug  6 18:38:35 CEST 2025
