@@ -1,6 +1,6 @@
 const { ConversationManager } = require('./ai-conversation');
-const { TestResponse } = require('../models');
-const { AIEvaluator } = require('../services/ai-evaluator');
+// const { TestResponse } = require('../models');
+// const { AIEvaluator } = require('../services/ai-evaluator');
 const { v4: uuidv4 } = require('uuid');
 
 // Smart voice processing with conversation flow
@@ -81,6 +81,10 @@ async function smartTranscribeProcess(req, res) {
       const sessionContext = await getCallSessionContext(callSid);
       
       if (sessionContext && sessionContext.user && sessionContext.currentQuestion) {
+        // TODO: Re-enable after database migration
+        console.log('🧠 AI Evaluation temporarily disabled for deployment');
+        
+        /*
         // Perform AI evaluation
         const aiEvaluation = AIEvaluator.evaluateResponse(
           sessionContext.currentQuestion,
@@ -119,6 +123,7 @@ async function smartTranscribeProcess(req, res) {
           completion: `${testResponse.completionPercentage}%`,
           quality: `${testResponse.qualityScore}%`
         });
+        */
         
         // Process conversation continuation
         const response = await ConversationManager.processUserResponse(
