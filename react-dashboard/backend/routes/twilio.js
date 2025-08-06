@@ -218,3 +218,30 @@ function getInvalidInputMessage(language) {
 }
 
 module.exports = router; 
+// NEW: Voice call endpoint for AI assistant - WORKING VERSION
+router.post('/voice/call', (req, res) => {
+  console.log('🎯 NEW Voice/call handler (without test messages)');
+  console.log('📝 Request body:', req.body);
+  
+  const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">
+        AI Asistent připraven. Mluvte prosím.
+    </Say>
+    <Record 
+        timeout="10"
+        maxLength="30"
+        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process"
+        method="POST"
+        transcribe="true"
+        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe"
+    />
+    <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">
+        Děkuji. Zpracovávám odpověď.
+    </Say>
+</Response>`;
+
+  console.log('✅ NEW TwiML response (NO TEST MESSAGES)');
+  res.set('Content-Type', 'application/xml');
+  res.send(twimlResponse);
+});
