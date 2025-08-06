@@ -73,7 +73,7 @@ async function getLessonForUser(phoneNumber) {
     
     // Create lesson response
     const lesson = {
-      type: 'lesson',
+        type: 'lesson',
       lesson_id: targetLesson.id,
       user_id: user.id,
       title: targetLesson.title,

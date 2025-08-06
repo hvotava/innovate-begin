@@ -89,7 +89,7 @@ class ConversationManager {
     if (currentQuestion && typeof currentQuestion === 'object' && currentQuestion.options) {
       // This is a multiple choice test question from database
       isCorrect = this.checkTestAnswer(transcribedText, currentQuestion);
-      
+    
       if (isCorrect) {
         state.score++;
         feedback = "Správně! ";
@@ -377,7 +377,7 @@ class ConversationManager {
   
   // Error response
   static getErrorResponse() {
-    return {
+      return {
       feedback: "Omlouvám se, došlo k chybě.",
       nextQuestion: "Zkuste to prosím znovu.",
       questionType: 'error'
@@ -456,7 +456,7 @@ class ConversationManager {
        return 'Játra filtrují toxiny z krve a produkují žluč.';
      } else if (question.includes('žaludek')) {
        return 'Žaludek tráví potravu pomocí žaludečních šťáv.';
-     }
+    }
      
          // Generic helpful response
     return 'Zapamatujte si to pro příště.';
