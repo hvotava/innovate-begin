@@ -208,7 +208,7 @@ const UserManagement: React.FC = () => {
         companyId: '',
         phone: '',
         language: 'cs',
-        training_type: 0
+        training_type: ''
       });
     }
     setDialogOpen(true);
@@ -225,7 +225,7 @@ const UserManagement: React.FC = () => {
       companyId: '',
       phone: '',
       language: 'cs',
-      training_type: 0
+      training_type: ''
     });
   };
 
