@@ -63,7 +63,9 @@ async function intelligentVoiceCall(req, res) {
           questionText += " Možnosti: ";
           firstQuestion.options.forEach((option, index) => {
             const letter = String.fromCharCode(65 + index); // A, B, C, D
-            questionText += `${letter}: ${option.text}. `;
+            // Handle both string options and object options
+            const optionText = typeof option === 'string' ? option : (option.text || option);
+            questionText += `${letter}: ${optionText}. `;
           });
         }
         

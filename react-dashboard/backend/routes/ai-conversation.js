@@ -307,7 +307,9 @@ class ConversationManager {
     if (options.length > 0) {
       formatted += " Možnosti odpovědí: ";
       options.forEach((option, index) => {
-        formatted += `${String.fromCharCode(65 + index)}) ${option} `;
+        // Handle both string options and object options
+        const optionText = typeof option === 'string' ? option : (option.text || option);
+        formatted += `${String.fromCharCode(65 + index)}) ${optionText} `;
       });
       formatted += "Řekněte písmeno správné odpovědi.";
     }
