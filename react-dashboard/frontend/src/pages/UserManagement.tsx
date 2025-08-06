@@ -241,7 +241,7 @@ const UserManagement: React.FC = () => {
           language: string;
           password?: string;
           phone?: string;
-          training_type?: number;
+          training_type?: string;
         } = {
           name: formData.name,
           email: formData.email,
@@ -283,7 +283,7 @@ const UserManagement: React.FC = () => {
           role: UserRole;
           companyId: number;
           language: string;
-          training_type: number;
+          training_type: string;
           phone?: string;
         } = {
           name: formData.name,
@@ -446,7 +446,7 @@ const UserManagement: React.FC = () => {
       headerName: 'Školení',
       width: isMobile ? 120 : 160,
       renderCell: (params) => {
-        const getTrainingDisplay = (type) => {
+        const getTrainingDisplay = (type: string) => {
           switch(type) {
             case 'english_basic': return { name: 'Základní', icon: <SchoolIcon />, color: 'primary' };
             case 'english_business': return { name: 'Business', icon: <BusinessIcon />, color: 'secondary' };

@@ -27,6 +27,7 @@ export interface UpdateUserData {
   phone?: string;
   language?: string;
   current_lesson_level?: number;
+  training_type?: string;
 }
 
 export interface UsersResponse {
