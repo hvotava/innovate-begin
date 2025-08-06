@@ -1,17 +1,25 @@
 // INTELLIGENT Voice/call handler with lesson selection
 const { getLessonForUser } = require('./lesson-selector');
+const { ConversationManager } = require('./ai-conversation');
 
 async function intelligentVoiceCall(req, res) {
   console.log('🧠 INTELLIGENT Voice/call handler');
   console.log('📝 Request body:', req.body);
   
   const userPhone = req.body.To; // The user's phone number being called
-  console.log(`📱 Finding lesson for user phone: ${userPhone}`);
+  const callSid = req.body.CallSid; // Twilio Call SID for this call
+  console.log(`📱 Finding lesson for user phone: ${userPhone}, CallSid: ${callSid}`);
   
   try {
     // Get appropriate lesson/test for this user
     const lessonData = await getLessonForUser(userPhone);
     console.log('🎯 Lesson data:', lessonData);
+    
+    // Initialize ConversationManager with lesson data
+    if (lessonData.type === 'lesson' && callSid) {
+      ConversationManager.initializeState(callSid, lessonData);
+      console.log('✅ ConversationManager initialized for lesson:', lessonData.title);
+    }
     
     let twimlResponse = '';
     

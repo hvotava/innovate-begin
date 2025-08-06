@@ -1,116 +1,292 @@
 const axios = require('axios');
+const { Test, Lesson } = require('../models');
 
-// Simple AI conversation handler
+// Conversation states
+const STATES = {
+  LESSON: 'lesson',
+  TEST: 'test', 
+  RESULTS: 'results',
+  NEXT_LESSON: 'next_lesson'
+};
+
+// Track conversation state per call
+const conversationState = new Map();
+
+// Advanced AI conversation handler for Lesson -> Test -> Results flow
 class ConversationManager {
   
-  // Analyze transcribed text and generate response
-  static async processUserResponse(transcribedText, questionContext, userPhone) {
+  // Initialize conversation state
+  static initializeState(callSid, lesson) {
+    conversationState.set(callSid, {
+      state: STATES.LESSON,
+      lesson: lesson,
+      currentQuestionIndex: 0,
+      lessonQuestionsAnswered: 0,
+      testQuestions: [],
+      userAnswers: [],
+      score: 0
+    });
+  }
+  
+  // Get current state
+  static getState(callSid) {
+    return conversationState.get(callSid) || null;
+  }
+  
+  // Process user response based on current conversation state
+  static async processUserResponse(transcribedText, callSid, userPhone) {
     try {
       console.log(`🧠 Processing response: "${transcribedText}"`);
       
-      // Simple pattern matching for placement test
-      if (questionContext === 'introduction') {
+      let state = this.getState(callSid);
+      if (!state) {
         return {
-          feedback: this.analyzeIntroduction(transcribedText),
-          nextQuestion: "Great! Now tell me about your work or studies in English.",
-          questionType: 'work'
-        };
-      } else if (questionContext === 'work') {
-        return {
-          feedback: this.analyzeWork(transcribedText),
-          nextQuestion: "Perfect! What are your hobbies or what do you like to do in your free time?",
-          questionType: 'hobbies'
-        };
-      } else if (questionContext === 'hobbies') {
-        return {
-          feedback: this.analyzeHobbies(transcribedText),
-          nextQuestion: "Thank you! That completes our assessment. Based on your answers, I'll now provide feedback.",
-          questionType: 'complete'
+          feedback: "Omlouvám se, došlo k chybě. Začněme znovu.",
+          nextQuestion: null,
+          questionType: 'error'
         };
       }
       
-      return {
-        feedback: "Thank you for your response.",
-        nextQuestion: "Let's continue with the next topic.",
-        questionType: 'general'
-      };
+      console.log(`📊 Current state: ${state.state}, Question ${state.currentQuestionIndex}`);
+      
+      // Handle different conversation phases
+      switch (state.state) {
+        case STATES.LESSON:
+          return await this.handleLessonPhase(transcribedText, state, callSid);
+        case STATES.TEST:
+          return await this.handleTestPhase(transcribedText, state, callSid);
+        case STATES.RESULTS:
+          return await this.handleResultsPhase(transcribedText, state, callSid);
+        default:
+          return this.getErrorResponse();
+      }
       
     } catch (error) {
       console.error('❌ Conversation processing error:', error.message);
-      return {
-        feedback: "I understand. Let's continue.",
-        nextQuestion: "Can you tell me more?",
-        questionType: 'fallback'
-      };
+      return this.getErrorResponse();
     }
   }
   
-  static analyzeIntroduction(text) {
-    const hasName = /name.*is/i.test(text) || /i.*am/i.test(text);
-    const hasCountry = /from|come|live|czech|republic|prague/i.test(text);
+  // Handle lesson phase responses
+  static async handleLessonPhase(transcribedText, state, callSid) {
+    state.lessonQuestionsAnswered++;
     
-    if (hasName && hasCountry) {
-      return "Excellent! Your introduction was clear and well-structured.";
-    } else if (hasName) {
-      return "Good start with your name. Try to also mention where you're from.";
+    // Simple lesson feedback
+    const feedback = this.analyzeLessonResponse(transcribedText, state.lesson);
+    
+    // After 4 lesson questions, move to test
+    if (state.lessonQuestionsAnswered >= 4) {
+      console.log(`📝 Lesson completed, loading test for lesson ID: ${state.lesson.lesson_id}`);
+      
+      // Load test questions from database
+      const testQuestions = await this.loadTestQuestions(state.lesson.lesson_id);
+      
+      if (testQuestions.length > 0) {
+        state.state = STATES.TEST;
+        state.testQuestions = testQuestions;
+        state.currentQuestionIndex = 0;
+        
+        return {
+          feedback: feedback + " Výborně! Nyní přejdeme k testu.",
+          nextQuestion: this.formatTestQuestion(testQuestions[0], 1),
+          questionType: 'test_start'
+        };
+      } else {
+        return {
+          feedback: feedback + " Lekce dokončena! Test není k dispozici.",
+          nextQuestion: "Děkuji za pozornost. Hovor ukončujeme.",
+          questionType: 'lesson_complete'
+        };
+      }
+    }
+    
+    // Continue with lesson questions
+    const nextLessonQ = state.lesson.questions[state.lessonQuestionsAnswered] || 
+      "Máte k této lekci ještě nějaké dotazy?";
+    
+    return {
+      feedback: feedback,
+      nextQuestion: nextLessonQ,
+      questionType: 'lesson_continue'
+    };
+  }
+  
+  // Handle test phase responses  
+  static async handleTestPhase(transcribedText, state, callSid) {
+    const currentQuestion = state.testQuestions[state.currentQuestionIndex];
+    
+    // Analyze user's answer (simple pattern matching)
+    const isCorrect = this.checkTestAnswer(transcribedText, currentQuestion);
+    if (isCorrect) state.score++;
+    
+    // Store user answer
+    state.userAnswers.push({
+      question: currentQuestion.question,
+      userAnswer: transcribedText,
+      correctAnswer: currentQuestion.correct_answer,
+      isCorrect: isCorrect
+    });
+    
+    const feedback = isCorrect ? "Správně!" : `Ne úplně. Správná odpověď je: ${currentQuestion.correct_answer}`;
+    
+    // Move to next question
+    state.currentQuestionIndex++;
+    
+    // Check if test is complete
+    if (state.currentQuestionIndex >= state.testQuestions.length) {
+      return await this.completeTest(state, callSid);
+    }
+    
+    // Continue with next test question
+    const nextQuestion = state.testQuestions[state.currentQuestionIndex];
+    return {
+      feedback: feedback,
+      nextQuestion: this.formatTestQuestion(nextQuestion, state.currentQuestionIndex + 1),
+      questionType: 'test_continue'
+    };
+  }
+  
+  // Complete test and show results
+  static async completeTest(state, callSid) {
+    const totalQuestions = state.testQuestions.length;
+    const correctAnswers = state.score;
+    const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+    
+    state.state = STATES.RESULTS;
+    
+    // Generate results message
+    let resultMessage = `Test dokončen! Skórovali jste ${correctAnswers} ze ${totalQuestions} otázek (${percentage}%).`;
+    
+    if (percentage >= 80) {
+      resultMessage += " Výborný výsledek!";
+    } else if (percentage >= 60) {
+      resultMessage += " Dobrý výsledek, ale je zde prostor pro zlepšení.";
     } else {
-      return "I can see you're trying. Let's practice more introductions.";
+      resultMessage += " Doporučujeme procvičit tuto lekci znovu.";
+    }
+    
+    console.log(`📊 Test completed: ${correctAnswers}/${totalQuestions} (${percentage}%)`);
+    
+    return {
+      feedback: resultMessage,
+      nextQuestion: "Děkuji za dokončení testu. Přejdeme k další lekci.",
+      questionType: 'test_results',
+      testResults: {
+        score: correctAnswers,
+        total: totalQuestions,
+        percentage: percentage,
+        answers: state.userAnswers
+      }
+    };
+  }
+  
+  // Handle results phase
+  static async handleResultsPhase(transcribedText, state, callSid) {
+    // Test is complete, could load next lesson here
+    return {
+      feedback: "Děkuji za vaši účast v tomto školení.",
+      nextQuestion: "Hovor bude nyní ukončen. Na shledanou!",
+      questionType: 'session_complete'
+    };
+  }
+  
+  // Load test questions from database
+  static async loadTestQuestions(lessonId) {
+    try {
+      console.log(`📚 Loading tests for lesson ID: ${lessonId}`);
+      
+      const tests = await Test.findAll({
+        where: { lessonId: lessonId }
+      });
+      
+      if (tests.length === 0) {
+        console.log(`❌ No tests found for lesson ${lessonId}`);
+        return [];
+      }
+      
+      // Extract questions from first test
+      const test = tests[0];
+      const questions = JSON.parse(test.questions || '[]');
+      
+      console.log(`✅ Loaded ${questions.length} test questions`);
+      return questions;
+      
+    } catch (error) {
+      console.error(`❌ Error loading test questions:`, error.message);
+      return [];
     }
   }
   
-  static analyzeWork(text) {
-    const workWords = /work|job|study|student|teacher|engineer|manager|company/i.test(text);
-    const isLonger = text.split(' ').length > 5;
+  // Format test question with multiple choice options
+  static formatTestQuestion(questionObj, questionNumber) {
+    const question = questionObj.question || questionObj.text || 'Otázka není k dispozici';
+    const options = questionObj.options || [];
     
-    if (workWords && isLonger) {
-      return "Very good! You provided good details about your work.";
-    } else if (workWords) {
-      return "Good topic choice. Try to add more details next time.";
+    let formatted = `Otázka ${questionNumber}: ${question}`;
+    
+    if (options.length > 0) {
+      formatted += " Možnosti odpovědí: ";
+      options.forEach((option, index) => {
+        formatted += `${String.fromCharCode(65 + index)}) ${option} `;
+      });
+      formatted += "Řekněte písmeno správné odpovědi.";
+    }
+    
+    return formatted;
+  }
+  
+  // Check if user's answer matches correct answer
+  static checkTestAnswer(transcribedText, questionObj) {
+    const correctAnswer = questionObj.correct_answer || questionObj.answer;
+    const userText = transcribedText.toLowerCase().trim();
+    
+    // Check for letter answers (A, B, C, D)
+    const letterMatch = userText.match(/[abcd]/);
+    if (letterMatch && correctAnswer) {
+      const correctLetter = correctAnswer.toLowerCase();
+      return letterMatch[0] === correctLetter;
+    }
+    
+    // Check for partial text match
+    if (correctAnswer && typeof correctAnswer === 'string') {
+      return userText.includes(correctAnswer.toLowerCase());
+    }
+    
+    return false;
+  }
+  
+  // Analyze lesson response
+  static analyzeLessonResponse(text, lesson) {
+    const responseLength = text.split(' ').length;
+    const lessonTitle = lesson.title.toLowerCase();
+    
+    // Topic-specific keywords
+    let hasRelevantKeywords = false;
+    
+    if (lessonTitle.includes('lidské tělo')) {
+      hasRelevantKeywords = /tělo|orgán|srdce|mozek|plíce|játra|anatomie/i.test(text);
+    } else if (lessonTitle.includes('obráběcí kapaliny')) {
+      hasRelevantKeywords = /kapalina|olej|chlazení|mazání|obrábění|stroj/i.test(text);
+    }
+    
+    if (hasRelevantKeywords && responseLength > 8) {
+      return "Výborně! Vaša odpoveď ukazuje dobré porozumění tématu.";
+    } else if (hasRelevantKeywords) {
+      return "Správný směr. Zkuste přidat více detailů.";
+    } else if (responseLength > 5) {
+      return "Děkuji za odpověď. Pokračujeme.";
     } else {
-      return "I understand. Try to mention what you do for work or study.";
+      return "Rozumím. Další otázka.";
     }
   }
   
-  static analyzeHobbies(text) {
-    const hobbyWords = /like|love|enjoy|hobby|play|read|music|sport|travel/i.test(text);
-    const length = text.split(' ').length;
-    
-    if (hobbyWords && length > 8) {
-      return "Fantastic! You expressed your interests very clearly.";
-    } else if (hobbyWords) {
-      return "Nice! Your hobbies are interesting.";
-    } else {
-      return "Thank you for sharing. Keep practicing expressing your interests.";
-    }
-  }
-  
-  // Generate final assessment
-  static generateAssessment(responses) {
-    // Simple scoring based on response quality
-    let score = 0;
-    if (responses.introduction) score += responses.introduction.includes('Excellent') ? 3 : 2;
-    if (responses.work) score += responses.work.includes('Very good') ? 3 : 2;  
-    if (responses.hobbies) score += responses.hobbies.includes('Fantastic') ? 3 : 2;
-    
-    if (score >= 8) {
-      return {
-        level: 'B1',
-        feedback: "Excellent work! Your English is at intermediate level. You can express yourself clearly.",
-        recommendation: "Continue with Level 2 lessons focusing on complex conversations."
-      };
-    } else if (score >= 6) {
-      return {
-        level: 'A2', 
-        feedback: "Good progress! Your English is at elementary level with room for improvement.",
-        recommendation: "Start with Level 1 lessons focusing on basic conversations."
-      };
-    } else {
-      return {
-        level: 'A1',
-        feedback: "Keep practicing! We'll start with beginner-friendly lessons.",
-        recommendation: "Begin with Level 1 lessons focusing on simple phrases and vocabulary."
-      };
-    }
+  // Error response
+  static getErrorResponse() {
+    return {
+      feedback: "Omlouvám se, došlo k chybě.",
+      nextQuestion: "Zkuste to prosím znovu.",
+      questionType: 'error'
+    };
   }
 }
 
