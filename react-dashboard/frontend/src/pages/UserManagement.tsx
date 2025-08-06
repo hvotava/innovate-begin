@@ -48,7 +48,9 @@ import {
   AdminPanelSettings as AdminIcon,
   SupervisorAccount as SuperuserIcon,
   ContactPhone as ContactIcon,
-  PersonOutline as UserIcon
+  PersonOutline as UserIcon,
+  Engineering as EngineeringIcon,
+  Security as SecurityIcon
 } from '@mui/icons-material';
 import { usersManagementAPI, companiesAPI, userService } from '../services/api';
 import { User, Company, UserStats, UserRole } from '../types';
@@ -64,7 +66,7 @@ interface UserFormData {
   companyId: string;
   phone: string;
   language: string;
-  current_lesson_level: number;
+  training_type: string;
 }
 
 interface TabPanelProps {
@@ -106,7 +108,7 @@ const UserManagement: React.FC = () => {
     companyId: '',
     phone: '',
     language: 'cs',
-    current_lesson_level: 0
+    training_type: ''
   });
   
   // Filters
@@ -194,7 +196,7 @@ const UserManagement: React.FC = () => {
         companyId: targetUser.companyId ? String(targetUser.companyId) : '',
         phone: targetUser.phone || '',
         language: targetUser.language || 'cs',
-        current_lesson_level: targetUser.current_lesson_level || 0
+        training_type: targetUser.training_type || 0
       });
     } else {
       setEditingUser(null);
@@ -206,7 +208,7 @@ const UserManagement: React.FC = () => {
         companyId: '',
         phone: '',
         language: 'cs',
-        current_lesson_level: 0
+        training_type: 0
       });
     }
     setDialogOpen(true);
@@ -223,7 +225,7 @@ const UserManagement: React.FC = () => {
       companyId: '',
       phone: '',
       language: 'cs',
-      current_lesson_level: 0
+      training_type: 0
     });
   };
 
@@ -239,7 +241,7 @@ const UserManagement: React.FC = () => {
           language: string;
           password?: string;
           phone?: string;
-          current_lesson_level?: number;
+          training_type?: number;
         } = {
           name: formData.name,
           email: formData.email,
@@ -259,8 +261,8 @@ const UserManagement: React.FC = () => {
         }
         // Pokud je prázdný, tak vůbec neposíláme phone field
 
-        if (formData.current_lesson_level !== editingUser.current_lesson_level) {
-          updateData.current_lesson_level = formData.current_lesson_level;
+        if (formData.training_type !== editingUser.training_type) {
+          updateData.training_type = formData.training_type;
         }
 
         console.log('🔄 UserManagement updating user:', editingUser.id, 'with data:', updateData);
@@ -281,7 +283,7 @@ const UserManagement: React.FC = () => {
           role: UserRole;
           companyId: number;
           language: string;
-          current_lesson_level: number;
+          training_type: number;
           phone?: string;
         } = {
           name: formData.name,
@@ -290,7 +292,7 @@ const UserManagement: React.FC = () => {
           role: formData.role,
           companyId: Number(formData.companyId),
           language: formData.language,
-          current_lesson_level: formData.current_lesson_level
+          training_type: formData.training_type
         };
 
         // Přidej telefon pouze pokud není prázdný
@@ -440,17 +442,32 @@ const UserManagement: React.FC = () => {
       )
     },
     {
-      field: 'current_lesson_level',
-      headerName: 'Úroveň',
-      width: isMobile ? 80 : 100,
-      renderCell: (params) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <SchoolIcon fontSize="small" color="primary" />
-          <Typography variant="body2" color="primary">
-            {params.value || 0}
-          </Typography>
-        </Box>
-      )
+      field: 'training_type',
+      headerName: 'Školení',
+      width: isMobile ? 120 : 160,
+      renderCell: (params) => {
+        const getTrainingDisplay = (type) => {
+          switch(type) {
+            case 'english_basic': return { name: 'Základní', icon: <SchoolIcon />, color: 'primary' };
+            case 'english_business': return { name: 'Business', icon: <BusinessIcon />, color: 'secondary' };
+            case 'english_technical': return { name: 'Technické', icon: <EngineeringIcon />, color: 'warning' };
+            case 'german_basic': return { name: 'Speciální', icon: <LanguageIcon />, color: 'success' };
+            case 'safety_training': return { name: 'Bezpečnost', icon: <SecurityIcon />, color: 'error' };
+            default: return { name: 'Nezařazen', icon: <SchoolIcon />, color: 'disabled' };
+          }
+        };
+        const display = getTrainingDisplay(params.value);
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ color: `${display.color}.main` }}>
+              {React.cloneElement(display.icon, { fontSize: 'small' })}
+            </Box>
+            <Typography variant="body2" color={display.color}>
+              {display.name}
+            </Typography>
+          </Box>
+        );
+      }
     },
     {
       field: 'language',
@@ -753,11 +770,11 @@ const UserManagement: React.FC = () => {
 
                       {/* Nové informace: Lesson Level & Language */}
                       <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
-                        {user.current_lesson_level && (
+                        {user.training_type && (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <SchoolIcon fontSize="small" color="primary" />
                             <Typography variant="caption" color="primary">
-                              Úroveň: {user.current_lesson_level}
+                              Úroveň: {user.training_type}
                             </Typography>
                           </Box>
                         )}
@@ -1062,18 +1079,48 @@ const UserManagement: React.FC = () => {
             </Grid>
             <Grid item xs={12} md={4}>
               <FormControl fullWidth margin="normal">
-                <InputLabel>Úroveň lekce</InputLabel>
+                <InputLabel>Typ školení</InputLabel>
                 <Select
-                  value={formData.current_lesson_level}
-                  onChange={(e) => setFormData({ ...formData, current_lesson_level: Number(e.target.value) })}
-                  label="Úroveň lekce"
+                  value={formData.training_type}
+                  onChange={(e) => setFormData({ ...formData, training_type: e.target.value })}
+                  label="Typ školení"
                 >
-                  <MenuItem value={0}>Nezařazen</MenuItem>
-                  <MenuItem value={1}>1. úroveň</MenuItem>
-                  <MenuItem value={2}>2. úroveň</MenuItem>
-                  <MenuItem value={3}>3. úroveň</MenuItem>
-                  <MenuItem value={4}>4. úroveň</MenuItem>
-                  <MenuItem value={5}>5. úroveň</MenuItem>
+                  <MenuItem value="">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <SchoolIcon fontSize="small" color="disabled" />
+                      Nezařazen
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="english_basic">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <SchoolIcon fontSize="small" color="primary" />
+                      Základní Školení
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="english_business">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <BusinessIcon fontSize="small" color="secondary" />
+                      Business Školení
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="english_technical">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <EngineeringIcon fontSize="small" color="warning" />
+                      Technické Školení
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="german_basic">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <LanguageIcon fontSize="small" color="success" />
+                      Speciální Školení
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="safety_training">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <SecurityIcon fontSize="small" color="error" />
+                      Bezpečnostní Školení
+                    </Box>
+                  </MenuItem>
                 </Select>
               </FormControl>
             </Grid>

@@ -1,6 +1,7 @@
 const { User } = require('../models');
+const { loadContentForTraining } = require('./content-loader');
 
-// Get lesson content for user based on their progress
+// Get lesson content for user based on their progress and uploaded content
 async function getLessonForUser(phoneNumber) {
   try {
     console.log(`🎯 Finding lesson for phone: ${phoneNumber}`);
@@ -24,52 +25,60 @@ async function getLessonForUser(phoneNumber) {
       };
     }
     
-    console.log(`✅ Found user: ${user.name}, lesson level: ${user.current_lesson_level}`);
+    console.log(`✅ Found user: ${user.name}, training type: ${user.training_type}`);
     
-    // If no lesson level set, start with placement test
-    if (!user.current_lesson_level || user.current_lesson_level === 0) {
+    // If no training type set, start with placement test
+    if (!user.training_type || user.training_type === '') {
       return {
         type: 'placement_test',
         user_id: user.id,
         title: 'Úvodní test pro ' + user.name,
-        message: `Dobrý den ${user.name}! Začneme úvodním testem k určení vaší úrovně angličtiny.`,
+        message: `Dobrý den ${user.name}! Začneme úvodním testem k určení vaší úrovně a vhodného školení.`,
         questions: [
-          'Představte se anglicky - řekněte své jméno a odkud jste.',
-          'Popište svou práci nebo činnost anglicky.',
-          'Jaké máte plány do budoucna? Odpovězte anglicky.'
+          'Představte se a řekněte své jméno a odkud jste.',
+          'Popište svou práci nebo činnost.',
+          'Co očekáváte od tohoto školení a jaké máte zkušenosti s tímto tématem?'
         ]
       };
     }
     
-    // Return appropriate lesson based on user level
-    const lessons = {
-      1: {
-        type: 'lesson',
-        level: 1,
-        title: 'Lekce 1 - Základní představení',
-        message: `Pokračujeme v lekci ${user.current_lesson_level}. Budeme procvičovat základní představení.`,
-        content: 'Naučíme se, jak se představit, říct své jméno, věk a odkud jsme.',
-        questions: [
-          'How old are you?',
-          'Where are you from?',
-          'What do you do for work?'
-        ]
-      },
-      2: {
-        type: 'lesson',
-        level: 2,
-        title: 'Lekce 2 - Rodina a přátelé',
-        message: `Pokračujeme v lekci ${user.current_lesson_level}. Budeme mluvit o rodině.`,
-        content: 'Naučíme se mluvit o rodině, přátelích a vztazích.',
-        questions: [
-          'Tell me about your family.',
-          'Do you have any siblings?',
-          'Who is your best friend?'
-        ]
-      }
+        // Load actual content for this training type and company
+    const contentData = await loadContentForTraining(user.training_type, user.companyId);
+    
+    // Get training type display names
+    const trainingTitles = {
+      'english_basic': 'Základní Školení',
+      'english_business': 'Business Školení', 
+      'english_technical': 'Technické Školení',
+      'german_basic': 'Speciální Školení',
+      'safety_training': 'Bezpečnostní Školení'
     };
     
-    return lessons[user.current_lesson_level] || lessons[1];
+    const trainingTitle = trainingTitles[user.training_type] || 'Obecné Školení';
+    
+    // Create lesson based on loaded content
+    const lesson = {
+      type: 'lesson',
+      training: user.training_type,
+      title: trainingTitle,
+      hasUploadedContent: contentData.hasContent,
+      contentTitle: contentData.contentTitle || null,
+      message: contentData.hasContent 
+        ? `Dobrý den ${user.name}! Budeme procvičovat podle nahraného materiálu "${contentData.contentTitle}".`
+        : `Dobrý den ${user.name}! Začneme s obecným školením pro ${trainingTitle.toLowerCase()}.`,
+      content: contentData.hasContent
+        ? `Projdeme si obsah z nahraného materiálu a otestujeme vaše porozumění.`
+        : `Probereme základní témata a zjistíme vaše současné znalosti.`,
+      questions: contentData.questions
+    };
+    
+    console.log(`📋 Generated lesson:`, {
+      title: lesson.title,
+      hasContent: lesson.hasUploadedContent,
+      questionsCount: lesson.questions.length
+    });
+    
+    return lesson;
     
   } catch (error) {
     console.error('❌ Error finding lesson:', error.message);

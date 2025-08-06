@@ -1,4 +1,7 @@
 const { ConversationManager } = require('./ai-conversation');
+const { TestResponse } = require('../models');
+const { AIEvaluator } = require('../services/ai-evaluator');
+const { v4: uuidv4 } = require('uuid');
 
 // Smart voice processing with conversation flow
 async function smartVoiceProcess(req, res) {
@@ -60,7 +63,7 @@ async function smartVoiceProcess(req, res) {
   res.send(nextQuestionTwiml);
 }
 
-// Enhanced transcription processor
+// Enhanced transcription processor with database storage and AI evaluation
 async function smartTranscribeProcess(req, res) {
   console.log('🎯 SMART Transcription processing');
   console.log('🎯 CallSid:', req.body.CallSid);
@@ -68,29 +71,102 @@ async function smartTranscribeProcess(req, res) {
   console.log('📊 TranscriptionStatus:', req.body.TranscriptionStatus);
   
   const transcribedText = req.body.TranscriptionText;
+  const callSid = req.body.CallSid;
   
   if (transcribedText && req.body.TranscriptionStatus === 'completed') {
     console.log(`💬 User said: "${transcribedText}"`);
     
     try {
-      // Process with AI conversation manager
-      const response = await ConversationManager.processUserResponse(
-        transcribedText, 
-        'introduction', // This would be dynamic based on conversation state
-        req.body.From
-      );
+      // Get user and lesson context from call session
+      const sessionContext = await getCallSessionContext(callSid);
       
-      console.log('🧠 AI Analysis:', response);
-      
-      // Here you could update user progress in database
-      // or trigger next question generation
+      if (sessionContext && sessionContext.user && sessionContext.currentQuestion) {
+        // Perform AI evaluation
+        const aiEvaluation = AIEvaluator.evaluateResponse(
+          sessionContext.currentQuestion,
+          transcribedText,
+          sessionContext.user.training_type,
+          sessionContext.lessonContext
+        );
+        
+        console.log('🧠 AI Evaluation Results:', {
+          completion: `${aiEvaluation.completionPercentage}%`,
+          quality: `${aiEvaluation.qualityScore}%`,
+          feedback: aiEvaluation.feedback
+        });
+        
+        // Save response to database
+        const testResponse = await TestResponse.create({
+          userId: sessionContext.user.id,
+          trainingType: sessionContext.user.training_type,
+          lessonTitle: sessionContext.lessonTitle,
+          contentId: sessionContext.contentId,
+          questionNumber: sessionContext.questionNumber || 1,
+          question: sessionContext.currentQuestion,
+          userResponse: transcribedText,
+          recordingUrl: sessionContext.recordingUrl,
+          recordingDuration: sessionContext.recordingDuration,
+          completionPercentage: aiEvaluation.completionPercentage,
+          qualityScore: aiEvaluation.qualityScore,
+          aiEvaluation: aiEvaluation,
+          callSid: callSid,
+          testSession: sessionContext.testSession || `session_${Date.now()}`,
+          isCompleted: aiEvaluation.isComplete
+        });
+        
+        console.log('💾 Test response saved to database:', {
+          id: testResponse.id,
+          completion: `${testResponse.completionPercentage}%`,
+          quality: `${testResponse.qualityScore}%`
+        });
+        
+        // Process conversation continuation
+        const response = await ConversationManager.processUserResponse(
+          transcribedText, 
+          sessionContext.questionContext || 'introduction',
+          sessionContext.user.phone
+        );
+        
+        console.log('🧠 Conversation Analysis:', response);
+        
+      } else {
+        console.log('⚠️ No session context found for CallSid:', callSid);
+      }
       
     } catch (error) {
       console.error('❌ Transcription processing error:', error.message);
+      console.error('📋 Error details:', error.stack);
     }
   }
   
   res.send('OK');
+}
+
+// Get call session context (user, lesson, current question)
+async function getCallSessionContext(callSid) {
+  try {
+    // This would ideally come from a session cache/store
+    // For now, we'll use a simplified approach
+    console.log('🔍 Looking up call session context for:', callSid);
+    
+    // In a real implementation, you'd store session data when call starts
+    // and retrieve it here. For now, return a mock context
+    return {
+      user: { id: 1, training_type: 'safety_training', phone: '+420724369764' },
+      currentQuestion: 'Popište mi bezpečnostní postupy na vašem pracovišti.',
+      lessonTitle: 'Bezpečnostní Školení',
+      contentId: null,
+      questionNumber: 1,
+      questionContext: 'safety',
+      testSession: `session_${callSid}`,
+      recordingUrl: null,
+      recordingDuration: null
+    };
+    
+  } catch (error) {
+    console.error('❌ Error getting session context:', error.message);
+    return null;
+  }
 }
 
 module.exports = { smartVoiceProcess, smartTranscribeProcess };

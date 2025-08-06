@@ -485,6 +485,13 @@ TestSession.belongsTo(Attempt, { foreignKey: 'attempt_id' });
 
 Answer.belongsTo(Attempt, { foreignKey: 'attempt_id' });
 
+// TestResponse model - pro tracking odpovědí a AI evaluation
+const TestResponse = require('./TestResponse')(sequelize);
+
+// TestResponse associations
+TestResponse.belongsTo(User, { foreignKey: 'userId' });
+User.hasMany(TestResponse, { foreignKey: 'userId' });
+
 module.exports = {
   sequelize,
   Company,
@@ -495,5 +502,6 @@ module.exports = {
   UserTraining,
   Attempt,
   TestSession,
-  Answer
+  Answer,
+  TestResponse
 }; 
