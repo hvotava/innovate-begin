@@ -229,7 +229,7 @@ router.put('/:id', [
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const { name, email, password, role, companyId, phone, language, current_lesson_level } = req.body;
+    const { name, email, password, role, companyId, phone, language, current_lesson_level, training_type } = req.body;
     
     console.log('🔄 Backend updating user:', req.params.id, 'with body:', req.body);
     
@@ -251,7 +251,8 @@ router.put('/:id', [
       companyId, 
       phone: phoneValue, // Použít null pro prázdný phone
       language, 
-      current_lesson_level 
+      current_lesson_level,
+      training_type 
     };
 
     // Hashuj heslo, pokud je zadané

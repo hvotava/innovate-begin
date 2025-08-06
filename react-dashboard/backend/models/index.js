@@ -81,6 +81,11 @@ const User = sequelize.define('User', {
     type: DataTypes.INTEGER,
     defaultValue: 0
   },
+  training_type: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'ID of assigned lesson for user training'
+  },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
