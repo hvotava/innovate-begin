@@ -59,7 +59,8 @@ const getMenuItems = (user: any) => {
   // Review Dashboard pro všechny uživatele (kteří už začali učení)
   if (user.placement_completed) {
     items.push(
-      { text: 'Review Dashboard', icon: <RefreshIcon />, path: '/review-dashboard', show: true }
+      { text: 'Review Dashboard', icon: <RefreshIcon />, path: '/review-dashboard', show: true },
+      { text: 'Výsledky testů', icon: <AnalyticsIcon />, path: '/test-results', show: true }
     );
   }
 

@@ -25,6 +25,7 @@ import ContentManagement from './pages/ContentManagement';
 import ProgressAnalytics from './pages/ProgressAnalytics';
 import QuestionManager from './pages/QuestionManager';
 import ReviewDashboard from './pages/ReviewDashboard';
+import TestResults from './pages/TestResults';
 
 // Enhanced responsive theme
 const theme = createTheme({
@@ -293,6 +294,17 @@ function App() {
                 <ProtectedRoute>
                   <ResponsiveSidebar>
                     <ReviewDashboard />
+                  </ResponsiveSidebar>
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/test-results"
+              element={
+                <ProtectedRoute>
+                  <ResponsiveSidebar>
+                    <TestResults />
                   </ResponsiveSidebar>
                 </ProtectedRoute>
               }
