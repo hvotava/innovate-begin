@@ -2788,7 +2788,7 @@ async def voice_call_handler(request: Request):
     # Vytvoříme TwiML odpověď
     twiml_response = f'''<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">Vítejte u AI asistenta pro výuku jazyků.</Say>
+    <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">NOVÁ VERZE - AI Asistent připraven.</Say>
     <Start>
         <Stream 
             name="ai_assistant_stream"
@@ -3651,7 +3651,7 @@ async def voice_start_stream(request: Request):
 <?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">
-        Vítejte u AI asistenta pro výuku jazyků.
+        NOVÁ VERZE - AI Asistent připraven.
     </Say>
     <Start>
         <Stream url="wss://lecture-app-production.up.railway.app/audio" track="both_tracks" />
