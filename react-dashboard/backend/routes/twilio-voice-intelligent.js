@@ -3,17 +3,19 @@ const { getLessonForUser } = require('./lesson-selector');
 const { ConversationManager } = require('./ai-conversation');
 
 async function intelligentVoiceCall(req, res) {
-  console.log('🧠 INTELLIGENT Voice/call handler');
-  console.log('📝 Request body:', req.body);
+  console.log('🧠 INTELLIGENT Voice/call handler CALLED');
+  console.log('📝 Request body:', JSON.stringify(req.body, null, 2));
   
   const userPhone = req.body.To; // The user's phone number being called
   const callSid = req.body.CallSid; // Twilio Call SID for this call
-  console.log(`📱 Finding lesson for user phone: ${userPhone}, CallSid: ${callSid}`);
+  console.log(`📱 DEBUG: Finding lesson for user phone: ${userPhone}, CallSid: ${callSid}`);
   
   try {
+    console.log(`🔍 DEBUG: Starting getLessonForUser for phone: ${userPhone}`);
+    
     // Get appropriate lesson/test for this user
     const lessonData = await getLessonForUser(userPhone);
-    console.log('🎯 Lesson data:', lessonData);
+    console.log('🎯 DEBUG: Lesson data received:', JSON.stringify(lessonData, null, 2));
     
     // Initialize ConversationManager with lesson data
     if (lessonData.type === 'lesson' && callSid) {

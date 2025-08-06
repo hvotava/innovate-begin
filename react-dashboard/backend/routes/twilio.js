@@ -293,7 +293,12 @@ router.post('/voice/transcribe', async (req, res) => {
 const { intelligentVoiceCall } = require('./twilio-voice-intelligent');
 
 // REPLACE the simple voice/call with intelligent version
-router.post('/voice/call-intelligent', intelligentVoiceCall);
+router.post('/voice/call-intelligent', (req, res) => {
+  console.log('🚨 DEBUG: /voice/call-intelligent route HIT!');
+  console.log('🚨 DEBUG: Request headers:', req.headers);
+  console.log('🚨 DEBUG: Request body:', JSON.stringify(req.body, null, 2));
+  return intelligentVoiceCall(req, res);
+});
 
 // Import smart voice processors
 const { smartVoiceProcess, smartTranscribeProcess } = require('./smart-voice-process');

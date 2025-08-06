@@ -3,12 +3,19 @@ const { User, Lesson } = require('../models');
 // Get lesson content for user - start with first available database lesson
 async function getLessonForUser(phoneNumber) {
   try {
-    console.log(`🎯 Finding lesson for phone: ${phoneNumber}`);
+    console.log(`🎯 DEBUG: Finding lesson for phone: ${phoneNumber}`);
     
     // Find user by phone number
     const user = await User.findOne({
       where: { phone: phoneNumber }
     });
+    
+    console.log(`🔍 DEBUG: User search result:`, user ? {
+      id: user.id,
+      name: user.name,
+      phone: user.phone,
+      training_type: user.training_type
+    } : null);
     
     if (!user) {
       console.log(`❌ User not found for phone: ${phoneNumber}, using default lesson`);
