@@ -50,6 +50,79 @@ async function smartVoiceProcess(req, res) {
   
   console.log('✅ RecordingUrl found, proceeding with transcription callback');
   
+  // FALLBACK: If transcription callback doesn't work, process directly
+  console.log('🔍 DEBUG: TranscriptionStatus is undefined, trying fallback processing');
+  
+  try {
+    // Try to process the recording directly since transcription callback might not work
+    console.log('🔄 FALLBACK: Processing recording without transcription callback');
+    
+    // Get conversation state
+    const state = ConversationManager.getState(CallSid);
+    if (!state) {
+      console.log('❌ No conversation state found in fallback');
+      return res.send(getErrorTwiml());
+    }
+    
+    console.log('✅ Conversation state found in fallback, processing with fallback text');
+    
+    // Process with fallback text (since we don't have transcription)
+    const response = await ConversationManager.processUserResponse(
+      '[Fallback odpověď - transcription nefunguje]',
+      CallSid,
+      Called || Caller
+    );
+    
+    console.log('🧠 Fallback conversation response:', response);
+    
+    // Generate TwiML response
+    let twimlResponse = '';
+    if (response.questionType === 'session_complete') {
+      twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+        ${response.feedback}
+    </Say>
+    <Hangup/>
+</Response>`;
+    } else if (response.nextQuestion) {
+      twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+        ${response.feedback}
+    </Say>
+    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+        ${response.nextQuestion}
+    </Say>
+    <Say language="cs-CZ" rate="0.7" voice="Google.cs-CZ-Standard-A">
+        Po pípnutí řekněte svoji odpověď nahlas a jasně. Stiskněte mřížku když dokončíte.
+    </Say>
+    <Record 
+        timeout="10"
+        maxLength="30"
+        playBeep="true"
+        finishOnKey="#"
+        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
+        method="POST"
+        transcribe="true"
+        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
+    />
+</Response>`;
+    } else {
+      twimlResponse = getErrorTwiml();
+    }
+    
+    console.log('📤 Sending fallback TwiML response...');
+    res.set('Content-Type', 'application/xml');
+    res.send(twimlResponse);
+    console.log('✅ Fallback TwiML response sent');
+    
+  } catch (error) {
+    console.error('❌ Error in fallback processing:', error.message);
+    res.set('Content-Type', 'application/xml');
+    res.send(getErrorTwiml());
+  }
+  
   console.log(`🎵 RecordingUrl: ${RecordingUrl}`);
   
   // Send basic continuation TwiML (transcription will handle the logic)

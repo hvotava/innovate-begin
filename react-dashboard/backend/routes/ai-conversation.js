@@ -81,6 +81,7 @@ class ConversationManager {
   static async handleLessonPhase(transcribedText, state, callSid) {
     console.log(`📚 TEST PHASE: Question ${(state.currentQuestionIndex || 0) + 1}/${state.lesson.questions.length}`);
     console.log(`📝 User answer: "${transcribedText}"`);
+    console.log('🔍 DEBUG: Is this a fallback response?', transcribedText.includes('Fallback'));
     
     // Initialize if this is the first question
     if (!state.currentQuestionIndex) state.currentQuestionIndex = 0;
