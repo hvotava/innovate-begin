@@ -14,7 +14,8 @@ async function getLessonForUser(phoneNumber) {
       id: user.id,
       name: user.name,
       phone: user.phone,
-      training_type: user.training_type
+      training_type: user.training_type,
+      language: user.language
     } : null);
     
     if (!user) {
@@ -41,7 +42,11 @@ async function getLessonForUser(phoneNumber) {
       };
     }
     
-    console.log(`✅ Found user: ${user.name}, training type: ${user.training_type}`);
+    console.log(`✅ Found user: ${user.name}, training type: ${user.training_type}, language: ${user.language}`);
+    
+    // Get user's preferred language
+    const userLanguage = user.language || 'cs';
+    console.log(`🌍 User language: ${userLanguage}`);
     
     // Get lesson by user's training_type (which is now lesson ID) or first lesson
     let targetLesson = null;
@@ -71,15 +76,16 @@ async function getLessonForUser(phoneNumber) {
     console.log(`📚 Loading test questions for lesson ID: ${targetLesson.id}`);
     const testQuestions = await loadTestQuestionsFromDB(targetLesson.id);
     
-    // Create lesson response
+    // Create lesson response with language support
     const lesson = {
         type: 'lesson',
       lesson_id: targetLesson.id,
       user_id: user.id,
       title: targetLesson.title,
-      message: `Dobrý den ${user.name}! Začneme s testem "${targetLesson.title}".`,
-      content: targetLesson.content || targetLesson.description || 'Praktické školení podle nahraných materiálů.',
-      questions: testQuestions.length > 0 ? testQuestions : generateQuestionsFromLesson(targetLesson)  // Fallback to hardcoded if no DB questions
+      message: getLocalizedMessage(userLanguage, user.name, targetLesson.title),
+      content: targetLesson.content || targetLesson.description || getLocalizedContent(userLanguage),
+      questions: testQuestions.length > 0 ? testQuestions : generateQuestionsFromLesson(targetLesson),  // Fallback to hardcoded if no DB questions
+      language: userLanguage
     };
     
     console.log(`📋 Generated lesson:`, {
@@ -169,4 +175,44 @@ async function loadTestQuestionsFromDB(lessonId) {
   }
 }
 
-module.exports = { getLessonForUser };
+// Localization functions
+function getLocalizedMessage(language, userName, lessonTitle) {
+  switch (language) {
+    case 'en':
+      return `Hello ${userName}! Let's start with the test "${lessonTitle}".`;
+    case 'de':
+      return `Guten Tag ${userName}! Wir beginnen mit dem Test "${lessonTitle}".`;
+    case 'sk':
+      return `Dobrý deň ${userName}! Začneme s testom "${lessonTitle}".`;
+    default: // cs
+      return `Dobrý den ${userName}! Začneme s testem "${lessonTitle}".`;
+  }
+}
+
+function getLocalizedContent(language) {
+  switch (language) {
+    case 'en':
+      return 'Practical training based on uploaded materials.';
+    case 'de':
+      return 'Praktisches Training basierend auf hochgeladenen Materialien.';
+    case 'sk':
+      return 'Praktické školenie podľa nahraných materiálov.';
+    default: // cs
+      return 'Praktické školení podle nahraných materiálů.';
+  }
+}
+
+function getLocalizedInstructions(language) {
+  switch (language) {
+    case 'en':
+      return 'After the beep, say your answer clearly in English. Say the letter A, B, C or D. Press hash when finished.';
+    case 'de':
+      return 'Nach dem Piepton sagen Sie Ihre Antwort deutlich auf Deutsch. Sagen Sie den Buchstaben A, B, C oder D. Drücken Sie Hash wenn fertig.';
+    case 'sk':
+      return 'Po pípnutí povedzte svoju odpoveď slovensky nahlas a jasne. Povedzte písmeno A, B, C alebo D. Stlačte mriežku keď dokončíte.';
+    default: // cs
+      return 'Po pípnutí řekněte svoji odpověď česky nahlas a jasně. Řekněte písmeno A, B, C nebo D. Stiskněte mřížku když dokončíte.';
+  }
+}
+
+module.exports = { getLessonForUser, getLocalizedInstructions };

@@ -1,5 +1,5 @@
 // INTELLIGENT Voice/call handler with lesson selection
-const { getLessonForUser } = require('./lesson-selector');
+const { getLessonForUser, getLocalizedInstructions } = require('./lesson-selector');
 const { ConversationManager } = require('./ai-conversation');
 
 async function intelligentVoiceCall(req, res) {
@@ -17,6 +17,10 @@ async function intelligentVoiceCall(req, res) {
     // Get appropriate lesson/test for this user
     const lessonData = await getLessonForUser(userPhone);
     console.log('🎯 DEBUG: Lesson data received:', JSON.stringify(lessonData, null, 2));
+    
+    // Get user's language for Twilio configuration
+    const userLanguage = lessonData.language || 'cs';
+    console.log('🌍 Using language for Twilio:', userLanguage);
     
     // Initialize ConversationManager with lesson data
     if (lessonData.type === 'lesson' && callSid) {
@@ -45,10 +49,10 @@ async function intelligentVoiceCall(req, res) {
         transcribe="true"
         transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
         transcribeCallbackMethod="POST"
-        language="cs-CZ"
+        language="${getTwilioLanguage(userLanguage)}"
     />
-    <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">
-        Děkuji za odpověď. Pokračujeme další otázkou.
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.9" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
+        ${getLocalizedThankYou(userLanguage)}
     </Say>
 </Response>`;
     } else if (lessonData.type === 'lesson') {
@@ -85,8 +89,8 @@ async function intelligentVoiceCall(req, res) {
     <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
         První otázka: ${firstQuestion}
     </Say>
-    <Say language="cs-CZ" rate="0.7" voice="Google.cs-CZ-Standard-A">
-        Po pípnutí řekněte svoji odpověď česky nahlas a jasně. Řekněte písmeno A, B, C nebo D. Stiskněte mřížku když dokončíte.
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.7" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
+        ${getLocalizedInstructions(userLanguage)}
     </Say>
     <Record finishOnKey="#" 
         timeout="10"
@@ -97,7 +101,7 @@ async function intelligentVoiceCall(req, res) {
         transcribe="true"
         transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
         transcribeCallbackMethod="POST"
-        language="cs-CZ"
+        language="${getTwilioLanguage(userLanguage)}"
     />
 </Response>`;
     } else {
@@ -128,6 +132,33 @@ async function intelligentVoiceCall(req, res) {
     
     res.set('Content-Type', 'application/xml');
     res.send(errorTwiml);
+  }
+}
+
+// Language helper functions
+function getTwilioLanguage(language) {
+  switch (language) {
+    case 'en':
+      return 'en-US';
+    case 'de':
+      return 'de-DE';
+    case 'sk':
+      return 'sk-SK';
+    default: // cs
+      return 'cs-CZ';
+  }
+}
+
+function getLocalizedThankYou(language) {
+  switch (language) {
+    case 'en':
+      return 'Thank you for your answer. We continue with the next question.';
+    case 'de':
+      return 'Danke für Ihre Antwort. Wir fahren mit der nächsten Frage fort.';
+    case 'sk':
+      return 'Ďakujeme za vašu odpoveď. Pokračujeme ďalšou otázkou.';
+    default: // cs
+      return 'Děkuji za odpověď. Pokračujeme další otázkou.';
   }
 }
 
