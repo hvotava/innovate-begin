@@ -373,7 +373,7 @@ async function smartTranscribeProcess(req, res) {
         const response = await VoiceNavigationManager.processUserResponse(
           whisperTranscription,
           req.body.CallSid,
-          Called || Caller
+          req.body.Called || req.body.Caller
         );
         
         console.log('🧠 Whisper conversation response:', response);
