@@ -465,8 +465,8 @@ async function smartTranscribeProcess(req, res) {
       console.log('🧠 Fallback conversation response:', response);
       
       // Get user language from state
-      const fallbackState = ConversationManager.getState(CallSid);
-      const userLanguage = fallbackState ? fallbackState.userLanguage : 'cs';
+      const responseState = ConversationManager.getState(CallSid);
+      const userLanguage = responseState ? responseState.userLanguage : 'cs';
       
       // Add fallback indicator to feedback
       if (response.feedback) {
