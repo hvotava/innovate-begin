@@ -493,9 +493,16 @@ Answer.belongsTo(Attempt, { foreignKey: 'attempt_id' });
 // TestResponse model - TEMPORARILY DISABLED for deployment
 // const TestResponse = require('./TestResponse')(sequelize);
 
+// TestResult model
+const TestResult = require('./TestResult');
+
 // TestResponse associations - TEMPORARILY DISABLED
 // TestResponse.belongsTo(User, { foreignKey: 'userId' });
 // User.hasMany(TestResponse, { foreignKey: 'userId' });
+
+// TestResult associations
+TestResult.belongsTo(User, { foreignKey: 'userId' });
+User.hasMany(TestResult, { foreignKey: 'userId' });
 
 module.exports = {
   sequelize,
@@ -507,6 +514,7 @@ module.exports = {
   UserTraining,
   Attempt,
   TestSession,
-  Answer
+  Answer,
+  TestResult
   // TestResponse - TEMPORARILY DISABLED for deployment
 }; 

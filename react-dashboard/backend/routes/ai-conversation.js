@@ -142,7 +142,21 @@ class ConversationManager {
     // Check if this is a test question with multiple choice options
     if (currentQuestion && typeof currentQuestion === 'object' && currentQuestion.options) {
       // This is a multiple choice test question from database
+      console.log('🔍 DEBUG: Checking test answer:', {
+        transcribedText: transcribedText,
+        question: currentQuestion.question,
+        options: currentQuestion.options,
+        correctAnswer: currentQuestion.correctAnswer,
+        correctAnswerText: currentQuestion.options[currentQuestion.correctAnswer]
+      });
+      
       isCorrect = this.checkTestAnswer(transcribedText, currentQuestion);
+      
+      console.log('🔍 DEBUG: Answer evaluation:', {
+        isCorrect: isCorrect,
+        transcribedText: transcribedText,
+        correctAnswerText: currentQuestion.options[currentQuestion.correctAnswer]
+      });
     
       if (isCorrect) {
         state.score++;
