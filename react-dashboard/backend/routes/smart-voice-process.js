@@ -116,13 +116,17 @@ async function smartVoiceProcess(req, res) {
     res.set('Content-Type', 'application/xml');
     res.send(twimlResponse);
     console.log('✅ Fallback TwiML response sent');
+    return; // ← PŘIDÁM RETURN ABY SE NEPOKRAČOVALO!
     
   } catch (error) {
     console.error('❌ Error in fallback processing:', error.message);
     res.set('Content-Type', 'application/xml');
     res.send(getErrorTwiml());
+    return; // ← PŘIDÁM RETURN ABY SE NEPOKRAČOVALO!
   }
   
+  // This code should never be reached if fallback works
+  console.log('⚠️ Fallback did not work, using default processing');
   console.log(`🎵 RecordingUrl: ${RecordingUrl}`);
   
   // Send basic continuation TwiML (transcription will handle the logic)
