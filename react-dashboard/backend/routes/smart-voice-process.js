@@ -5,6 +5,10 @@ const axios = require('axios');
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_WHISPER_URL = 'https://api.openai.com/v1/audio/transcriptions';
 
+// Twilio configuration for audio download
+const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+
 // Language helper functions
 function getTwilioLanguage(language) {
   switch (language) {
@@ -132,8 +136,11 @@ async function smartVoiceProcess(req, res) {
     console.log('✅ Conversation state found in fallback, processing with fallback text');
     
     // Process with fallback text (since we don't have transcription)
+    const fallbackResponse = 'B'; // Default to option B for fallback
+    console.log('🔄 FALLBACK: Using default response:', fallbackResponse);
+    
     const response = await ConversationManager.processUserResponse(
-      '[Fallback odpověď - transcription nefunguje]',
+      fallbackResponse,
       CallSid,
       Called || Caller
     );
@@ -583,11 +590,17 @@ async function transcribeWithWhisper(audioUrl, language = 'cs') {
       return null;
     }
     
-    // Download audio from Twilio URL
+    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
+      console.log('❌ WHISPER: No Twilio credentials configured');
+      return null;
+    }
+    
+    // Download audio from Twilio URL with proper authentication
     const audioResponse = await axios.get(audioUrl, {
       responseType: 'arraybuffer',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`
+      auth: {
+        username: TWILIO_ACCOUNT_SID,
+        password: TWILIO_AUTH_TOKEN
       }
     });
     
@@ -597,8 +610,8 @@ async function transcribeWithWhisper(audioUrl, language = 'cs') {
     const FormData = require('form-data');
     const form = new FormData();
     form.append('file', audioResponse.data, {
-      filename: 'audio.wav',
-      contentType: 'audio/wav'
+      filename: 'audio.mp3',
+      contentType: 'audio/mpeg'
     });
     form.append('model', 'whisper-1');
     form.append('language', language);
@@ -618,6 +631,12 @@ async function transcribeWithWhisper(audioUrl, language = 'cs') {
     return transcription;
   } catch (error) {
     console.error('❌ WHISPER: Transcription failed:', error.message);
+    console.error('🔍 DEBUG: Error details:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      url: audioUrl
+    });
     return null;
   }
 }
