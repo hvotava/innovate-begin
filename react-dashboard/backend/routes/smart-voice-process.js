@@ -59,6 +59,20 @@ async function smartVoiceProcess(req, res) {
     hasTranscriptionText: !!req.body.TranscriptionText
   });
   
+  // Check if transcription callback was called
+  console.log('🔍 DEBUG: Checking if transcription callback was called...');
+  console.log('🔍 DEBUG: Request headers:', req.headers);
+  console.log('🔍 DEBUG: Request method:', req.method);
+  console.log('🔍 DEBUG: Request URL:', req.url);
+  
+  // Check Twilio transcription service status
+  console.log('🔍 DEBUG: Twilio transcription service analysis:', {
+    hasRecordingUrl: !!RecordingUrl,
+    recordingUrlLength: RecordingUrl ? RecordingUrl.length : 0,
+    recordingDuration: req.body.RecordingDuration,
+    callSid: req.body.CallSid
+  });
+  
   try {
     // Try to process the recording directly since transcription callback might not work
     console.log('🔄 FALLBACK: Processing recording without transcription callback');

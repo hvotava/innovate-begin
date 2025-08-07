@@ -44,6 +44,7 @@ async function intelligentVoiceCall(req, res) {
         method="POST"
         transcribe="true"
         transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
+        transcribeCallbackMethod="POST"
     />
     <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">
         Děkuji za odpověď. Pokračujeme další otázkou.
@@ -94,6 +95,7 @@ async function intelligentVoiceCall(req, res) {
         method="POST"
         transcribe="true"
         transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
+        transcribeCallbackMethod="POST"
     />
 </Response>`;
     } else {
