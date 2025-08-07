@@ -1,6 +1,6 @@
 // INTELLIGENT Voice/call handler with lesson selection
 const { getLessonForUser, getLocalizedInstructions } = require('./lesson-selector');
-const { ConversationManager } = require('./ai-conversation');
+const { VoiceNavigationManager } = require('./voice-navigation');
 
 async function intelligentVoiceCall(req, res) {
   console.log('🧠 INTELLIGENT Voice/call handler CALLED');
@@ -22,10 +22,10 @@ async function intelligentVoiceCall(req, res) {
     const userLanguage = lessonData.language || 'cs';
     console.log('🌍 Using language for Twilio:', userLanguage);
     
-    // Initialize ConversationManager with lesson data
+    // Initialize VoiceNavigationManager with lesson data
     if (lessonData.type === 'lesson' && callSid) {
-      ConversationManager.initializeState(callSid, lessonData);
-      console.log('✅ ConversationManager initialized for lesson:', lessonData.title);
+      VoiceNavigationManager.initializeState(callSid, lessonData);
+      console.log('✅ VoiceNavigationManager initialized for lesson:', lessonData.title);
     }
     
     let twimlResponse = '';
@@ -58,28 +58,13 @@ async function intelligentVoiceCall(req, res) {
 </Response>`;
     } else if (lessonData.type === 'lesson') {
       // Format first question properly (could be object with multiple choice)
-      let firstQuestion = lessonData.questions[0];
-      
-      console.log(`🎯 First question structure:`, firstQuestion);
-      
-      if (typeof firstQuestion === 'object' && firstQuestion.question) {
-        // This is a test question with multiple choice
-        let questionText = firstQuestion.question;
-        
-        if (firstQuestion.options && firstQuestion.options.length > 0) {
-          questionText += " Možnosti: ";
-          firstQuestion.options.forEach((option, index) => {
-            const letter = String.fromCharCode(65 + index); // A, B, C, D
-            // Handle both string options and object options
-            const optionText = typeof option === 'string' ? option : (option.text || option);
-            questionText += `${letter}: ${optionText}. `;
-          });
-        }
-        
-        firstQuestion = questionText;
+      // Format lesson content for TwiML
+      let lessonContent = lessonData.content || lessonData.description || 'Praktické školení.';
+      if (lessonData.title) {
+        lessonContent = `${lessonData.title}. ${lessonContent}`;
       }
       
-      console.log(`🎯 Formatted first question:`, firstQuestion);
+      console.log(`🎯 Lesson content:`, lessonContent);
       
       // Regular lesson TwiML
       twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
