@@ -50,7 +50,7 @@ async function intelligentVoiceCall(req, res) {
         transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
         transcribeCallbackMethod="POST"
         language="${getTwilioLanguage(userLanguage)}"
-        transcribeLanguage="${getTwilioLanguage(userLanguage)}"
+        trim="trim-silence"
     />
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.9" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         ${getLocalizedThankYou(userLanguage)}
@@ -103,7 +103,7 @@ async function intelligentVoiceCall(req, res) {
         transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
         transcribeCallbackMethod="POST"
         language="${getTwilioLanguage(userLanguage)}"
-        transcribeLanguage="${getTwilioLanguage(userLanguage)}"
+        trim="trim-silence"
     />
 </Response>`;
     } else {
