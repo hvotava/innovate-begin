@@ -37,15 +37,25 @@ class ConversationManager {
   static async processUserResponse(transcribedText, callSid, userPhone) {
     try {
       console.log(`🧠 Processing response: "${transcribedText}"`);
+      console.log('🔍 DEBUG: CallSid:', callSid, 'UserPhone:', userPhone);
       
       let state = this.getState(callSid);
       if (!state) {
+        console.log('❌ No conversation state found for call:', callSid);
+        console.log('🔍 DEBUG: Available states:', Array.from(this.conversationState.keys()));
         return {
           feedback: "Omlouvám se, došlo k chybě. Začněme znovu.",
           nextQuestion: null,
           questionType: 'error'
         };
       }
+      
+      console.log('✅ Conversation state found:', {
+        state: state.state,
+        currentQuestionIndex: state.currentQuestionIndex,
+        totalQuestions: state.lesson.questions.length,
+        score: state.score
+      });
       
       console.log(`📊 Current state: ${state.state}, Question ${state.currentQuestionIndex}`);
       

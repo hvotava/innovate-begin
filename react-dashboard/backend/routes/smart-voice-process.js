@@ -10,7 +10,10 @@ const initializedCalls = new Set();
 // Smart voice processing with lesson->test conversation flow  
 async function smartVoiceProcess(req, res) {
   console.log('🎙️ Voice processing called');
-  console.log('📝 Request body:', req.body);
+  console.log('📝 Request body:', JSON.stringify(req.body, null, 2));
+  console.log('🔍 DEBUG: RecordingUrl exists?', !!req.body.RecordingUrl);
+  console.log('🔍 DEBUG: CallSid:', req.body.CallSid);
+  console.log('🔍 DEBUG: TranscriptionStatus:', req.body.TranscriptionStatus);
   
   const { RecordingUrl, CallSid, RecordingDuration, Called, Caller } = req.body;
   
@@ -41,8 +44,11 @@ async function smartVoiceProcess(req, res) {
   // Check if we have a recording URL (user response)
   if (!RecordingUrl) {
     console.log('❌ No recording URL provided - waiting for user response');
+    console.log('🔍 DEBUG: This should not happen during normal flow');
     return res.send(getContinueTwiml());
   }
+  
+  console.log('✅ RecordingUrl found, proceeding with transcription callback');
   
   console.log(`🎵 RecordingUrl: ${RecordingUrl}`);
   
@@ -71,19 +77,22 @@ async function smartVoiceProcess(req, res) {
 
 // Enhanced transcription processor with lesson->test flow
 async function smartTranscribeProcess(req, res) {
-  console.log('🎯 SMART Transcription processing');
+  console.log('🎯 SMART Transcription processing STARTED');
   console.log('🎯 CallSid:', req.body.CallSid);
   console.log('📄 TranscriptionText:', req.body.TranscriptionText);
   console.log('📊 TranscriptionStatus:', req.body.TranscriptionStatus);
+  console.log('🔍 DEBUG: Full transcription request body:', JSON.stringify(req.body, null, 2));
   
   const transcribedText = req.body.TranscriptionText;
   const callSid = req.body.CallSid;
   
   if (req.body.TranscriptionStatus === 'completed' && transcribedText) {
     console.log(`💬 User said: "${transcribedText}"`);
+    console.log('✅ Transcription completed successfully, processing with ConversationManager...');
     
     try {
       // Process with new ConversationManager
+      console.log('🧠 Calling ConversationManager.processUserResponse...');
       const response = await ConversationManager.processUserResponse(
         transcribedText, 
         callSid,
@@ -91,6 +100,12 @@ async function smartTranscribeProcess(req, res) {
       );
       
       console.log('🧠 Conversation Analysis:', response);
+      console.log('🔍 DEBUG: Response structure:', {
+        questionType: response.questionType,
+        hasNextQuestion: !!response.nextQuestion,
+        hasFeedback: !!response.feedback,
+        hasTestResults: !!response.testResults
+      });
       
       // Generate TwiML response based on conversation state
       let twimlResponse = '';
@@ -140,8 +155,11 @@ async function smartTranscribeProcess(req, res) {
       }
       
       // Send TwiML response
+      console.log('📤 Sending TwiML response to Twilio...');
+      console.log('🔍 DEBUG: TwiML response length:', twimlResponse.length);
       res.set('Content-Type', 'application/xml');
       res.send(twimlResponse);
+      console.log('✅ TwiML response sent successfully');
       
       // Save test results when test is completed
       if (response.testResults) {
@@ -164,6 +182,7 @@ async function smartTranscribeProcess(req, res) {
   } else if (req.body.TranscriptionStatus === 'failed') {
     console.log('❌ Transcription failed, but continuing with conversation');
     console.log('📋 Recording URL:', req.body.RecordingUrl);
+    console.log('🔍 DEBUG: Transcription failed, using fallback text');
     
     try {
       // Continue conversation even with failed transcription
@@ -225,11 +244,14 @@ async function smartTranscribeProcess(req, res) {
       text: transcribedText,
       hasText: !!transcribedText
     });
+    console.log('🔍 DEBUG: This should not happen - transcription callback without text');
     
     // Send continue TwiML for no transcription case
     res.set('Content-Type', 'application/xml');
     res.send(getContinueTwiml());
   }
+  
+  console.log('🎯 SMART Transcription processing ENDED');
 }
 
 // Helper TwiML functions
