@@ -39,13 +39,13 @@ function getLocalizedProcessingMessage(language) {
 function getLocalizedInstructions(language) {
   switch (language) {
     case 'en':
-      return 'After the beep, say your answer clearly. Press hash when finished.';
+      return 'Say your answer.';
     case 'de':
-      return 'Nach dem Piepton sagen Sie Ihre Antwort deutlich. Drücken Sie Hash wenn fertig.';
+      return 'Sagen Sie Ihre Antwort.';
     case 'sk':
-      return 'Po pípnutí povedzte svoju odpoveď nahlas a jasne. Stlačte mriežku keď dokončíte.';
+      return 'Povedzte svoju odpoveď.';
     default: // cs
-      return 'Po pípnutí řekněte svoji odpověď nahlas a jasně. Stiskněte mřížku když dokončíte.';
+      return 'Řekněte svoji odpověď.';
   }
 }
 const { getLessonForUser } = require('./lesson-selector');
@@ -167,7 +167,7 @@ async function smartVoiceProcess(req, res) {
         ${response.nextQuestion}
     </Say>
     <Say language="cs-CZ" rate="0.7" voice="Google.cs-CZ-Standard-A">
-        Po pípnutí řekněte svoji odpověď nahlas a jasně. Stiskněte mřížku když dokončíte.
+        Řekněte svoji odpověď.
     </Say>
     <Record 
         timeout="10"
@@ -301,7 +301,7 @@ async function smartTranscribeProcess(req, res) {
         ${response.nextQuestion}
     </Say>
     <Say language="cs-CZ" rate="0.7" voice="Google.cs-CZ-Standard-A">
-        Po pípnutí řekněte svoji odpověď nahlas a jasně. Stiskněte mřížku když dokončíte.
+        Řekněte svoji odpověď.
     </Say>
     <Record 
         timeout="10"
@@ -360,7 +360,7 @@ async function smartTranscribeProcess(req, res) {
       console.log('🤖 WHISPER: Attempting OpenAI Whisper transcription');
       
       // Get user language from state
-      const whisperState = ConversationManager.getState(CallSid);
+      const whisperState = ConversationManager.getState(req.body.CallSid);
       const userLanguage = whisperState ? whisperState.userLanguage : 'cs';
       
       // Try Whisper transcription
@@ -372,7 +372,7 @@ async function smartTranscribeProcess(req, res) {
         // Process with Whisper transcription
         const response = await ConversationManager.processUserResponse(
           whisperTranscription,
-          CallSid,
+          req.body.CallSid,
           Called || Caller
         );
         
@@ -443,7 +443,7 @@ async function smartTranscribeProcess(req, res) {
       console.log('🔄 FALLBACK: Processing with fallback text due to transcription failure');
       
       // Get current question to determine appropriate fallback response
-      const fallbackState = ConversationManager.getState(CallSid);
+      const fallbackState = ConversationManager.getState(req.body.CallSid);
       let fallbackResponse = 'B'; // Default to option B for fallback
       
       if (fallbackState && fallbackState.lesson && fallbackState.lesson.questions && fallbackState.currentQuestionIndex !== undefined) {
