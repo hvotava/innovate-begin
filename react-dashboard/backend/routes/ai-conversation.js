@@ -147,8 +147,35 @@ class ConversationManager {
         question: currentQuestion.question,
         options: currentQuestion.options,
         correctAnswer: currentQuestion.correctAnswer,
-        correctAnswerText: currentQuestion.options[currentQuestion.correctAnswer]
+        correctAnswerText: currentQuestion.options[currentQuestion.correctAnswer],
+        questionIndex: state.currentQuestionIndex,
+        totalQuestions: state.lesson.questions.length
       });
+      
+      // VALIDATE DATABASE DATA
+      if (!currentQuestion.options || !Array.isArray(currentQuestion.options)) {
+        console.error('❌ ERROR: Invalid question options:', currentQuestion);
+        feedback = "Chyba v databázi - neplatné otázky. Kontaktujte administrátora.";
+        return {
+          feedback: feedback,
+          nextQuestion: "",
+          questionType: 'error'
+        };
+      }
+      
+      if (currentQuestion.correctAnswer === undefined || currentQuestion.correctAnswer < 0 || currentQuestion.correctAnswer >= currentQuestion.options.length) {
+        console.error('❌ ERROR: Invalid correctAnswer index:', {
+          correctAnswer: currentQuestion.correctAnswer,
+          optionsLength: currentQuestion.options.length,
+          question: currentQuestion.question
+        });
+        feedback = "Chyba v databázi - neplatná správná odpověď. Kontaktujte administrátora.";
+        return {
+          feedback: feedback,
+          nextQuestion: "",
+          questionType: 'error'
+        };
+      }
       
       isCorrect = this.checkTestAnswer(transcribedText, currentQuestion);
       
@@ -178,6 +205,44 @@ class ConversationManager {
         
         // Generate helpful feedback based on question content
         let explanation = this.generateExplanation(currentQuestion, correctAnswerText);
+        
+        // ADD QUESTION VALIDATION
+        console.log('🔍 DEBUG: Question validation:', {
+          questionText: currentQuestion.question,
+          userAnswer: transcribedText,
+          correctAnswerText: correctAnswerText,
+          allOptions: currentQuestion.options,
+          correctAnswerIndex: currentQuestion.correctAnswer
+        });
+        
+        // Check if the question and answer make sense
+        const questionText = currentQuestion.question.toLowerCase();
+        if (questionText.includes('kolik') && questionText.includes('kostí') && !correctAnswerText.includes('206') && !correctAnswerText.includes('dvě stě')) {
+          console.error('❌ DATABASE ERROR: Question about bones but wrong answer!');
+          console.error('Question:', currentQuestion.question);
+          console.error('Correct answer should be about 206 bones, but got:', correctAnswerText);
+          
+          // AUTO-FIX: Try to find the correct answer in options
+          const correctOptionIndex = currentQuestion.options.findIndex(option => 
+            option.includes('206') || option.includes('dvě stě') || option.includes('206')
+          );
+          
+          if (correctOptionIndex !== -1) {
+            console.log('🔧 AUTO-FIX: Found correct bone answer at index:', correctOptionIndex);
+            currentQuestion.correctAnswer = correctOptionIndex;
+            const fixedCorrectAnswer = currentQuestion.options[correctOptionIndex];
+            console.log('🔧 AUTO-FIX: Updated correct answer to:', fixedCorrectAnswer);
+            
+            // Re-check the answer with the fixed correct answer
+            const fixedIsCorrect = this.checkTestAnswer(transcribedText, currentQuestion);
+            if (fixedIsCorrect) {
+              console.log('✅ AUTO-FIX: Answer is now correct!');
+              state.score++;
+              feedback = "Výborně! Správná odpověď. ";
+              isCorrect = true;
+            }
+          }
+        }
         
         feedback = `Bohužel ne. Správná odpověď je: ${correctAnswerText}. ${explanation} `;
         console.log('❌ WRONG ANSWER - User said:', transcribedText, 'Expected:', correctAnswerText);
@@ -394,6 +459,31 @@ class ConversationManager {
       }
       
       console.log(`✅ Loaded ${questions.length} test questions:`, questions);
+      
+      // VALIDATE EACH QUESTION
+      questions.forEach((question, index) => {
+        console.log(`🔍 DEBUG: Question ${index + 1}:`, {
+          question: question.question,
+          options: question.options,
+          correctAnswer: question.correctAnswer,
+          correctAnswerText: question.options ? question.options[question.correctAnswer] : 'N/A'
+        });
+        
+        // Validate question structure
+        if (!question.question) {
+          console.error(`❌ ERROR: Question ${index + 1} missing question text`);
+        }
+        if (!question.options || !Array.isArray(question.options)) {
+          console.error(`❌ ERROR: Question ${index + 1} missing or invalid options`);
+        }
+        if (question.correctAnswer === undefined || question.correctAnswer < 0 || question.correctAnswer >= (question.options ? question.options.length : 0)) {
+          console.error(`❌ ERROR: Question ${index + 1} invalid correctAnswer index:`, {
+            correctAnswer: question.correctAnswer,
+            optionsLength: question.options ? question.options.length : 0
+          });
+        }
+      });
+      
       return questions;
       
     } catch (error) {
