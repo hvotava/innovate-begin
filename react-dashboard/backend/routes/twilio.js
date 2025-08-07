@@ -301,8 +301,9 @@ router.post('/voice/call-intelligent', (req, res) => {
 });
 
 // Import smart voice processors
-const { smartVoiceProcess, smartTranscribeProcess } = require('./smart-voice-process');
+const { smartVoiceProcess, smartTranscribeProcess, recordingStatusCallback } = require('./smart-voice-process');
 
 // Replace basic endpoints with SMART versions
 router.post('/voice/process-smart', smartVoiceProcess);
 router.post('/voice/transcribe-smart', smartTranscribeProcess);
+router.post('/voice/recording-status', recordingStatusCallback);
