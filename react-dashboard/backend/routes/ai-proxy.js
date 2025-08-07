@@ -127,6 +127,9 @@ router.post('/content/upload', async (req, res) => {
     console.log('📤 Content upload request received');
     console.log('📋 Request body:', req.body);
     console.log('📁 Files:', req.files ? Object.keys(req.files) : 'No files');
+    console.log('🏢 Company ID:', req.body.company_id);
+    console.log('📝 Title:', req.body.title);
+    console.log('🔧 Content type:', req.body.content_type);
 
     let textContent = '';
     let fileName = '';
@@ -155,6 +158,14 @@ router.post('/content/upload', async (req, res) => {
     const newLessonTitle = req.body.newLessonTitle;
     const lessonCategory = req.body.lessonCategory || 'General';
     const generateTests = req.body.generateTests === 'true'; // NEW: Test generation flag
+    
+    console.log('📚 Lesson assignment:', {
+      lessonId,
+      createNewLesson,
+      newLessonTitle,
+      lessonCategory,
+      generateTests
+    });
     
     let targetLessonId = lessonId;
     
@@ -250,6 +261,11 @@ router.post('/content/upload', async (req, res) => {
     }];
 
     console.log('✅ Content upload successful:', uploadedSources[0]);
+    console.log('📊 Response data:', {
+      success: true,
+      uploadedSources,
+      message: `Successfully uploaded ${fileName || 'content'}`
+    });
     res.json({
       success: true,
       uploaded_sources: uploadedSources,

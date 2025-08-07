@@ -216,11 +216,12 @@ const ContentManagement: React.FC = () => {
       // NEW: Add test generation option
       formData.append('generateTests', generateTests.toString());
 
-      console.log('🚀 Making API call to /api/content/upload');
+      console.log('🚀 Making API call to /api/ai-proxy/content/upload');
       const response = await api.post('/api/ai-proxy/content/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        timeout: 60000, // 60 seconds timeout
       });
       console.log('✅ Upload response:', response.data);
 
@@ -229,7 +230,7 @@ const ContentManagement: React.FC = () => {
         setUploadTitle('');
         await loadContentSources();
       } else {
-        setError('Upload failed');
+        setError(response.data.error || 'Upload failed');
       }
     } catch (err: any) {
       console.error('❌ Upload error:', err);
