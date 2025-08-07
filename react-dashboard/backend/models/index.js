@@ -500,9 +500,9 @@ const TestResult = require('./TestResult');
 // TestResponse.belongsTo(User, { foreignKey: 'userId' });
 // User.hasMany(TestResponse, { foreignKey: 'userId' });
 
-// TestResult associations
-TestResult.belongsTo(User, { foreignKey: 'userId' });
-User.hasMany(TestResult, { foreignKey: 'userId' });
+// TestResult associations - DISABLED until Users table exists
+// TestResult.belongsTo(User, { foreignKey: 'userId' });
+// User.hasMany(TestResult, { foreignKey: 'userId' });
 
 module.exports = {
   sequelize,

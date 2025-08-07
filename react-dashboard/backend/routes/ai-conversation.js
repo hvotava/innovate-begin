@@ -487,28 +487,33 @@ class ConversationManager {
         }
         
         // Save each answer as a separate TestResult record
-        for (let i = 0; i < state.userAnswers.length; i++) {
-          const answer = state.userAnswers[i];
-          
-          await TestResult.create({
-            userId: userId,
-            trainingType: state.lesson.title,
-            lessonTitle: state.lesson.title,
-            contentId: state.lesson.lesson_id,
-            questionText: answer.question,
-            userAnswer: answer.userAnswer,
-            recordingUrl: null, // TODO: Add recording URL if available
-            recordingDuration: null,
-            aiEvaluation: {
-              isCorrect: answer.isCorrect,
-              correctAnswer: answer.correctAnswer,
-              feedback: answer.isCorrect ? 'Správná odpověď' : `Správná odpověď je: ${answer.correctAnswer}`,
-              questionNumber: i + 1
-            },
-            completionPercentage: answer.isCorrect ? 100 : 0,
-            qualityScore: answer.isCorrect ? 100 : 0,
-            sessionId: callSid
-          });
+        try {
+          for (let i = 0; i < state.userAnswers.length; i++) {
+            const answer = state.userAnswers[i];
+            
+            await TestResult.create({
+              userId: userId,
+              trainingType: state.lesson.title,
+              lessonTitle: state.lesson.title,
+              contentId: state.lesson.lesson_id,
+              questionText: answer.question,
+              userAnswer: answer.userAnswer,
+              recordingUrl: null, // TODO: Add recording URL if available
+              recordingDuration: null,
+              aiEvaluation: {
+                isCorrect: answer.isCorrect,
+                correctAnswer: answer.correctAnswer,
+                feedback: answer.isCorrect ? 'Správná odpověď' : `Správná odpověď je: ${answer.correctAnswer}`,
+                questionNumber: i + 1
+              },
+              completionPercentage: answer.isCorrect ? 100 : 0,
+              qualityScore: answer.isCorrect ? 100 : 0,
+              sessionId: callSid
+            });
+          }
+        } catch (error) {
+          console.error('❌ Error creating TestResult records:', error.message);
+          console.log('⚠️ Test results not saved, but continuing...');
         }
         
         // Calculate and log final results

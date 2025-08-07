@@ -13,11 +13,11 @@ const TestResult = sequelize.define('TestResult', {
   },
   userId: {
     type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: 'Users',
-      key: 'id'
-    }
+    allowNull: false
+    // references: {
+    //   model: 'Users',
+    //   key: 'id'
+    // }
   },
   trainingType: {
     type: DataTypes.STRING,
