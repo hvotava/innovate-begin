@@ -353,8 +353,8 @@ async function smartTranscribeProcess(req, res) {
       console.log('🤖 WHISPER: Attempting OpenAI Whisper transcription');
       
       // Get user language from state
-      const state = ConversationManager.getState(CallSid);
-      const userLanguage = state ? state.userLanguage : 'cs';
+      const whisperState = ConversationManager.getState(CallSid);
+      const userLanguage = whisperState ? whisperState.userLanguage : 'cs';
       
       // Try Whisper transcription
       const whisperTranscription = await transcribeWithWhisper(req.body.RecordingUrl, userLanguage);
@@ -436,11 +436,11 @@ async function smartTranscribeProcess(req, res) {
       console.log('🔄 FALLBACK: Processing with fallback text due to transcription failure');
       
       // Get current question to determine appropriate fallback response
-      const state = ConversationManager.getState(CallSid);
+      const fallbackState = ConversationManager.getState(CallSid);
       let fallbackResponse = 'B'; // Default to option B for fallback
       
-      if (state && state.lesson && state.lesson.questions && state.currentQuestionIndex !== undefined) {
-        const currentQuestion = state.lesson.questions[state.currentQuestionIndex];
+      if (fallbackState && fallbackState.lesson && fallbackState.lesson.questions && fallbackState.currentQuestionIndex !== undefined) {
+        const currentQuestion = fallbackState.lesson.questions[fallbackState.currentQuestionIndex];
         if (currentQuestion && currentQuestion.correctAnswer !== undefined) {
           // Use the correct answer as fallback
           const correctAnswerIndex = currentQuestion.correctAnswer;
@@ -465,8 +465,8 @@ async function smartTranscribeProcess(req, res) {
       console.log('🧠 Fallback conversation response:', response);
       
       // Get user language from state
-      const state = ConversationManager.getState(CallSid);
-      const userLanguage = state ? state.userLanguage : 'cs';
+      const fallbackState = ConversationManager.getState(CallSid);
+      const userLanguage = fallbackState ? fallbackState.userLanguage : 'cs';
       
       // Add fallback indicator to feedback
       if (response.feedback) {
@@ -644,10 +644,10 @@ async function recordingStatusCallback(req, res) {
   });
   
   // Update conversation state with recording info
-  const state = ConversationManager.getState(CallSid);
-  if (state) {
-    state.recordingUrl = RecordingUrl;
-    state.recordingDuration = RecordingDuration;
+  const recordingState = ConversationManager.getState(CallSid);
+  if (recordingState) {
+    recordingState.recordingUrl = RecordingUrl;
+    recordingState.recordingDuration = RecordingDuration;
     console.log('✅ Updated conversation state with recording info');
   }
   
