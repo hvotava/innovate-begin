@@ -385,59 +385,63 @@ class ConversationManager {
   }
   
   // Save test results to database
-  static async saveTestResults(state, callSid) {
-    try {
-      console.log('💾 Saving test results to database...');
-      
-      const TestResult = require('../models/TestResult');
-      const { User } = require('../models');
-      
-      // Find user by phone from conversation state
-      let userId = state.lesson.user_id;
-      if (!userId) {
-        // Try to find user by callSid or other means
-        console.log('⚠️ User ID not found in state, using default or admin');
-        userId = 1; // Fallback to admin user
-      }
-      
-      // Save each answer as a separate TestResult record
-      for (let i = 0; i < state.userAnswers.length; i++) {
-        const answer = state.userAnswers[i];
+  static saveTestResults(state, callSid) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        console.log('💾 Saving test results to database...');
         
-        await TestResult.create({
-          userId: userId,
-          trainingType: state.lesson.title,
-          lessonTitle: state.lesson.title,
-          contentId: state.lesson.lesson_id,
-          questionText: answer.question,
-          userAnswer: answer.userAnswer,
-          recordingUrl: null, // TODO: Add recording URL if available
-          recordingDuration: null,
-          aiEvaluation: {
-            isCorrect: answer.isCorrect,
-            correctAnswer: answer.correctAnswer,
-            feedback: answer.isCorrect ? 'Správná odpověď' : `Správná odpověď je: ${answer.correctAnswer}`,
-            questionNumber: i + 1
-          },
-          completionPercentage: answer.isCorrect ? 100 : 0,
-          qualityScore: answer.isCorrect ? 100 : 0,
-          sessionId: callSid
-        });
+        const TestResult = require('../models/TestResult');
+        const { User } = require('../models');
+        
+        // Find user by phone from conversation state
+        let userId = state.lesson.user_id;
+        if (!userId) {
+          // Try to find user by callSid or other means
+          console.log('⚠️ User ID not found in state, using default or admin');
+          userId = 1; // Fallback to admin user
+        }
+        
+        // Save each answer as a separate TestResult record
+        for (let i = 0; i < state.userAnswers.length; i++) {
+          const answer = state.userAnswers[i];
+          
+          await TestResult.create({
+            userId: userId,
+            trainingType: state.lesson.title,
+            lessonTitle: state.lesson.title,
+            contentId: state.lesson.lesson_id,
+            questionText: answer.question,
+            userAnswer: answer.userAnswer,
+            recordingUrl: null, // TODO: Add recording URL if available
+            recordingDuration: null,
+            aiEvaluation: {
+              isCorrect: answer.isCorrect,
+              correctAnswer: answer.correctAnswer,
+              feedback: answer.isCorrect ? 'Správná odpověď' : `Správná odpověď je: ${answer.correctAnswer}`,
+              questionNumber: i + 1
+            },
+            completionPercentage: answer.isCorrect ? 100 : 0,
+            qualityScore: answer.isCorrect ? 100 : 0,
+            sessionId: callSid
+          });
+        }
+        
+        // Calculate and log final results
+        const correctAnswers = state.userAnswers.filter(a => a.isCorrect).length;
+        const totalQuestions = state.userAnswers.length;
+        const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+        
+        console.log(`✅ Test results saved: ${correctAnswers}/${totalQuestions} (${percentage}%)`);
+        console.log(`📊 Questions saved for user ${userId}, lesson "${state.lesson.title}"`);
+        
+        resolve();
+      } catch (error) {
+        console.error('❌ Error saving test results:', error.message);
+        console.error('📋 Full error:', error);
+        reject(error);
       }
-      
-      // Calculate and log final results
-      const correctAnswers = state.userAnswers.filter(a => a.isCorrect).length;
-      const totalQuestions = state.userAnswers.length;
-      const percentage = Math.round((correctAnswers / totalQuestions) * 100);
-      
-      console.log(`✅ Test results saved: ${correctAnswers}/${totalQuestions} (${percentage}%)`);
-      console.log(`📊 Questions saved for user ${userId}, lesson "${state.lesson.title}"`);
-      
-    } catch (error) {
-      console.error('❌ Error saving test results:', error.message);
-             console.error('📋 Full error:', error);
-     }
-   }
+    });
+  }
    
    // Generate helpful explanation for wrong answers
    static generateExplanation(questionObj, correctAnswer) {

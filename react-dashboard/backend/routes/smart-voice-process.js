@@ -53,9 +53,9 @@ async function smartVoiceProcess(req, res) {
         Děkuji za odpověď. Zpracovávám...
     </Say>
     <Record 
-        timeout="3"
+        timeout="10"
         maxLength="30"
-        playBeep="false"
+        playBeep="true"
         finishOnKey="#"
         action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
         method="POST"
@@ -92,6 +92,57 @@ async function smartTranscribeProcess(req, res) {
       
       console.log('🧠 Conversation Analysis:', response);
       
+      // Generate TwiML response based on conversation state
+      let twimlResponse = '';
+      
+      if (response.questionType === 'session_complete') {
+        // Test completed - end call
+        twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+        ${response.feedback}
+    </Say>
+    <Hangup/>
+</Response>`;
+      } else if (response.nextQuestion) {
+        // Continue with next question
+        twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+        ${response.feedback}
+    </Say>
+    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+        ${response.nextQuestion}
+    </Say>
+    <Say language="cs-CZ" rate="0.7" voice="Google.cs-CZ-Standard-A">
+        Po pípnutí řekněte svoji odpověď nahlas a jasně. Stiskněte mřížku když dokončíte.
+    </Say>
+    <Record 
+        timeout="10"
+        maxLength="30"
+        playBeep="true"
+        finishOnKey="#"
+        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
+        method="POST"
+        transcribe="true"
+        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
+    />
+</Response>`;
+      } else {
+        // Error or unknown state
+        twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+        ${response.feedback || 'Omlouvám se, došlo k chybě.'}
+    </Say>
+    <Hangup/>
+</Response>`;
+      }
+      
+      // Send TwiML response
+      res.set('Content-Type', 'application/xml');
+      res.send(twimlResponse);
+      
       // Save test results when test is completed
       if (response.testResults) {
         console.log('📊 Test Results:', {
@@ -105,6 +156,10 @@ async function smartTranscribeProcess(req, res) {
     } catch (error) {
       console.error('❌ Transcription processing error:', error.message);
       console.error('📋 Error details:', error.stack);
+      
+      // Send error TwiML
+      res.set('Content-Type', 'application/xml');
+      res.send(getErrorTwiml());
     }
   } else if (req.body.TranscriptionStatus === 'failed') {
     console.log('❌ Transcription failed, but continuing with conversation');
@@ -119,8 +174,50 @@ async function smartTranscribeProcess(req, res) {
       );
       
       console.log('🧠 Conversation continued despite transcription failure:', response);
+      
+      // Generate TwiML for failed transcription case
+      let twimlResponse = '';
+      if (response.questionType === 'session_complete') {
+        twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+        ${response.feedback}
+    </Say>
+    <Hangup/>
+</Response>`;
+      } else if (response.nextQuestion) {
+        twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+        ${response.feedback}
+    </Say>
+    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+        ${response.nextQuestion}
+    </Say>
+    <Say language="cs-CZ" rate="0.7" voice="Google.cs-CZ-Standard-A">
+        Po pípnutí řekněte svoji odpověď nahlas a jasně. Stiskněte mřížku když dokončíte.
+    </Say>
+    <Record 
+        timeout="10"
+        maxLength="30"
+        playBeep="true"
+        finishOnKey="#"
+        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
+        method="POST"
+        transcribe="true"
+        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
+    />
+</Response>`;
+      } else {
+        twimlResponse = getErrorTwiml();
+      }
+      
+      res.set('Content-Type', 'application/xml');
+      res.send(twimlResponse);
     } catch (error) {
       console.error('❌ Error handling failed transcription:', error.message);
+      res.set('Content-Type', 'application/xml');
+      res.send(getErrorTwiml());
     }
   } else {
     console.log('⚠️ No transcription text available:', {
@@ -128,9 +225,11 @@ async function smartTranscribeProcess(req, res) {
       text: transcribedText,
       hasText: !!transcribedText
     });
+    
+    // Send continue TwiML for no transcription case
+    res.set('Content-Type', 'application/xml');
+    res.send(getContinueTwiml());
   }
-  
-  res.send('OK');
 }
 
 // Helper TwiML functions

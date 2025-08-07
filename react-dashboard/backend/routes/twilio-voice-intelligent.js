@@ -87,9 +87,9 @@ async function intelligentVoiceCall(req, res) {
         Po pípnutí řekněte svoji odpověď nahlas a jasně. Stiskněte mřížku když dokončíte.
     </Say>
     <Record finishOnKey="#" 
-        timeout="3"
+        timeout="10"
         maxLength="30"
-        playBeep="false"
+        playBeep="true"
         action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
         method="POST"
         transcribe="true"
