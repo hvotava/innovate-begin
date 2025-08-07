@@ -329,64 +329,24 @@ async function smartTranscribeProcess(req, res) {
       res.send(getErrorTwiml());
     }
   } else if (req.body.TranscriptionStatus === 'failed') {
-    console.log('❌ Transcription failed, but continuing with conversation');
+    console.log('❌ Transcription failed, ending conversation gracefully');
     console.log('📋 Recording URL:', req.body.RecordingUrl);
-    console.log('🔍 DEBUG: Transcription failed, using fallback text');
+    console.log('🔍 DEBUG: Transcription failed, ending conversation');
     
-    try {
-      // Continue conversation even with failed transcription
-      const response = await ConversationManager.processUserResponse(
-        '[Nerozpoznaná odpověď]', // Fallback text
-        callSid,
-        req.body.Called || req.body.Caller
-      );
-      
-      console.log('🧠 Conversation continued despite transcription failure:', response);
-      
-      // Generate TwiML for failed transcription case
-      let twimlResponse = '';
-      if (response.questionType === 'session_complete') {
-        twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+    // END CONVERSATION GRACEFULLY INSTEAD OF CONTINUING
+    const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
-        ${response.feedback}
+        Omlouvám se, nerozpoznal jsem vaši odpověď. Zkuste to prosím znovu později.
     </Say>
     <Hangup/>
 </Response>`;
-      } else if (response.nextQuestion) {
-        twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
-        ${response.feedback}
-    </Say>
-    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
-        ${response.nextQuestion}
-    </Say>
-    <Say language="cs-CZ" rate="0.7" voice="Google.cs-CZ-Standard-A">
-        Po pípnutí řekněte svoji odpověď nahlas a jasně. Stiskněte mřížku když dokončíte.
-    </Say>
-    <Record 
-        timeout="10"
-        maxLength="30"
-        playBeep="true"
-        finishOnKey="#"
-        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
-        method="POST"
-        transcribe="true"
-        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
-    />
-</Response>`;
-      } else {
-        twimlResponse = getErrorTwiml();
-      }
-      
-      res.set('Content-Type', 'application/xml');
-      res.send(twimlResponse);
-    } catch (error) {
-      console.error('❌ Error handling failed transcription:', error.message);
-      res.set('Content-Type', 'application/xml');
-      res.send(getErrorTwiml());
-    }
+    
+    console.log('📤 Sending failed transcription TwiML response...');
+    res.set('Content-Type', 'application/xml');
+    res.send(twimlResponse);
+        console.log('✅ Failed transcription TwiML response sent');
+    return;
   } else {
     console.log('⚠️ No transcription text available:', {
       status: req.body.TranscriptionStatus,
@@ -395,9 +355,20 @@ async function smartTranscribeProcess(req, res) {
     });
     console.log('🔍 DEBUG: This should not happen - transcription callback without text');
     
-    // Send continue TwiML for no transcription case
+    // END CONVERSATION GRACEFULLY FOR UNDEFINED TRANSCRIPTION
+    const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+        Omlouvám se, nerozpoznal jsem vaši odpověď. Zkuste to prosím znovu později.
+    </Say>
+    <Hangup/>
+</Response>`;
+    
+    console.log('📤 Sending undefined transcription TwiML response...');
     res.set('Content-Type', 'application/xml');
-    res.send(getContinueTwiml());
+    res.send(twimlResponse);
+    console.log('✅ Undefined transcription TwiML response sent');
+    return;
   }
   
   console.log('🎯 SMART Transcription processing ENDED');
