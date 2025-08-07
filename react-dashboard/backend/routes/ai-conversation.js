@@ -89,18 +89,19 @@ class ConversationManager {
       stateType: state.state
     });
     
-    // Initialize if this is the first question
-    if (!state.currentQuestionIndex) {
-      state.currentQuestionIndex = 0;
-      console.log('🔍 DEBUG: Initialized currentQuestionIndex to 0');
-    }
-    if (!state.score) {
-      state.score = 0;
-      console.log('🔍 DEBUG: Initialized score to 0');
-    }
-    if (!state.userAnswers) {
-      state.userAnswers = [];
-      console.log('🔍 DEBUG: Initialized userAnswers array');
+    // Initialize only if this is the first question (currentQuestionIndex is 0)
+    if (state.currentQuestionIndex === 0) {
+      console.log('🔍 DEBUG: First question, initializing state');
+      if (!state.score) {
+        state.score = 0;
+        console.log('🔍 DEBUG: Initialized score to 0');
+      }
+      if (!state.userAnswers) {
+        state.userAnswers = [];
+        console.log('🔍 DEBUG: Initialized userAnswers array');
+      }
+    } else {
+      console.log('🔍 DEBUG: Not first question, preserving existing state');
     }
     
     const currentQuestionIndex = state.currentQuestionIndex;
@@ -438,6 +439,9 @@ class ConversationManager {
         
         const TestResult = require('../models/TestResult');
         const { User } = require('../models');
+        
+        console.log('🔍 DEBUG: TestResult model loaded:', !!TestResult);
+        console.log('🔍 DEBUG: User model loaded:', !!User);
         
         // Find user by phone from conversation state
         let userId = state.lesson.user_id;
