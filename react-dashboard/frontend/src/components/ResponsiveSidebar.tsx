@@ -49,12 +49,12 @@ const getMenuItems = (user: any) => {
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', show: true },
   ];
 
-  // Placement test pro všechny uživatele (pokud nemají dokončený)
-  if (!user.placement_completed) {
-    items.push(
-      { text: 'Placement Test', icon: <AssignmentIcon />, path: '/placement-test', show: true }
-    );
-  }
+  // Placement test je zastaralý - AI Tutor dělá placement automaticky
+  // if (!user.placement_completed) {
+  //   items.push(
+  //     { text: 'Placement Test', icon: <AssignmentIcon />, path: '/placement-test', show: true }
+  //   );
+  // }
 
   // Review Dashboard pro všechny uživatele (kteří už začali učení)
   if (user.placement_completed) {
