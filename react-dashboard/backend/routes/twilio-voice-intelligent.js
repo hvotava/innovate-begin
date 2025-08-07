@@ -45,6 +45,7 @@ async function intelligentVoiceCall(req, res) {
         transcribe="true"
         transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
         transcribeCallbackMethod="POST"
+        language="cs-CZ"
     />
     <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">
         Děkuji za odpověď. Pokračujeme další otázkou.
@@ -85,7 +86,7 @@ async function intelligentVoiceCall(req, res) {
         První otázka: ${firstQuestion}
     </Say>
     <Say language="cs-CZ" rate="0.7" voice="Google.cs-CZ-Standard-A">
-        Po pípnutí řekněte svoji odpověď nahlas a jasně. Stiskněte mřížku když dokončíte.
+        Po pípnutí řekněte svoji odpověď česky nahlas a jasně. Řekněte písmeno A, B, C nebo D. Stiskněte mřížku když dokončíte.
     </Say>
     <Record finishOnKey="#" 
         timeout="10"
@@ -96,6 +97,7 @@ async function intelligentVoiceCall(req, res) {
         transcribe="true"
         transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
         transcribeCallbackMethod="POST"
+        language="cs-CZ"
     />
 </Response>`;
     } else {

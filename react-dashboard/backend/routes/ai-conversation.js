@@ -157,6 +157,13 @@ class ConversationManager {
         transcribedText: transcribedText,
         correctAnswerText: currentQuestion.options[currentQuestion.correctAnswer]
       });
+      
+      console.log('🔍 DEBUG: Language analysis:', {
+        questionLanguage: 'Czech',
+        transcribedLanguage: transcribedText.includes('á') || transcribedText.includes('č') || transcribedText.includes('š') ? 'Czech' : 'English/Other',
+        containsCzechChars: transcribedText.includes('á') || transcribedText.includes('č') || transcribedText.includes('š'),
+        containsEnglishWords: transcribedText.toLowerCase().includes('a') || transcribedText.toLowerCase().includes('b') || transcribedText.toLowerCase().includes('c') || transcribedText.toLowerCase().includes('d')
+      });
     
       if (isCorrect) {
         state.score++;
