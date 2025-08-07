@@ -98,6 +98,55 @@ router.get('/:id', auth, async (req, res) => {
     if (!test) {
       return res.status(404).json({ error: 'Test not found' });
     }
+    
+    // DEBUG: Log questions data for comparison
+    console.log(`🔍 DEBUG: Test ${test.id} questions data:`, {
+      testId: test.id,
+      testTitle: test.title,
+      lessonId: test.lessonId,
+      questionsType: typeof test.questions,
+      questionsLength: test.questions ? (Array.isArray(test.questions) ? test.questions.length : 'not array') : 'null',
+      rawQuestions: test.questions
+    });
+    
+    // Parse questions if it's a string
+    let parsedQuestions = test.questions;
+    if (typeof test.questions === 'string') {
+      try {
+        parsedQuestions = JSON.parse(test.questions);
+        console.log(`🔍 DEBUG: Parsed questions from JSON string:`, parsedQuestions);
+      } catch (error) {
+        console.error(`❌ ERROR: Failed to parse questions JSON:`, error.message);
+      }
+    }
+    
+    // Add parsed questions to response
+    test.dataValues.parsedQuestions = parsedQuestions;
+    
+    // ENSURE QUESTIONS ARE PROPERLY FORMATTED FOR DASHBOARD
+    if (parsedQuestions && Array.isArray(parsedQuestions)) {
+      const formattedQuestions = parsedQuestions.map((question, index) => {
+        // Ensure correctAnswer is properly set
+        const correctAnswerIndex = typeof question.correctAnswer === 'number' ? question.correctAnswer : 0;
+        const correctAnswerText = question.options && question.options[correctAnswerIndex] ? question.options[correctAnswerIndex] : 'N/A';
+        
+        console.log(`🔍 DEBUG: Formatted question ${index + 1} for dashboard:`, {
+          question: question.question,
+          options: question.options,
+          correctAnswer: correctAnswerIndex,
+          correctAnswerText: correctAnswerText
+        });
+        
+        return {
+          ...question,
+          correctAnswer: correctAnswerIndex,
+          correctAnswerText: correctAnswerText
+        };
+      });
+      
+      test.dataValues.formattedQuestions = formattedQuestions;
+      console.log(`✅ Formatted ${formattedQuestions.length} questions for dashboard display`);
+    }
 
     // Role-based přístup
     if (['regular_user', 'contact_person'].includes(req.user.role)) {
@@ -164,11 +213,40 @@ router.post('/', [
       finalOrderNumber = maxOrderTest ? maxOrderTest.orderNumber + 1 : 0;
     }
 
+    // VALIDATE AND NORMALIZE QUESTIONS DATA
+    console.log('🔍 DEBUG: Questions before save:', {
+      questionsType: typeof questions,
+      questionsLength: Array.isArray(questions) ? questions.length : 'not array',
+      sampleQuestion: Array.isArray(questions) && questions.length > 0 ? questions[0] : 'no questions'
+    });
+    
+    // Ensure questions is properly formatted
+    let normalizedQuestions = questions;
+    if (Array.isArray(questions)) {
+      // Validate each question structure
+      normalizedQuestions = questions.map((question, index) => {
+        console.log(`🔍 DEBUG: Validating question ${index + 1}:`, {
+          question: question.question,
+          options: question.options,
+          correctAnswer: question.correctAnswer,
+          correctAnswerText: question.options ? question.options[question.correctAnswer] : 'N/A'
+        });
+        
+        // Ensure correctAnswer is a number
+        if (typeof question.correctAnswer !== 'number') {
+          console.warn(`⚠️ WARNING: Question ${index + 1} correctAnswer is not a number:`, question.correctAnswer);
+          question.correctAnswer = parseInt(question.correctAnswer) || 0;
+        }
+        
+        return question;
+      });
+    }
+    
     const test = await Test.create({
       title,
       lessonId,
       orderNumber: finalOrderNumber,
-      questions,
+      questions: normalizedQuestions, // Save as normalized array
       trainingId: lesson.trainingId
     });
 
@@ -230,7 +308,37 @@ router.put('/:id', [
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    await test.update(req.body);
+    // VALIDATE QUESTIONS IF PROVIDED
+    let updateData = { ...req.body };
+    
+    if (req.body.questions) {
+      console.log('🔍 DEBUG: Updating questions:', {
+        questionsType: typeof req.body.questions,
+        questionsLength: Array.isArray(req.body.questions) ? req.body.questions.length : 'not array'
+      });
+      
+      // Normalize questions data
+      if (Array.isArray(req.body.questions)) {
+        updateData.questions = req.body.questions.map((question, index) => {
+          console.log(`🔍 DEBUG: Validating update question ${index + 1}:`, {
+            question: question.question,
+            options: question.options,
+            correctAnswer: question.correctAnswer,
+            correctAnswerText: question.options ? question.options[question.correctAnswer] : 'N/A'
+          });
+          
+          // Ensure correctAnswer is a number
+          if (typeof question.correctAnswer !== 'number') {
+            console.warn(`⚠️ WARNING: Update question ${index + 1} correctAnswer is not a number:`, question.correctAnswer);
+            question.correctAnswer = parseInt(question.correctAnswer) || 0;
+          }
+          
+          return question;
+        });
+      }
+    }
+    
+    await test.update(updateData);
 
     const updatedTest = await Test.findByPk(test.id, {
       include: [

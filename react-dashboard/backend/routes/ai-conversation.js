@@ -313,7 +313,7 @@ class ConversationManager {
           }
         };
       } else {
-        return {
+      return {
           feedback: feedback + "Test dokončen! Hovor bude ukončen.",
           nextQuestion: "",
           questionType: 'session_complete'
@@ -475,7 +475,37 @@ class ConversationManager {
         questions = test.questions || [];
       }
       
+      // NORMALIZE QUESTIONS FOR CONVERSATION USE
+      if (Array.isArray(questions)) {
+        questions = questions.map((question, index) => {
+          // Ensure correctAnswer is a number
+          const correctAnswerIndex = typeof question.correctAnswer === 'number' ? question.correctAnswer : 0;
+          const correctAnswerText = question.options && question.options[correctAnswerIndex] ? question.options[correctAnswerIndex] : 'N/A';
+          
+          console.log(`🔍 DEBUG: Normalized question ${index + 1} for conversation:`, {
+            question: question.question,
+            options: question.options,
+            correctAnswer: correctAnswerIndex,
+            correctAnswerText: correctAnswerText
+          });
+          
+          return {
+            ...question,
+            correctAnswer: correctAnswerIndex,
+            correctAnswerText: correctAnswerText
+          };
+        });
+      }
+      
       console.log(`✅ Loaded ${questions.length} test questions:`, questions);
+      
+      // COMPARE WITH DASHBOARD DATA
+      console.log(`🔍 DATABASE vs DASHBOARD COMPARISON:`);
+      console.log(`📊 Test ID: ${test.id}`);
+      console.log(`📊 Test Title: ${test.title}`);
+      console.log(`📊 Lesson ID: ${test.lessonId}`);
+      console.log(`📊 Questions Count: ${questions.length}`);
+      console.log(`📊 Raw Questions JSON:`, JSON.stringify(test.questions, null, 2));
       
       // VALIDATE EACH QUESTION
       questions.forEach((question, index) => {
@@ -483,7 +513,9 @@ class ConversationManager {
           question: question.question,
           options: question.options,
           correctAnswer: question.correctAnswer,
-          correctAnswerText: question.options ? question.options[question.correctAnswer] : 'N/A'
+          correctAnswerText: question.options ? question.options[question.correctAnswer] : 'N/A',
+          questionId: question.id || 'N/A',
+          testId: test.id
         });
         
         // Validate question structure
@@ -499,6 +531,9 @@ class ConversationManager {
             optionsLength: question.options ? question.options.length : 0
           });
         }
+        
+        // LOG COMPLETE QUESTION DATA FOR COMPARISON
+        console.log(`📋 COMPLETE QUESTION ${index + 1} DATA:`, JSON.stringify(question, null, 2));
       });
       
       return questions;
@@ -542,6 +577,43 @@ class ConversationManager {
       correctAnswerText: correctAnswerText,
       allOptions: questionObj.options
     });
+    
+    // DETECT LANGUAGE OF TRANSCRIBED TEXT
+    const isEnglish = /[a-zA-Z]/.test(userText) && !/[áčďéěíňóřšťúůýž]/.test(userText);
+    const isCzech = /[áčďéěíňóřšťúůýž]/.test(userText);
+    
+    console.log('🔍 DEBUG: Language detection:', {
+      transcribedText: transcribedText,
+      isEnglish: isEnglish,
+      isCzech: isCzech,
+      containsEnglishChars: /[a-zA-Z]/.test(userText),
+      containsCzechChars: /[áčďéěíňóřšťúůýž]/.test(userText)
+    });
+    
+    // If transcription is in English but question is in Czech, try to map common responses
+    if (isEnglish && !isCzech) {
+      console.log('⚠️ WARNING: English transcription detected for Czech question');
+      
+      // Map common English responses to Czech equivalents
+      const englishToCzechMap = {
+        'a': 'a', 'b': 'b', 'c': 'c', 'd': 'd',
+        'one': 'jedna', 'two': 'dva', 'three': 'tři',
+        'hundred': 'sto', 'two hundred': 'dvě stě', 'two hundred six': 'dvě stě šest',
+        'lungs': 'plíce', 'heart': 'srdce', 'brain': 'mozek', 'liver': 'játra'
+      };
+      
+      // Try to map English response to Czech
+      for (const [english, czech] of Object.entries(englishToCzechMap)) {
+        if (userText.includes(english)) {
+          console.log(`🔄 MAPPING: English "${english}" → Czech "${czech}"`);
+          const mappedText = userText.replace(english, czech);
+          console.log(`🔄 MAPPED TEXT: "${userText}" → "${mappedText}"`);
+          
+          // Continue with mapped text
+          return this.checkAnswerWithText(mappedText, questionObj);
+        }
+      }
+    }
     
     // 1. Check for letter answers (A, B, C, D) - both uppercase and lowercase
     const letterMatch = userText.match(/[abcdABCD]/);
@@ -620,6 +692,96 @@ class ConversationManager {
     }
     
     console.log('🔍 DEBUG: No match found, answer is incorrect');
+    return false;
+  }
+  
+  // Helper function to check answer with given text
+  static checkAnswerWithText(userText, questionObj) {
+    const correctAnswerIndex = questionObj.correctAnswer;
+    const correctAnswerText = questionObj.options[correctAnswerIndex];
+    
+    console.log('🔍 DEBUG: Checking answer with text:', {
+      userText: userText,
+      correctAnswerText: correctAnswerText
+    });
+    
+    // 1. Check for letter answers (A, B, C, D) - both uppercase and lowercase
+    const letterMatch = userText.match(/[abcdABCD]/);
+    if (letterMatch) {
+      const userLetter = letterMatch[0].toLowerCase();
+      const userLetterIndex = userLetter.charCodeAt(0) - 97; // a=0, b=1, c=2, d=3
+      const isCorrect = userLetterIndex === correctAnswerIndex;
+      
+      console.log('🔍 DEBUG: Letter answer detected:', {
+        userLetter: userLetter,
+        userLetterIndex: userLetterIndex,
+        correctAnswerIndex: correctAnswerIndex,
+        isCorrect: isCorrect
+      });
+      
+      return isCorrect;
+    }
+    
+    // 2. Check for Czech number words (for numeric answers)
+    if (correctAnswerText && !isNaN(correctAnswerText)) {
+      const czechNumbers = {
+        'jedna': '1', 'dva': '2', 'tři': '3', 'čtyři': '4', 'pět': '5',
+        'šest': '6', 'sedm': '7', 'osm': '8', 'devět': '9', 'deset': '10',
+        'sto': '100', 'dvě stě': '200', 'dvě stě šest': '206',
+        'tři sta': '300', 'tři sta šedesát pět': '365'
+      };
+      
+      // Check if user said a Czech number
+      for (const [czechWord, number] of Object.entries(czechNumbers)) {
+        if (userText.includes(czechWord)) {
+          const isCorrect = number === correctAnswerText;
+          console.log('🔍 DEBUG: Czech number detected:', {
+            czechWord: czechWord,
+            number: number,
+            correctAnswerText: correctAnswerText,
+            isCorrect: isCorrect
+          });
+          return isCorrect;
+        }
+      }
+    }
+    
+    // 3. Check for exact text match with correct answer
+    if (correctAnswerText && typeof correctAnswerText === 'string') {
+      const isCorrect = userText.includes(correctAnswerText.toLowerCase());
+      console.log('🔍 DEBUG: Text match check:', {
+        userText: userText,
+        correctAnswerText: correctAnswerText.toLowerCase(),
+        isCorrect: isCorrect
+      });
+      return isCorrect;
+    }
+    
+    // 4. Check for partial word matches (for longer answers)
+    if (correctAnswerText && typeof correctAnswerText === 'string') {
+      const correctWords = correctAnswerText.toLowerCase().split(' ');
+      const userWords = userText.split(' ');
+      
+      // Check if at least 50% of correct words are in user's answer
+      const matchingWords = correctWords.filter(word => 
+        userWords.some(userWord => userWord.includes(word) || word.includes(userWord))
+      );
+      
+      const matchPercentage = matchingWords.length / correctWords.length;
+      const isCorrect = matchPercentage >= 0.5;
+      
+      console.log('🔍 DEBUG: Partial word match:', {
+        correctWords: correctWords,
+        userWords: userWords,
+        matchingWords: matchingWords,
+        matchPercentage: matchPercentage,
+        isCorrect: isCorrect
+      });
+      
+      return isCorrect;
+    }
+    
+    console.log('🔍 DEBUG: No match found in helper function');
     return false;
   }
   
@@ -808,7 +970,7 @@ class ConversationManager {
      
      // Generic helpful response
      return `Správná odpověď je: ${correctAnswer}. Zapamatujte si to pro příště.`;
-   }
+  }
 }
 
 module.exports = { ConversationManager };
