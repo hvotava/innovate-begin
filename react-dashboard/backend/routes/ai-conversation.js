@@ -152,10 +152,13 @@ class ConversationManager {
       
       isCorrect = this.checkTestAnswer(transcribedText, currentQuestion);
       
-      console.log('🔍 DEBUG: Answer evaluation:', {
+      console.log('🔍 DEBUG: Answer evaluation result:', {
         isCorrect: isCorrect,
         transcribedText: transcribedText,
-        correctAnswerText: currentQuestion.options[currentQuestion.correctAnswer]
+        correctAnswerText: currentQuestion.options[currentQuestion.correctAnswer],
+        userAnswer: transcribedText,
+        questionText: currentQuestion.question,
+        allOptions: currentQuestion.options
       });
       
       console.log('🔍 DEBUG: Language analysis:', {
@@ -167,7 +170,8 @@ class ConversationManager {
     
       if (isCorrect) {
         state.score++;
-        feedback = "Správně! ";
+        feedback = "Výborně! Správná odpověď. ";
+        console.log('✅ CORRECT ANSWER DETECTED!');
       } else {
         // Get correct answer using correctAnswer index
         const correctAnswerText = currentQuestion.options[currentQuestion.correctAnswer] || 'neznámá';
@@ -176,6 +180,7 @@ class ConversationManager {
         let explanation = this.generateExplanation(currentQuestion, correctAnswerText);
         
         feedback = `Bohužel ne. Správná odpověď je: ${correctAnswerText}. ${explanation} `;
+        console.log('❌ WRONG ANSWER - User said:', transcribedText, 'Expected:', correctAnswerText);
       }
       
       // Store user answer
@@ -424,18 +429,90 @@ class ConversationManager {
     const correctAnswerIndex = questionObj.correctAnswer;
     const correctAnswerText = questionObj.options[correctAnswerIndex];
     
-    // Check for letter answers (A, B, C, D)
-    const letterMatch = userText.match(/[abcd]/);
+    console.log('🔍 DEBUG: Answer evaluation started:', {
+      userText: userText,
+      correctAnswerIndex: correctAnswerIndex,
+      correctAnswerText: correctAnswerText,
+      allOptions: questionObj.options
+    });
+    
+    // 1. Check for letter answers (A, B, C, D) - both uppercase and lowercase
+    const letterMatch = userText.match(/[abcdABCD]/);
     if (letterMatch) {
-      const userLetterIndex = letterMatch[0].charCodeAt(0) - 97; // a=0, b=1, c=2, d=3
-      return userLetterIndex === correctAnswerIndex;
+      const userLetter = letterMatch[0].toLowerCase();
+      const userLetterIndex = userLetter.charCodeAt(0) - 97; // a=0, b=1, c=2, d=3
+      const isCorrect = userLetterIndex === correctAnswerIndex;
+      
+      console.log('🔍 DEBUG: Letter answer detected:', {
+        userLetter: userLetter,
+        userLetterIndex: userLetterIndex,
+        correctAnswerIndex: correctAnswerIndex,
+        isCorrect: isCorrect
+      });
+      
+      return isCorrect;
     }
     
-    // Check for partial text match with correct answer
+    // 2. Check for Czech number words (for numeric answers)
+    if (correctAnswerText && !isNaN(correctAnswerText)) {
+      const czechNumbers = {
+        'jedna': '1', 'dva': '2', 'tři': '3', 'čtyři': '4', 'pět': '5',
+        'šest': '6', 'sedm': '7', 'osm': '8', 'devět': '9', 'deset': '10',
+        'sto': '100', 'dvě stě': '200', 'dvě stě šest': '206',
+        'tři sta': '300', 'tři sta šedesát pět': '365'
+      };
+      
+      // Check if user said a Czech number
+      for (const [czechWord, number] of Object.entries(czechNumbers)) {
+        if (userText.includes(czechWord)) {
+          const isCorrect = number === correctAnswerText;
+          console.log('🔍 DEBUG: Czech number detected:', {
+            czechWord: czechWord,
+            number: number,
+            correctAnswerText: correctAnswerText,
+            isCorrect: isCorrect
+          });
+          return isCorrect;
+        }
+      }
+    }
+    
+    // 3. Check for exact text match with correct answer
     if (correctAnswerText && typeof correctAnswerText === 'string') {
-      return userText.includes(correctAnswerText.toLowerCase());
+      const isCorrect = userText.includes(correctAnswerText.toLowerCase());
+      console.log('🔍 DEBUG: Text match check:', {
+        userText: userText,
+        correctAnswerText: correctAnswerText.toLowerCase(),
+        isCorrect: isCorrect
+      });
+      return isCorrect;
     }
     
+    // 4. Check for partial word matches (for longer answers)
+    if (correctAnswerText && typeof correctAnswerText === 'string') {
+      const correctWords = correctAnswerText.toLowerCase().split(' ');
+      const userWords = userText.split(' ');
+      
+      // Check if at least 50% of correct words are in user's answer
+      const matchingWords = correctWords.filter(word => 
+        userWords.some(userWord => userWord.includes(word) || word.includes(userWord))
+      );
+      
+      const matchPercentage = matchingWords.length / correctWords.length;
+      const isCorrect = matchPercentage >= 0.5;
+      
+      console.log('🔍 DEBUG: Partial word match:', {
+        correctWords: correctWords,
+        userWords: userWords,
+        matchingWords: matchingWords,
+        matchPercentage: matchPercentage,
+        isCorrect: isCorrect
+      });
+      
+      return isCorrect;
+    }
+    
+    console.log('🔍 DEBUG: No match found, answer is incorrect');
     return false;
   }
   
@@ -544,6 +621,11 @@ class ConversationManager {
    static generateExplanation(questionObj, correctAnswer) {
      const question = questionObj.question.toLowerCase();
      
+     console.log('🔍 DEBUG: Generating explanation for:', {
+       question: question,
+       correctAnswer: correctAnswer
+     });
+     
      // Smart explanations based on question content
      if (question.includes('kolik') && question.includes('kostí')) {
        return 'Dospělý člověk má přesně 206 kostí.';
@@ -557,11 +639,11 @@ class ConversationManager {
        return 'Játra filtrují toxiny z krve a produkují žluč.';
      } else if (question.includes('žaludek')) {
        return 'Žaludek tráví potravu pomocí žaludečních šťáv.';
-    }
+     }
      
-         // Generic helpful response
-    return 'Zapamatujte si to pro příště.';
-  }
+     // Generic helpful response
+     return `Správná odpověď je: ${correctAnswer}. Zapamatujte si to pro příště.`;
+   }
 }
 
 module.exports = { ConversationManager };

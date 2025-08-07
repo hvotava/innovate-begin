@@ -1,4 +1,44 @@
 const { ConversationManager } = require('./ai-conversation');
+
+// Language helper functions
+function getTwilioLanguage(language) {
+  switch (language) {
+    case 'en':
+      return 'en-US';
+    case 'de':
+      return 'de-DE';
+    case 'sk':
+      return 'sk-SK';
+    default: // cs
+      return 'cs-CZ';
+  }
+}
+
+function getLocalizedProcessingMessage(language) {
+  switch (language) {
+    case 'en':
+      return 'Thank you for your answer. Processing...';
+    case 'de':
+      return 'Danke für Ihre Antwort. Verarbeite...';
+    case 'sk':
+      return 'Ďakujeme za vašu odpoveď. Spracovávam...';
+    default: // cs
+      return 'Děkuji za odpověď. Zpracovávám...';
+  }
+}
+
+function getLocalizedInstructions(language) {
+  switch (language) {
+    case 'en':
+      return 'After the beep, say your answer clearly. Press hash when finished.';
+    case 'de':
+      return 'Nach dem Piepton sagen Sie Ihre Antwort deutlich. Drücken Sie Hash wenn fertig.';
+    case 'sk':
+      return 'Po pípnutí povedzte svoju odpoveď nahlas a jasne. Stlačte mriežku keď dokončíte.';
+    default: // cs
+      return 'Po pípnutí řekněte svoji odpověď nahlas a jasně. Stiskněte mřížku když dokončíte.';
+  }
+}
 const { getLessonForUser } = require('./lesson-selector');
 // const { TestResponse } = require('../models');
 // const { AIEvaluator } = require('../services/ai-evaluator');
@@ -178,6 +218,11 @@ async function smartTranscribeProcess(req, res) {
   console.log('🎯 CallSid:', req.body.CallSid);
   console.log('📄 TranscriptionText:', req.body.TranscriptionText);
   console.log('📊 TranscriptionStatus:', req.body.TranscriptionStatus);
+  
+  // Get user language from conversation state
+  const state = ConversationManager.getState(req.body.CallSid);
+  const userLanguage = state?.lesson?.language || 'cs';
+  console.log('🌍 User language from state:', userLanguage);
   console.log('🔍 DEBUG: Full transcription request body:', JSON.stringify(req.body, null, 2));
   console.log('🔍 DEBUG: Transcription callback analysis:', {
     hasCallSid: !!req.body.CallSid,
