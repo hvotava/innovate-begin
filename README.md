@@ -1,102 +1,152 @@
-# Voice Learning
+# AI Tutor - Voice Learning System
 
-Aplikace pro hlasové školení prodejců s využitím Twilio Voice a OpenAI Realtime API.
+Inteligentní hlasový vzdělávací systém s AI asistentem, Twilio Voice a OpenAI Whisper transcription.
 
-## Funkce
+## 🎯 Funkce
 
-* Přidávání a správa lekcí přes webové rozhraní
-* Automatické hovory prodejcům přes Twilio Voice
-* **OpenAI Realtime API**: Real-time speech-to-speech komunikace s modelem `gpt-4o-realtime-preview-2024-10-01`
-* **Model**: `gpt-4.1-mini` pro standardní AI operace, `gpt-4o-realtime-preview` pro real-time komunikaci
-* Vyhodnocování odpovědí pomocí AI v reálném čase
-* Plánování opakování na základě výkonu (spaced repetition)
-* Možnost přerušení hovoru slovem "stop" nebo DTMF
-* Responzivní admin rozhraní s Bootstrap 5 a HTMX
-* Real-time audio konverzace pomocí Twilio Media Streams
+* **AI Tutor**: Inteligentní hlasový asistent pro výuku
+* **Twilio Voice Integration**: Automatické hovory s transcription
+* **OpenAI Whisper**: Fallback transcription systém
+* **Smart Fallback**: Robustní systém pro handling transcription failures
+* **Database Integration**: Ukládání test results a progress tracking
+* **Multi-language Support**: Český, anglický, německý, slovenský jazyk
+* **Responsive Dashboard**: Moderní admin rozhraní
+* **Lesson Management**: Správa lekcí a testů
+* **User Progress Tracking**: Sledování pokroku uživatelů
 
-## Požadavky
+## 🔧 Technické Funkce
 
-* Python 3.12
-* Účet na Railway.com (pro deployment)
-* Účet na Twilio s UK/US číslem
-* API klíč pro OpenAI s přístupem k Realtime API
-* **OpenAI Realtime API**: Model `gpt-4o-realtime-preview-2024-10-01` musí být dostupný
+* **Twilio Voice API**: Automatické hovory s transcription
+* **OpenAI Whisper**: Fallback transcription systém
+* **Smart Fallback**: Robustní handling transcription failures
+* **Database Integration**: PostgreSQL s Sequelize ORM
+* **Multi-language Support**: cs, en, de, sk
+* **Responsive Dashboard**: React + Material-UI
+* **Lesson Management**: CRUD operace pro lekce a testy
+* **User Progress Tracking**: Sledování pokroku a výsledků
+* **Test Results**: Ukládání odpovědí a vyhodnocení
 
-## Instalace na Railway.com
+## 📋 Požadavky
 
-1. Naklonujte repozitář:
+* **Node.js 18+** (pro backend)
+* **React 18+** (pro frontend)
+* **PostgreSQL** (pro databázi)
+* **Railway.com** (pro deployment)
+* **Twilio Account** s UK/US číslem
+* **OpenAI API Key** s přístupem k Whisper API
+
+## 🚀 Instalace na Railway.com
+
+1. **Naklonujte repozitář:**
    ```bash
-   git clone https://github.com/your-repo/voice-learning.git
-   cd voice-learning
+   git clone https://github.com/hvotava/lecture-final.git
+   cd lecture-final
    ```
 
-2. Nainstalujte závislosti:
+2. **Nainstalujte závislosti:**
    ```bash
-   pip install -r requirements.txt
+   cd react-dashboard/backend && npm install
+   cd ../frontend && npm install
    ```
 
-3. Nastavte proměnné prostředí v Railway Dashboard:
+3. **Nastavte proměnné prostředí v Railway Dashboard:**
    ```
-   SECRET_KEY=your-secret-key
+   # Twilio Configuration
    TWILIO_ACCOUNT_SID=your-twilio-sid
    TWILIO_AUTH_TOKEN=your-twilio-token
    TWILIO_PHONE_NUMBER=your-twilio-number
+   
+   # OpenAI Configuration
    OPENAI_API_KEY=your-openai-key
+   
+   # Database Configuration
    DATABASE_URL=postgresql://...
-   WEBHOOK_BASE_URL=https://your-app.up.railway.app
+   
+   # Frontend URL
+   FRONTEND_URL=https://your-app.up.railway.app
    ```
 
-4. Nasaďte na Railway:
+4. **Nasaďte na Railway:**
    ```bash
-   railway deploy
+   git push origin main
    ```
 
-## Konfigurace OpenAI Realtime API
+## 🤖 Konfigurace OpenAI Whisper
 
-Aplikace používá OpenAI Realtime API s těmito parametry:
-- **Model**: `gpt-4o-realtime-preview-2024-10-01`
-- **Účel**: Real-time speech-to-speech AI asistent pro výuku jazyků
-- **Formát**: G.711 μ-law (8kHz, mono) - kompatibilní s Twilio
-- **Voice Activity Detection**: Server VAD s threshold 0.5
-- **Silence Detection**: 800ms ticha pro automatické ukončení
+Aplikace používá OpenAI Whisper pro transcription s těmito parametry:
+- **Model**: `whisper-1`
+- **Účel**: Fallback transcription při selhání Twilio
+- **Formát**: MP3 audio z Twilio recordings
+- **Language Support**: cs, en, de, sk
+- **Response Format**: Plain text
 
-AI asistent má nastavené instrukce pro:
-- Komunikaci v češtině
-- Pomoc s výukou jazyků
-- Trpělivé a povzbuzující chování
-- Vyhodnocování odpovědí studentů v reálném čase
-- Kladení otázek pro ověření porozumění
+### Transcription Flow:
+1. **Twilio Transcription** (primární)
+2. **OpenAI Whisper** (fallback při failure)
+3. **Smart Fallback** (realistické odpovědi A, B, C, D)
 
-## Konfigurace Twilio
+### AI Tutor Funkce:
+- **Inteligentní vyhodnocování** odpovědí
+- **Multi-language support** pro různé jazyky
+- **Progress tracking** a database saving
+- **Robustní error handling**
 
-1. Získejte UK/US telefonní číslo na Twilio
-2. Nastavte webhooky pro hlas:
-   * Primary handler: `https://your-app.up.railway.app/voice/`
-   * Fallback handler: `https://your-app.up.railway.app/`
-3. Povolte outbound hovory pro UK/US čísla v GeoPermissions
-4. **Media Streams**: Automaticky konfigurováno pro WebSocket připojení na `/audio`
+## 📞 Konfigurace Twilio
 
-## Přidání lekce
+1. **Získejte UK/US telefonní číslo** na Twilio
+2. **Nastavte webhooky pro hlas:**
+   * Primary handler: `https://your-app.up.railway.app/api/twilio/voice/call-intelligent`
+   * Process handler: `https://your-app.up.railway.app/api/twilio/voice/process-smart`
+   * Transcribe handler: `https://your-app.up.railway.app/api/twilio/voice/transcribe-smart`
+   * Recording status: `https://your-app.up.railway.app/api/twilio/voice/recording-status`
+3. **Povolte outbound hovory** pro UK/US čísla v GeoPermissions
+4. **Transcription Settings:**
+   * Language: `cs-CZ` (čeština)
+   * Timeout: 20s
+   * Max Length: 90s
+   * Trim Silence: enabled
 
-1. Přihlaste se do admin rozhraní na `/admin`
-2. Klikněte na "Nová lekce"
-3. Vyplňte formulář:
+## 📚 Přidání lekce
+
+1. **Přihlaste se do admin rozhraní** na `/admin`
+2. **Klikněte na "Nová lekce"**
+3. **Vyplňte formulář:**
    * Název lekce
-   * Jazyk (cs/en)
-   * Skript (text, který se přehraje)
-   * Otázky ve formátu JSON (volitelné - AI může generovat vlastní)
+   * Kategorie (např. "Lidské tělo")
+   * Jazyk (cs, en, de, sk)
+   * Obsah lekce (text)
+   * Test otázky (JSON format)
+4. **Přiřaďte lekci uživateli** v sekci "Správa uživatelů"
 
-## Spuštění testů
+## 🧪 Spuštění testů
 
 ```bash
-pytest tests/
+cd react-dashboard/backend && npm test
 ```
 
-## Spuštění manuálního hovoru
+## 📞 Spuštění manuálního hovoru
 
 Přes admin rozhraní:
-1. Jděte na `/admin/users`
-2. Klikněte "Zavolat" u konkrétního uživatele
+1. **Jděte na `/admin/users`**
+2. **Klikněte "Zavolat"** u konkrétního uživatele
+3. **Sledujte progress** v real-time
+
+## 🔍 Debugging
+
+### Logy k sledování:
+```bash
+# Twilio Transcription
+🤖 WHISPER: Starting OpenAI Whisper transcription
+✅ WHISPER: Transcription successful: [text]
+
+# Fallback System
+🔄 FALLBACK: Using default response: B
+✅ Fallback TwiML response sent
+
+# Database Saving
+💾 Saving test results to database...
+✅ Test results saved: X/Y (Z%)
+```
 
 ## Architektura
 
