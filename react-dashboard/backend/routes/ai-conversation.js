@@ -30,7 +30,16 @@ class ConversationManager {
   
   // Get current state
   static getState(callSid) {
-    return conversationState.get(callSid) || null;
+    const state = conversationState.get(callSid) || null;
+    console.log('🔍 DEBUG: getState for callSid:', callSid, 'found:', !!state);
+    if (state) {
+      console.log('🔍 DEBUG: State details:', {
+        currentQuestionIndex: state.currentQuestionIndex,
+        score: state.score,
+        userAnswersLength: state.userAnswers ? state.userAnswers.length : 0
+      });
+    }
+    return state;
   }
   
   // Process user response based on current conversation state
@@ -105,10 +114,22 @@ class ConversationManager {
     }
     
     const currentQuestionIndex = state.currentQuestionIndex;
-    const currentQuestion = state.lesson.questions[currentQuestionIndex];
+    
+    // Validate question index
+    if (currentQuestionIndex >= state.lesson.questions.length) {
+      console.log('❌ ERROR: currentQuestionIndex out of bounds:', {
+        currentQuestionIndex: currentQuestionIndex,
+        totalQuestions: state.lesson.questions.length
+      });
+      // Reset to last valid question
+      state.currentQuestionIndex = state.lesson.questions.length - 1;
+      console.log('🔧 FIXED: Reset currentQuestionIndex to:', state.currentQuestionIndex);
+    }
+    
+    const currentQuestion = state.lesson.questions[state.currentQuestionIndex];
     
     console.log('🔍 DEBUG: Question index and data:', {
-      currentQuestionIndex: currentQuestionIndex,
+      currentQuestionIndex: state.currentQuestionIndex,
       totalQuestions: state.lesson.questions.length,
       currentQuestion: currentQuestion
     });

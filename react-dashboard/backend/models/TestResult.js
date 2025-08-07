@@ -1,6 +1,10 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
+// Debug sequelize import
+console.log('🔍 DEBUG: sequelize loaded:', !!sequelize);
+console.log('🔍 DEBUG: sequelize.define available:', !!(sequelize && sequelize.define));
+
 const TestResult = sequelize.define('TestResult', {
   id: {
     type: DataTypes.INTEGER,
