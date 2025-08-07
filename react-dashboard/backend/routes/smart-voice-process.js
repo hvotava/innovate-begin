@@ -219,10 +219,20 @@ async function smartTranscribeProcess(req, res) {
   console.log('📄 TranscriptionText:', req.body.TranscriptionText);
   console.log('📊 TranscriptionStatus:', req.body.TranscriptionStatus);
   
-  // Get user language from conversation state
-  const state = ConversationManager.getState(req.body.CallSid);
-  const userLanguage = state?.lesson?.language || 'cs';
-  console.log('🌍 User language from state:', userLanguage);
+      // Get user language from conversation state
+    const state = ConversationManager.getState(req.body.CallSid);
+    const userLanguage = state?.lesson?.language || 'cs';
+    console.log('🌍 User language from state:', userLanguage);
+    
+    // Update recording information if available
+    if (req.body.RecordingUrl) {
+      ConversationManager.updateRecordingInfo(
+        req.body.CallSid,
+        req.body.RecordingUrl,
+        req.body.RecordingDuration
+      );
+      console.log('🔍 DEBUG: Updated recording info from transcription callback');
+    }
   console.log('🔍 DEBUG: Full transcription request body:', JSON.stringify(req.body, null, 2));
   console.log('🔍 DEBUG: Transcription callback analysis:', {
     hasCallSid: !!req.body.CallSid,

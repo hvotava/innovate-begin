@@ -24,7 +24,9 @@ class ConversationManager {
       lessonQuestionsAnswered: 0,
       testQuestions: [],
       userAnswers: [],
-      score: 0
+      score: 0,
+      recordingUrl: null,
+      recordingDuration: null
     });
   }
   
@@ -36,10 +38,25 @@ class ConversationManager {
       console.log('🔍 DEBUG: State details:', {
         currentQuestionIndex: state.currentQuestionIndex,
         score: state.score,
-        userAnswersLength: state.userAnswers ? state.userAnswers.length : 0
+        userAnswersLength: state.userAnswers ? state.userAnswers.length : 0,
+        recordingUrl: state.recordingUrl ? 'SET' : 'NOT SET'
       });
     }
     return state;
+  }
+  
+  // Update recording information
+  static updateRecordingInfo(callSid, recordingUrl, recordingDuration) {
+    const state = conversationState.get(callSid);
+    if (state) {
+      state.recordingUrl = recordingUrl;
+      state.recordingDuration = recordingDuration;
+      console.log('🔍 DEBUG: Updated recording info:', {
+        callSid: callSid,
+        recordingUrl: recordingUrl,
+        recordingDuration: recordingDuration
+      });
+    }
   }
   
   // Process user response based on current conversation state
@@ -655,15 +672,44 @@ class ConversationManager {
         // Find user by phone from conversation state
         let userId = state.lesson.user_id;
         if (!userId) {
-          // Try to find user by callSid or other means
-          console.log('⚠️ User ID not found in state, using default or admin');
-          userId = 1; // Fallback to admin user
+          // Try to find user by phone number from conversation
+          console.log('🔍 DEBUG: Looking for user by phone number...');
+          try {
+            const { User } = require('../models');
+            const user = await User.findOne({
+              where: { phone: state.lesson.userPhone || state.lesson.phone }
+            });
+            
+            if (user) {
+              userId = user.id;
+              console.log('✅ Found user by phone:', { userId: userId, phone: user.phone });
+            } else {
+              console.log('⚠️ User not found by phone, using default');
+              userId = 1; // Fallback to admin user
+            }
+          } catch (error) {
+            console.error('❌ Error finding user by phone:', error.message);
+            userId = 1; // Fallback to admin user
+          }
         }
         
         // Save each answer as a separate TestResult record
         try {
           for (let i = 0; i < state.userAnswers.length; i++) {
             const answer = state.userAnswers[i];
+            
+            // Get recording URL from conversation state if available
+            const recordingUrl = state.recordingUrl || null;
+            const recordingDuration = state.recordingDuration || null;
+            
+            console.log('🔍 DEBUG: Saving TestResult:', {
+              userId: userId,
+              questionText: answer.question,
+              userAnswer: answer.userAnswer,
+              isCorrect: answer.isCorrect,
+              recordingUrl: recordingUrl,
+              sessionId: callSid
+            });
             
             await TestResult.create({
               userId: userId,
@@ -672,13 +718,14 @@ class ConversationManager {
               contentId: state.lesson.lesson_id,
               questionText: answer.question,
               userAnswer: answer.userAnswer,
-              recordingUrl: null, // TODO: Add recording URL if available
-              recordingDuration: null,
+              recordingUrl: recordingUrl,
+              recordingDuration: recordingDuration,
               aiEvaluation: {
                 isCorrect: answer.isCorrect,
                 correctAnswer: answer.correctAnswer,
                 feedback: answer.isCorrect ? 'Správná odpověď' : `Správná odpověď je: ${answer.correctAnswer}`,
-                questionNumber: i + 1
+                questionNumber: i + 1,
+                evaluationDate: new Date().toISOString()
               },
               completionPercentage: answer.isCorrect ? 100 : 0,
               qualityScore: answer.isCorrect ? 100 : 0,
@@ -687,7 +734,35 @@ class ConversationManager {
           }
         } catch (error) {
           console.error('❌ Error creating TestResult records:', error.message);
+          console.error('📋 Full error details:', error);
           console.log('⚠️ Test results not saved, but continuing...');
+          
+          // Try to save at least basic information
+          try {
+            console.log('🔄 Attempting to save basic test result...');
+            await TestResult.create({
+              userId: userId,
+              trainingType: state.lesson.title,
+              lessonTitle: state.lesson.title,
+              contentId: state.lesson.lesson_id,
+              questionText: 'Test completion',
+              userAnswer: 'Test completed',
+              recordingUrl: null,
+              recordingDuration: null,
+              aiEvaluation: {
+                isCorrect: false,
+                correctAnswer: 'N/A',
+                feedback: 'Test completed with errors',
+                questionNumber: 0
+              },
+              completionPercentage: 0,
+              qualityScore: 0,
+              sessionId: callSid
+            });
+            console.log('✅ Basic test result saved successfully');
+          } catch (basicError) {
+            console.error('❌ Even basic test result save failed:', basicError.message);
+          }
         }
         
         // Calculate and log final results
