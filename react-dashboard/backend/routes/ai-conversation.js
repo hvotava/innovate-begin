@@ -82,14 +82,35 @@ class ConversationManager {
     console.log(`📚 TEST PHASE: Question ${(state.currentQuestionIndex || 0) + 1}/${state.lesson.questions.length}`);
     console.log(`📝 User answer: "${transcribedText}"`);
     console.log('🔍 DEBUG: Is this a fallback response?', transcribedText.includes('Fallback'));
+    console.log('🔍 DEBUG: State before processing:', {
+      currentQuestionIndex: state.currentQuestionIndex,
+      score: state.score,
+      userAnswersLength: state.userAnswers ? state.userAnswers.length : 0,
+      stateType: state.state
+    });
     
     // Initialize if this is the first question
-    if (!state.currentQuestionIndex) state.currentQuestionIndex = 0;
-    if (!state.score) state.score = 0;
-    if (!state.userAnswers) state.userAnswers = [];
+    if (!state.currentQuestionIndex) {
+      state.currentQuestionIndex = 0;
+      console.log('🔍 DEBUG: Initialized currentQuestionIndex to 0');
+    }
+    if (!state.score) {
+      state.score = 0;
+      console.log('🔍 DEBUG: Initialized score to 0');
+    }
+    if (!state.userAnswers) {
+      state.userAnswers = [];
+      console.log('🔍 DEBUG: Initialized userAnswers array');
+    }
     
     const currentQuestionIndex = state.currentQuestionIndex;
     const currentQuestion = state.lesson.questions[currentQuestionIndex];
+    
+    console.log('🔍 DEBUG: Question index and data:', {
+      currentQuestionIndex: currentQuestionIndex,
+      totalQuestions: state.lesson.questions.length,
+      currentQuestion: currentQuestion
+    });
     
     console.log(`🎯 Current question:`, currentQuestion);
     
@@ -131,6 +152,7 @@ class ConversationManager {
     
     // Move to next question
     state.currentQuestionIndex++;
+    console.log('🔍 DEBUG: Moved to next question, new index:', state.currentQuestionIndex);
     
     // Check if we've completed all questions
     if (state.currentQuestionIndex >= state.lesson.questions.length) {
@@ -171,16 +193,29 @@ class ConversationManager {
     
     // Continue with next question
     const nextQuestion = state.lesson.questions[state.currentQuestionIndex];
+    console.log('🔍 DEBUG: Next question data:', {
+      nextQuestionIndex: state.currentQuestionIndex,
+      nextQuestion: nextQuestion
+    });
+    
     let formattedNextQuestion = "";
     
     // If next question is a test question object, format it properly
     if (typeof nextQuestion === 'object' && nextQuestion.question) {
       formattedNextQuestion = this.formatTestQuestion(nextQuestion, state.currentQuestionIndex + 1);
+      console.log('🔍 DEBUG: Formatted next question:', formattedNextQuestion);
     } else if (typeof nextQuestion === 'string') {
       formattedNextQuestion = nextQuestion;
+      console.log('🔍 DEBUG: Next question is string:', formattedNextQuestion);
     } else {
       formattedNextQuestion = "Další otázka není k dispozici.";
     }
+    
+    console.log('🔍 DEBUG: Returning response with:', {
+      feedback: feedback,
+      nextQuestion: formattedNextQuestion,
+      questionType: 'test_continue'
+    });
     
     return {
       feedback: feedback,
