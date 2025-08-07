@@ -52,6 +52,12 @@ async function smartVoiceProcess(req, res) {
   
   // FALLBACK: If transcription callback doesn't work, process directly
   console.log('🔍 DEBUG: TranscriptionStatus is undefined, trying fallback processing');
+  console.log('🔍 DEBUG: Full request body for transcription analysis:', {
+    RecordingUrl: !!RecordingUrl,
+    TranscriptionStatus: req.body.TranscriptionStatus,
+    TranscriptionText: req.body.TranscriptionText,
+    hasTranscriptionText: !!req.body.TranscriptionText
+  });
   
   try {
     // Try to process the recording directly since transcription callback might not work
@@ -159,6 +165,13 @@ async function smartTranscribeProcess(req, res) {
   console.log('📄 TranscriptionText:', req.body.TranscriptionText);
   console.log('📊 TranscriptionStatus:', req.body.TranscriptionStatus);
   console.log('🔍 DEBUG: Full transcription request body:', JSON.stringify(req.body, null, 2));
+  console.log('🔍 DEBUG: Transcription callback analysis:', {
+    hasCallSid: !!req.body.CallSid,
+    hasTranscriptionText: !!req.body.TranscriptionText,
+    hasTranscriptionStatus: !!req.body.TranscriptionStatus,
+    transcriptionStatus: req.body.TranscriptionStatus,
+    transcriptionTextLength: req.body.TranscriptionText ? req.body.TranscriptionText.length : 0
+  });
   
   const transcribedText = req.body.TranscriptionText;
   const callSid = req.body.CallSid;
