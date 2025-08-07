@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const axios = require('axios'); // Added for OpenAI API call
 
 console.log('🤖 AI Proxy routes loading...');
 
@@ -99,43 +100,44 @@ router.post('/placement-test/analyze', async (req, res) => {
 // Content Management API
 router.get('/content/company/:companyId', async (req, res) => {
   try {
-    console.log('📚 Content sources GET for company:', req.params.companyId);
+    console.log('📚 Content GET for company:', req.params.companyId);
     res.json({
-      content_sources: [
+      company_id: parseInt(req.params.companyId),
+      available_sources: [
         {
           id: 1,
-          title: "Sample English Content",
-          status: "ready",
-          company_id: parseInt(req.params.companyId),
-          file_size: 15420,
-          word_count: 850,
-          created_at: new Date().toISOString()
+          title: 'Sample Training Material',
+          status: 'ready',
+          file_size: 1024,
+          word_count: 150,
+          lesson_id: 1,
+          content_preview: 'This is a sample training material...'
         }
       ]
     });
   } catch (error) {
-    console.error('❌ Content sources error:', error.message);
+    console.error('❌ Content GET error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
+// Enhanced Content Upload with Automatic Test Generation
 router.post('/content/upload', async (req, res) => {
   try {
-    console.log('📁 Content upload request:', {
-      files: req.files ? Object.keys(req.files) : 'none',
-      body: Object.keys(req.body)
-    });
+    console.log('📤 Content upload request received');
+    console.log('📋 Request body:', req.body);
+    console.log('📁 Files:', req.files ? Object.keys(req.files) : 'No files');
 
-    const { Lesson, Training } = require('../models');
-    
-    // Extract text content from uploaded files
     let textContent = '';
     let fileName = '';
-    
+
+    // Extract text content from uploaded files
     if (req.files && req.files.files) {
       const files = Array.isArray(req.files.files) ? req.files.files : [req.files.files];
+      
       for (const file of files) {
         fileName = file.name;
+        console.log(`📄 Processing file: ${fileName}, type: ${file.mimetype}`);
         
         if (file.mimetype === 'text/plain') {
           textContent += file.data.toString('utf8') + '\n';
@@ -152,6 +154,7 @@ router.post('/content/upload', async (req, res) => {
     const createNewLesson = req.body.createNewLesson === 'true';
     const newLessonTitle = req.body.newLessonTitle;
     const lessonCategory = req.body.lessonCategory || 'General';
+    const generateTests = req.body.generateTests === 'true'; // NEW: Test generation flag
     
     let targetLessonId = lessonId;
     
@@ -199,6 +202,42 @@ router.post('/content/upload', async (req, res) => {
       }
     }
 
+    // NEW: Automatic Test Generation
+    let generatedTests = [];
+    if (generateTests && textContent.length > 50) {
+      console.log('🤖 Generating automatic tests from content...');
+      
+      try {
+        // Generate questions using OpenAI
+        const questions = await generateQuestionsFromContent(textContent, newLessonTitle || 'Generated Test');
+        
+        if (questions && questions.length > 0) {
+          // Create test for the lesson
+          const test = await Test.create({
+            title: `${newLessonTitle || 'Generated'} Test`,
+            description: `Automatically generated test from uploaded content`,
+            questions: JSON.stringify(questions),
+            lessonId: targetLessonId,
+            type: 'multiple_choice',
+            timeLimit: 600, // 10 minutes
+            passingScore: 70
+          });
+          
+          generatedTests.push({
+            testId: test.id,
+            title: test.title,
+            questionCount: questions.length,
+            type: 'multiple_choice'
+          });
+          
+          console.log(`✅ Generated test with ${questions.length} questions`);
+        }
+      } catch (testGenError) {
+        console.error('❌ Test generation failed:', testGenError.message);
+        // Continue without test generation
+      }
+    }
+
     const uploadedSources = [{
       id: Date.now(),
       title: req.body.title || fileName || 'Uploaded Content',
@@ -206,7 +245,8 @@ router.post('/content/upload', async (req, res) => {
       file_size: req.files && req.files.files ? req.files.files.size || textContent.length : textContent.length,
       word_count: textContent.split(' ').length,
       lesson_id: targetLessonId,
-      content_preview: textContent.substring(0, 200) + '...'
+      content_preview: textContent.substring(0, 200) + '...',
+      generated_tests: generatedTests // NEW: Include generated tests
     }];
 
     console.log('✅ Content upload successful:', uploadedSources[0]);
@@ -214,7 +254,8 @@ router.post('/content/upload', async (req, res) => {
       success: true,
       uploaded_sources: uploadedSources,
       message: `Successfully uploaded content: ${uploadedSources[0].title}`,
-      lesson_assignment: targetLessonId ? `Assigned to lesson ID: ${targetLessonId}` : 'No lesson assignment'
+      lesson_assignment: targetLessonId ? `Assigned to lesson ID: ${targetLessonId}` : 'No lesson assignment',
+      generated_tests: generatedTests.length > 0 ? `Generated ${generatedTests.length} test(s)` : 'No tests generated'
     });
 
   } catch (error) {
@@ -223,6 +264,81 @@ router.post('/content/upload', async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// NEW: Function to generate questions from content using OpenAI
+async function generateQuestionsFromContent(content, lessonTitle) {
+  try {
+    console.log('🤖 Generating questions using OpenAI...');
+    
+    // Prepare prompt for OpenAI
+    const prompt = `Based on the following educational content, generate 5 multiple choice questions. 
+    Each question should have 4 options (A, B, C, D) with only one correct answer.
+    
+    Content: ${content.substring(0, 2000)} // Limit content length
+    
+    Requirements:
+    - 5 questions total
+    - Each question has 4 options (A, B, C, D)
+    - Only one correct answer per question
+    - Questions should test understanding of key concepts
+    - Format as JSON array with structure:
+    [
+      {
+        "question": "Question text?",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctAnswer": 0
+      }
+    ]
+    
+    Return only the JSON array, no additional text.`;
+    
+    // Call OpenAI API
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an educational content expert. Generate clear, accurate multiple choice questions based on provided content.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 1000,
+      temperature: 0.7
+    }, {
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const generatedText = response.data.choices[0].message.content;
+    console.log('🤖 OpenAI response:', generatedText);
+    
+    // Parse JSON response
+    const questions = JSON.parse(generatedText);
+    
+    // Validate questions structure
+    if (Array.isArray(questions) && questions.length > 0) {
+      const validatedQuestions = questions.map((q, index) => ({
+        question: q.question || `Question ${index + 1}`,
+        options: Array.isArray(q.options) ? q.options : ['A', 'B', 'C', 'D'],
+        correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0
+      }));
+      
+      console.log(`✅ Generated ${validatedQuestions.length} validated questions`);
+      return validatedQuestions;
+    }
+    
+    throw new Error('Invalid question format from OpenAI');
+    
+  } catch (error) {
+    console.error('❌ Question generation error:', error.message);
+    return [];
+  }
+}
 
 // Debug endpoint
 router.get('/debug/status', (req, res) => {

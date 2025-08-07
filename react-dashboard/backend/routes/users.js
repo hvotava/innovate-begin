@@ -410,10 +410,21 @@ router.post('/:id/call', auth, adminOnly, async (req, res) => {
         });
       } catch (twilioError) {
         console.error('❌ Twilio call error:', twilioError);
-        res.status(500).json({ 
-          error: 'Nepodařilo se zahájit Twilio volání',
-          details: twilioError.message || 'Neznámá chyba'
-        });
+        
+        // Check for specific geo-permissions error
+        if (twilioError.code === 21215) {
+          res.status(400).json({ 
+            error: 'Twilio účet nemá povolení pro volání na toto číslo',
+            details: 'Povolte mezinárodní volání v Twilio Console: https://www.twilio.com/console/voice/calls/geo-permissions/low-risk',
+            code: 'GEO_PERMISSIONS_ERROR',
+            solution: 'Enable Czech Republic (+420) in Twilio Geo Permissions'
+          });
+        } else {
+          res.status(500).json({ 
+            error: 'Nepodařilo se zahájit Twilio volání',
+            details: twilioError.message || 'Neznámá chyba'
+          });
+        }
       }
     } else {
       // Mock response when Twilio is not configured

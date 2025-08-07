@@ -34,7 +34,14 @@ import {
   StepContent,
   useMediaQuery,
   Tooltip,
-  Fab
+  Fab,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  FormControlLabel,
+  Checkbox,
+  Switch
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -49,7 +56,9 @@ import {
   PlayArrow as PlayArrowIcon,
   Add as AddIcon,
   FilePresent as FilePresentIcon,
-  TextFields as TextFieldsIcon
+  TextFields as TextFieldsIcon,
+  Quiz as QuizIcon,
+  AutoAwesome as AutoAwesomeIcon
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from '../contexts/AuthContext';
@@ -65,6 +74,14 @@ interface ContentSource {
   created_at: string;
   processed_at: string | null;
   has_course: boolean;
+  lesson_id?: number;
+  content_preview?: string;
+  generated_tests?: Array<{
+    testId: number;
+    title: string;
+    questionCount: number;
+    type: string;
+  }>;
 }
 
 interface Course {
@@ -109,6 +126,10 @@ const ContentManagement: React.FC = () => {
   const [selectedSourceId, setSelectedSourceId] = useState<number | null>(null);
   const [targetLessons, setTargetLessons] = useState(10);
 
+  // NEW: Test generation options
+  const [generateTests, setGenerateTests] = useState(true);
+  const [availableLessons, setAvailableLessons] = useState<any[]>([]);
+
   // Load data
   const loadContentSources = useCallback(async () => {
     if (!user?.companyId) return;
@@ -136,6 +157,20 @@ const ContentManagement: React.FC = () => {
       setError('Failed to load courses');
     }
   }, [user?.companyId]);
+
+  // Load available lessons
+  useEffect(() => {
+    const loadLessons = async () => {
+      try {
+        const response = await api.get('/api/lessons');
+        setAvailableLessons(response.data);
+      } catch (err) {
+        console.error('❌ Error loading lessons:', err);
+      }
+    };
+
+    loadLessons();
+  }, []);
 
   useEffect(() => {
     loadContentSources();
@@ -169,6 +204,18 @@ const ContentManagement: React.FC = () => {
         formData.append('files', file);
       });
 
+      // Add lesson options
+      formData.append('createNewLesson', createNewLesson.toString());
+      if (createNewLesson) {
+        formData.append('newLessonTitle', newLessonTitle || 'Generated Lesson');
+        formData.append('lessonCategory', lessonCategory);
+      } else if (selectedLessonId) {
+        formData.append('lessonId', selectedLessonId);
+      }
+
+      // NEW: Add test generation option
+      formData.append('generateTests', generateTests.toString());
+
       console.log('🚀 Making API call to /api/content/upload');
       const response = await api.post('/api/ai-proxy/content/upload', formData, {
         headers: {
@@ -193,7 +240,7 @@ const ContentManagement: React.FC = () => {
       console.log('🏁 Upload process finished');
       setUploading(false);
     }
-  }, [user?.companyId, uploadTitle, loadContentSources]);
+  }, [user?.companyId, uploadTitle, loadContentSources, createNewLesson, newLessonTitle, lessonCategory, selectedLessonId, generateTests]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
