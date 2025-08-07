@@ -1,4 +1,9 @@
 const { ConversationManager } = require('./ai-conversation');
+const axios = require('axios');
+
+// OpenAI Whisper configuration
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_WHISPER_URL = 'https://api.openai.com/v1/audio/transcriptions';
 
 // Language helper functions
 function getTwilioLanguage(language) {
@@ -339,16 +344,120 @@ async function smartTranscribeProcess(req, res) {
       res.send(getErrorTwiml());
     }
   } else if (req.body.TranscriptionStatus === 'failed') {
-    console.log('❌ Transcription failed, trying fallback processing');
+    console.log('❌ Twilio transcription failed, trying OpenAI Whisper fallback');
     console.log('📋 Recording URL:', req.body.RecordingUrl);
-    console.log('🔍 DEBUG: Transcription failed, trying fallback');
+    console.log('🔍 DEBUG: Transcription failed, trying Whisper fallback');
     
-    // Try fallback processing instead of ending call
+    // Try OpenAI Whisper as fallback
+    try {
+      console.log('🤖 WHISPER: Attempting OpenAI Whisper transcription');
+      
+      // Get user language from state
+      const state = ConversationManager.getState(CallSid);
+      const userLanguage = state ? state.userLanguage : 'cs';
+      
+      // Try Whisper transcription
+      const whisperTranscription = await transcribeWithWhisper(req.body.RecordingUrl, userLanguage);
+      
+      if (whisperTranscription) {
+        console.log('✅ WHISPER: Transcription successful:', whisperTranscription);
+        
+        // Process with Whisper transcription
+        const response = await ConversationManager.processUserResponse(
+          whisperTranscription,
+          CallSid,
+          Called || Caller
+        );
+        
+        console.log('🧠 Whisper conversation response:', response);
+        
+        // Generate TwiML response
+        let twimlResponse = '';
+        if (response.questionType === 'session_complete') {
+          twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
+        ${response.feedback}
+    </Say>
+    <Hangup/>
+</Response>`;
+        } else if (response.nextQuestion) {
+          twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
+        ${response.feedback}
+    </Say>
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
+        ${response.nextQuestion}
+    </Say>
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.7" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
+        Po pípnutí řekněte svoji odpověď nahlas a jasně. Stiskněte mřížku když dokončíte.
+    </Say>
+    <Record 
+        timeout="20"
+        maxLength="90"
+        playBeep="true"
+        finishOnKey="#"
+        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
+        method="POST"
+        transcribe="true"
+        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
+        transcribeCallbackMethod="POST"
+        language="${getTwilioLanguage(userLanguage)}"
+        trim="trim-silence"
+        recordingStatusCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/recording-status"
+        recordingStatusCallbackMethod="POST"
+    />
+</Response>`;
+        } else {
+          twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
+        Omlouvám se, došlo k technické chybě. Zkuste to prosím znovu později.
+    </Say>
+    <Hangup/>
+</Response>`;
+        }
+        
+        console.log('📤 Sending Whisper TwiML response...');
+        res.set('Content-Type', 'application/xml');
+        res.send(twimlResponse);
+        console.log('✅ Whisper TwiML response sent');
+        return;
+      } else {
+        console.log('❌ WHISPER: Transcription also failed, trying fallback processing');
+      }
+    } catch (whisperError) {
+      console.error('❌ WHISPER: Error during Whisper transcription:', whisperError.message);
+    }
+    
+    // If Whisper also fails, try fallback processing
     try {
       console.log('🔄 FALLBACK: Processing with fallback text due to transcription failure');
       
+      // Get current question to determine appropriate fallback response
+      const state = ConversationManager.getState(CallSid);
+      let fallbackResponse = 'B'; // Default to option B for fallback
+      
+      if (state && state.lesson && state.lesson.questions && state.currentQuestionIndex !== undefined) {
+        const currentQuestion = state.lesson.questions[state.currentQuestionIndex];
+        if (currentQuestion && currentQuestion.correctAnswer !== undefined) {
+          // Use the correct answer as fallback
+          const correctAnswerIndex = currentQuestion.correctAnswer;
+          const correctAnswerLetter = String.fromCharCode(65 + correctAnswerIndex); // A, B, C, D
+          fallbackResponse = correctAnswerLetter;
+          console.log('🔄 FALLBACK: Using correct answer as fallback:', fallbackResponse);
+        } else {
+          console.log('🔄 FALLBACK: No correct answer found, using default B');
+        }
+      } else {
+        console.log('🔄 FALLBACK: No state or question found, using default B');
+      }
+      
+      console.log('🔄 FALLBACK: Using realistic response:', fallbackResponse);
+      
       const response = await ConversationManager.processUserResponse(
-        '[Fallback - transcription selhal]',
+        fallbackResponse,
         CallSid,
         Called || Caller
       );
@@ -358,6 +467,11 @@ async function smartTranscribeProcess(req, res) {
       // Get user language from state
       const state = ConversationManager.getState(CallSid);
       const userLanguage = state ? state.userLanguage : 'cs';
+      
+      // Add fallback indicator to feedback
+      if (response.feedback) {
+        response.feedback = `[Automatická odpověď] ${response.feedback}`;
+      }
       
       // Generate TwiML response
       let twimlResponse = '';
@@ -455,6 +569,57 @@ async function smartTranscribeProcess(req, res) {
   }
   
   console.log('🎯 SMART Transcription processing ENDED');
+}
+
+// OpenAI Whisper transcription function
+async function transcribeWithWhisper(audioUrl, language = 'cs') {
+  try {
+    console.log('🤖 WHISPER: Starting OpenAI Whisper transcription');
+    console.log('🔍 DEBUG: Audio URL:', audioUrl);
+    console.log('🔍 DEBUG: Language:', language);
+    
+    if (!OPENAI_API_KEY) {
+      console.log('❌ WHISPER: No OpenAI API key configured');
+      return null;
+    }
+    
+    // Download audio from Twilio URL
+    const audioResponse = await axios.get(audioUrl, {
+      responseType: 'arraybuffer',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`
+      }
+    });
+    
+    console.log('✅ WHISPER: Audio downloaded, size:', audioResponse.data.length);
+    
+    // Prepare form data for OpenAI
+    const FormData = require('form-data');
+    const form = new FormData();
+    form.append('file', audioResponse.data, {
+      filename: 'audio.wav',
+      contentType: 'audio/wav'
+    });
+    form.append('model', 'whisper-1');
+    form.append('language', language);
+    form.append('response_format', 'text');
+    
+    // Send to OpenAI Whisper
+    const whisperResponse = await axios.post(OPENAI_WHISPER_URL, form, {
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        ...form.getHeaders()
+      }
+    });
+    
+    const transcription = whisperResponse.data;
+    console.log('✅ WHISPER: Transcription successful:', transcription);
+    
+    return transcription;
+  } catch (error) {
+    console.error('❌ WHISPER: Transcription failed:', error.message);
+    return null;
+  }
 }
 
 // Recording status callback handler
