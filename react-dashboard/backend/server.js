@@ -86,27 +86,27 @@ app.all('/api/placement-test/*', async (req, res) => {
   }
 });
 
-// Courses API
-app.all('/api/courses/*', async (req, res) => {
-  try {
-    const path = req.path.replace('/api/courses', '');
-    console.log(`🔄 Proxying ${req.method} /api/courses${path} to Python backend`);
-    const response = await require('axios')({
-      method: req.method,
-      url: `${pythonBackendUrl}/api/courses${path}`,
-      data: req.body,
-      params: req.query,
-      timeout: 30000
-    });
-    res.json(response.data);
-  } catch (error) {
-    console.error('Courses proxy error:', error.message);
-    console.error('Error details:', error.response?.data);
-    res.status(error.response?.status || 500).json({
-      error: error.response?.data?.error || error.message
-    });
-  }
-});
+// Courses API - DISABLED: Using local courses route instead of Python backend
+// app.all('/api/courses/*', async (req, res) => {
+//   try {
+//     const path = req.path.replace('/api/courses', '');
+//     console.log(`🔄 Proxying ${req.method} /api/courses${path} to Python backend`);
+//     const response = await require('axios')({
+//       method: req.method,
+//       url: `${pythonBackendUrl}/api/courses${path}`,
+//       data: req.body,
+//       params: req.query,
+//       timeout: 30000
+//     });
+//     res.json(response.data);
+//   } catch (error) {
+//     console.error('Courses proxy error:', error.message);
+//     console.error('Error details:', error.response?.data);
+//     res.status(error.response?.status || 500).json({
+//       error: error.response?.data?.error || error.message
+//     });
+//   }
+// });
 
 // Analytics API
 app.all('/api/analytics/*', async (req, res) => {
