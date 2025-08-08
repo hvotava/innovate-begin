@@ -259,12 +259,12 @@ async function smartTranscribeProcess(req, res) {
   
   if (req.body.TranscriptionStatus === 'completed' && transcribedText) {
     console.log(`💬 User said: "${transcribedText}"`);
-    console.log('✅ Transcription completed successfully, processing with ConversationManager...');
+          console.log('✅ Transcription completed successfully, processing with VoiceNavigationManager...');
     
     try {
-      // Process with new ConversationManager
-      console.log('🧠 Calling ConversationManager.processUserResponse...');
-      const response = await ConversationManager.processUserResponse(
+              // Process with new VoiceNavigationManager
+      console.log('🧠 Calling VoiceNavigationManager.processUserResponse...');
+      const response = await VoiceNavigationManager.processUserResponse(
         transcribedText, 
         callSid,
         req.body.Called || req.body.Caller
@@ -339,7 +339,7 @@ async function smartTranscribeProcess(req, res) {
           percentage: `${response.testResults.percentage}%`
         });
         
-        console.log('✅ Test results have been saved to database by ConversationManager');
+        console.log('✅ Test results have been saved to database by VoiceNavigationManager');
       }
       
     } catch (error) {
@@ -663,7 +663,7 @@ async function recordingStatusCallback(req, res) {
   });
   
   // Update conversation state with recording info
-  const recordingState = ConversationManager.getState(CallSid);
+        const recordingState = VoiceNavigationManager.getState(CallSid);
   if (recordingState) {
     recordingState.recordingUrl = RecordingUrl;
     recordingState.recordingDuration = RecordingDuration;
