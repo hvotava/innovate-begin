@@ -423,24 +423,16 @@ class VoiceNavigationManager {
 
   // Handle lesson phase
   static async handleLessonPhase(userInput, state, userPhone) {
-    console.log(`📚 Lesson phase - Question ${state.currentQuestionIndex + 1}`);
+    console.log('📚 Lesson phase - processing user input');
     
-    // If this is the first interaction after lesson was read, transition to test
-    if (state.currentQuestionIndex === 0) {
-      state.currentState = CONVERSATION_STATES.LESSON_COMPLETED;
+    // Check if lesson is completed (user says "done" or similar)
+    const cleanInput = userInput.toLowerCase().trim();
+    if (cleanInput.includes('dokončeno') || cleanInput.includes('hotovo') || cleanInput.includes('konec') || cleanInput.includes('done')) {
+      console.log('✅ Lesson completion detected, transitioning to test');
       return this.handleLessonCompleted(userInput, state, userPhone);
     }
     
-    // Check if lesson is completed (should not happen in normal flow)
-    if (state.currentQuestionIndex >= (state.lesson.questions ? state.lesson.questions.length : 0)) {
-      state.currentState = CONVERSATION_STATES.LESSON_COMPLETED;
-      return this.handleLessonCompleted(userInput, state, userPhone);
-    }
-    
-    // Continue with lesson content
-    const currentQuestion = state.lesson.questions[state.currentQuestionIndex];
-    state.currentQuestionIndex++;
-    
+    // Continue lesson - just read the content again
     return {
       questionType: 'lesson',
       feedback: 'Pokračujeme v lekci.',

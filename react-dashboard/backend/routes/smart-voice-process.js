@@ -388,6 +388,35 @@ async function smartTranscribeProcess(req, res) {
     </Say>
     <Hangup/>
 </Response>`;
+        } else if (response.questionType === 'lesson') {
+          // For lessons, just say the content without expecting a response
+          twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
+        ${response.feedback}
+    </Say>
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
+        ${response.nextQuestion}
+    </Say>
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.7" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
+        Řekněte "dokončeno" nebo "hotovo" když chcete pokračovat na test.
+    </Say>
+    <Record 
+        timeout="20"
+        maxLength="90"
+        playBeep="true"
+        finishOnKey="#"
+        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
+        method="POST"
+        transcribe="true"
+        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
+        transcribeCallbackMethod="POST"
+        language="${getTwilioLanguage(userLanguage)}"
+        trim="trim-silence"
+        recordingStatusCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/recording-status"
+        recordingStatusCallbackMethod="POST"
+    />
+</Response>`;
         } else if (response.nextQuestion) {
           twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
