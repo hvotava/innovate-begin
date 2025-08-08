@@ -112,25 +112,43 @@ function generateQuestionsFromLesson(lesson) {
   // Generate specific questions based on lesson topic
   if (lessonTitle.includes('obráběcí kapaliny')) {
     return [
-      'Co víte o obráběcích kapalinách a jejich použití?',
-      'Jaké druhy obráběcích kapalin znáte?',
-      'Jak se používají obráběcí kapaliny ve vaší práci?',
-      'Jaká bezpečnostní opatření dodržujete při práci s obráběcími kapalinami?'
+      {
+        question: 'Co víte o obráběcích kapalinách a jejich použití?',
+        options: ['Používají se k chlazení', 'Používají se k mazání', 'Používají se k čištění', 'Všechny odpovědi'],
+        correctAnswer: 3
+      },
+      {
+        question: 'Jaké druhy obráběcích kapalin znáte?',
+        options: ['Vodní', 'Olejové', 'Emulzní', 'Všechny druhy'],
+        correctAnswer: 3
+      }
     ];
   } else if (lessonTitle.includes('lidské tělo')) {
     return [
-      'Popište mi hlavní části lidského těla.',
-      'Co víte o anatomii člověka?',
-      'Jak fungují základní tělesné systémy?',
-      'Jaké orgány považujete za nejdůležitější a proč?'
+      {
+        question: 'Který orgán je zodpovědný za pumpování krve?',
+        options: ['Mozek', 'Srdce', 'Plíce', 'Játra'],
+        correctAnswer: 1
+      },
+      {
+        question: 'Jaký orgán je zodpovědný za dýchání?',
+        options: ['Žaludek', 'Mozek', 'Plíce', 'Játra'],
+        correctAnswer: 2
+      }
     ];
   } else {
-    // Generic questions for any lesson
+    // Generic questions for any lesson with multiple choice format
     return [
-      `Na základě lekce "${lesson.title}", vysvětlete mi hlavní téma.`,
-      'Co je podle vás nejdůležitější informace z této lekce?',
-      'Jak byste využili tyto znalosti ve své práci nebo životě?',
-      'Máte k probranému tématu nějaké dotazy nebo připomínky?'
+      {
+        question: `Na základě lekce "${lesson.title}", co je hlavní téma?`,
+        options: ['Praktické školení', 'Teoretické znalosti', 'Bezpečnostní opatření', 'Všechny odpovědi'],
+        correctAnswer: 0
+      },
+      {
+        question: 'Co je podle vás nejdůležitější informace z této lekce?',
+        options: ['Teoretické znalosti', 'Praktické dovednosti', 'Bezpečnostní pravidla', 'Všechny informace'],
+        correctAnswer: 3
+      }
     ];
   }
 }
