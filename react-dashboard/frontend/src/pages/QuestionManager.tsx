@@ -118,9 +118,11 @@ const QuestionManager: React.FC = () => {
       const courses = coursesResponse.data.courses || [];
       
       // Get lessons directly from lessons API
+      let allLessons: Lesson[] = [];
+      
       try {
         const lessonsResponse = await api.get('/api/lessons');
-        const allLessons: Lesson[] = lessonsResponse.data.lessons.map((lesson: any) => ({
+        allLessons = lessonsResponse.data.lessons.map((lesson: any) => ({
           ...lesson,
           course_id: 1, // Default course
           has_questions: false // Will be updated when checking question banks
