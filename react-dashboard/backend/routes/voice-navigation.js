@@ -159,7 +159,11 @@ class VoiceNavigationManager {
     state.currentQuestionIndex = 0;
     state.totalQuestions = state.lesson.questions ? state.lesson.questions.length : 0;
     
+    console.log(`🔍 Debug: questions array length = ${state.lesson.questions ? state.lesson.questions.length : 'undefined'}`);
+    console.log(`🔍 Debug: totalQuestions = ${state.totalQuestions}`);
+    
     if (state.totalQuestions === 0) {
+      console.log('⚠️ No questions found, ending session');
       return {
         questionType: 'session_complete',
         feedback: 'Lekce dokončena. Test není k dispozici.'
@@ -167,6 +171,7 @@ class VoiceNavigationManager {
     }
     
     const firstQuestion = this.formatTestQuestion(state.lesson.questions[0], state.userLanguage);
+    console.log(`✅ Starting test with first question: ${firstQuestion.substring(0, 100)}...`);
     
     return {
       questionType: 'test',
@@ -425,20 +430,9 @@ class VoiceNavigationManager {
   static async handleLessonPhase(userInput, state, userPhone) {
     console.log('📚 Lesson phase - processing user input');
     
-    // Check if lesson is completed (user says "done" or similar)
-    const cleanInput = userInput.toLowerCase().trim();
-    if (cleanInput.includes('dokončeno') || cleanInput.includes('hotovo') || cleanInput.includes('konec') || cleanInput.includes('done')) {
-      console.log('✅ Lesson completion detected, transitioning to test');
-      return this.handleLessonCompleted(userInput, state, userPhone);
-    }
-    
-    // Continue lesson - just read the content again
-    return {
-      questionType: 'lesson',
-      feedback: 'Pokračujeme v lekci.',
-      nextQuestion: this.formatLessonContent(state.lesson),
-      navigationOptions: this.getNavigationOptions(state.userLanguage)
-    };
+    // Automatically transition to test after any user input during lesson
+    console.log('✅ Lesson completed, automatically transitioning to test');
+    return this.handleLessonCompleted(userInput, state, userPhone);
   }
 
   // Handle test phase with improved answer checking

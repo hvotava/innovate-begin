@@ -74,11 +74,14 @@ async function getLessonForUser(phoneNumber) {
     
     // Load test questions from database instead of hardcoded ones
     console.log(`📚 Loading test questions for lesson ID: ${targetLesson.id}`);
+    console.log(`📚 Lesson title: ${targetLesson.title}`);
     const testQuestions = await loadTestQuestionsFromDB(targetLesson.id);
     
     console.log(`📊 Lesson ${targetLesson.id}: ${testQuestions.length} questions loaded from database`);
     if (testQuestions.length === 0) {
       console.log(`⚠️ No questions found in database for lesson ${targetLesson.id}, will show empty test`);
+    } else {
+      console.log(`✅ Questions found:`, testQuestions.map(q => q.question || q.text));
     }
     
     // Create lesson response with language support
@@ -184,6 +187,7 @@ async function loadTestQuestionsFromDB(lessonId) {
     });
     
     console.log(`📋 Found ${tests.length} tests for lesson ${lessonId}`);
+    console.log(`📋 Test details:`, tests.map(t => ({ id: t.id, title: t.title, lessonId: t.lessonId })));
     
     if (tests.length === 0) {
       console.log(`❌ No tests found for lesson ${lessonId}`);

@@ -389,7 +389,7 @@ async function smartTranscribeProcess(req, res) {
     <Hangup/>
 </Response>`;
         } else if (response.questionType === 'lesson') {
-          // For lessons, just say the content without expecting a response
+          // For lessons, just say the content and automatically transition to test
           twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
@@ -399,7 +399,7 @@ async function smartTranscribeProcess(req, res) {
         ${response.nextQuestion}
     </Say>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.7" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
-        Řekněte "dokončeno" nebo "hotovo" když chcete pokračovat na test.
+        Řekněte cokoliv pro pokračování na test.
     </Say>
     <Record 
         timeout="20"
