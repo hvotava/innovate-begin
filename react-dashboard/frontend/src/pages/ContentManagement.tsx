@@ -179,6 +179,7 @@ const ContentManagement: React.FC = () => {
 
   // File upload handling
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    console.log('🚨 onDrop CALLED!');
     console.log('📁 onDrop called with files:', acceptedFiles);
     console.log('👤 User:', user);
     console.log('🏢 Company ID:', user?.companyId);
@@ -262,8 +263,13 @@ const ContentManagement: React.FC = () => {
     },
     onDragLeave: () => {
       console.log('📁 Drag leave detected');
+    },
+    onDropAccepted: (acceptedFiles) => {
+      console.log('✅ Files accepted:', acceptedFiles);
     }
   });
+
+  console.log('🔧 Dropzone state:', { isDragActive, uploading, disabled: uploading });
 
   // Text content upload
   const handleTextUpload = async () => {
