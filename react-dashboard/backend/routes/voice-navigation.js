@@ -419,7 +419,7 @@ class VoiceNavigationManager {
   static async handleLessonPhase(userInput, state, userPhone) {
     console.log('📚 Lesson phase - processing user input');
     
-    // Automatically transition to test after any user input during lesson
+    // Automatically transition to test without user input
     console.log('✅ Lesson completed, automatically transitioning to test');
     state.currentState = CONVERSATION_STATES.TEST_ACTIVE;
     state.currentQuestionIndex = 0;

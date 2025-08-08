@@ -389,7 +389,7 @@ async function smartTranscribeProcess(req, res) {
     <Hangup/>
 </Response>`;
         } else if (response.questionType === 'lesson') {
-          // For lessons, just say the content and automatically transition to test
+          // For lessons, automatically transition to test without user input
           twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
@@ -398,24 +398,11 @@ async function smartTranscribeProcess(req, res) {
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         ${response.nextQuestion}
     </Say>
-    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.7" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
-        Řekněte cokoliv pro pokračování na test.
+    <Pause length="2"/>
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
+        Nyní začínáme test.
     </Say>
-    <Record 
-        timeout="20"
-        maxLength="90"
-        playBeep="true"
-        finishOnKey="#"
-        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
-        method="POST"
-        transcribe="true"
-        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
-        transcribeCallbackMethod="POST"
-        language="${getTwilioLanguage(userLanguage)}"
-        trim="trim-silence"
-        recordingStatusCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/recording-status"
-        recordingStatusCallbackMethod="POST"
-    />
+    <Redirect method="POST">https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart</Redirect>
 </Response>`;
         } else if (response.nextQuestion) {
           twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>

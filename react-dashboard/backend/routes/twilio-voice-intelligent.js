@@ -74,21 +74,11 @@ async function intelligentVoiceCall(req, res) {
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.85" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         ${lessonContent}
     </Say>
-    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.7" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
-        Řekněte cokoliv pro pokračování.
+    <Pause length="2"/>
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
+        Nyní začínáme test.
     </Say>
-    <Record finishOnKey="#" 
-        timeout="20"
-        maxLength="90"
-        playBeep="true"
-        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
-        method="POST"
-        transcribe="true"
-        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
-        transcribeCallbackMethod="POST"
-        language="${getTwilioLanguage(userLanguage)}"
-        trim="trim-silence"
-    />
+    <Redirect method="POST">https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart</Redirect>
 </Response>`;
     } else {
       // Error fallback
