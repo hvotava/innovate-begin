@@ -117,22 +117,29 @@ const QuestionManager: React.FC = () => {
       const coursesResponse = await api.get(`/api/courses/company/${user.companyId}`);
       const courses = coursesResponse.data.courses || [];
       
-      // Get lessons for each course
-      const allLessons: Lesson[] = [];
-      for (const course of courses) {
-        if (course.status === 'active') {
+      // Get lessons directly from lessons API
+      try {
+        const lessonsResponse = await api.get('/api/lessons');
+        const allLessons: Lesson[] = lessonsResponse.data.lessons.map((lesson: any) => ({
+          ...lesson,
+          course_id: 1, // Default course
+          has_questions: false // Will be updated when checking question banks
+        }));
+        
+        // Check which lessons have questions
+        for (const lesson of allLessons) {
           try {
-            // This would need to be implemented in the backend
-            const lessonsResponse = await api.get(`/api/courses/${course.id}/lessons`);
-            allLessons.push(...lessonsResponse.data.lessons.map((lesson: any) => ({
-              ...lesson,
-              course_id: course.id,
-              has_questions: false // Will be updated when checking question banks
-            })));
+            const questionsResponse = await api.get(`/api/questions/lessons/${lesson.id}/questions`);
+            lesson.has_questions = questionsResponse.data.has_questions;
           } catch (err) {
-            console.warn(`Could not load lessons for course ${course.id}`);
+            lesson.has_questions = false;
           }
         }
+        
+        setLessons(allLessons);
+      } catch (err) {
+        console.warn('Could not load lessons');
+        setLessons([]);
       }
       
       // Check which lessons have questions
@@ -162,7 +169,7 @@ const QuestionManager: React.FC = () => {
   const loadQuestions = async (lessonId: number, selectedDifficulty: string = 'medium') => {
     try {
       setLoading(true);
-      const response = await api.get(`/api/lessons/${lessonId}/questions?difficulty=${selectedDifficulty}`);
+      const response = await api.get(`/api/questions/lessons/${lessonId}/questions?difficulty=${selectedDifficulty}`);
       setQuestionBank(response.data);
     } catch (err: any) {
       console.error('Error loading questions:', err);
@@ -188,7 +195,7 @@ const QuestionManager: React.FC = () => {
     setSuccess(null);
 
     try {
-      const response = await api.post(`/api/lessons/${selectedLesson.id}/generate-questions`, {
+      const response = await api.post(`/api/questions/lessons/${selectedLesson.id}/generate-questions`, {
         question_count: questionCount,
         difficulty: difficulty
       });
