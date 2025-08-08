@@ -136,7 +136,7 @@ const ContentManagement: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await api.get(`/api/ai-proxy/content/company/${user.companyId}`);
+      const response = await api.get(`/ai-proxy/content/company/${user.companyId}`);
       setContentSources(response.data.content_sources || []);
     } catch (err: any) {
       console.error('Error loading content sources:', err);
@@ -150,7 +150,7 @@ const ContentManagement: React.FC = () => {
     if (!user?.companyId) return;
 
     try {
-      const response = await api.get(`/api/courses/company/${user.companyId}`);
+      const response = await api.get(`/courses/company/${user.companyId}`);
       setCourses(response.data.courses || []);
     } catch (err: any) {
       console.error('Error loading courses:', err);
@@ -162,7 +162,7 @@ const ContentManagement: React.FC = () => {
   useEffect(() => {
     const loadLessons = async () => {
       try {
-        const response = await api.get('/api/lessons');
+        const response = await api.get('/lessons');
         setAvailableLessons(response.data);
       } catch (err) {
         console.error('❌ Error loading lessons:', err);
@@ -216,8 +216,8 @@ const ContentManagement: React.FC = () => {
       // NEW: Add test generation option
       formData.append('generateTests', generateTests.toString());
 
-      console.log('🚀 Making API call to /api/ai-proxy/content/upload');
-      const response = await api.post('/api/ai-proxy/content/upload', formData, {
+      console.log('🚀 Making API call to /ai-proxy/content/upload');
+      const response = await api.post('/ai-proxy/content/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -270,7 +270,7 @@ const ContentManagement: React.FC = () => {
       formData.append('content_type', 'text');
       formData.append('files', file);
 
-      const response = await api.post('/api/ai-proxy/content/upload', formData, {
+      const response = await api.post('/ai-proxy/content/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -298,7 +298,7 @@ const ContentManagement: React.FC = () => {
     setSelectedSourceId(sourceId);
 
     try {
-      const response = await api.post(`/api/content/${sourceId}/generate-course`, {
+      const response = await api.post(`/content/${sourceId}/generate-course`, {
         target_lessons: targetLessons
       });
 
@@ -318,7 +318,7 @@ const ContentManagement: React.FC = () => {
 
   const handleActivateCourse = async (courseId: number) => {
     try {
-      const response = await api.post(`/api/courses/${courseId}/activate`);
+      const response = await api.post(`/courses/${courseId}/activate`);
       if (response.data.success) {
         setSuccess('Course activated successfully!');
         await loadCourses();
