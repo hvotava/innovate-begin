@@ -181,6 +181,16 @@ const ContentManagement: React.FC = () => {
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     console.log('🚨 onDrop CALLED!');
     console.log('📁 onDrop called with files:', acceptedFiles);
+    console.log('📊 Accepted files length:', acceptedFiles.length);
+    console.log('📄 File types:', acceptedFiles.map(f => f.type));
+    console.log('📄 File names:', acceptedFiles.map(f => f.name));
+    console.log('👤 User:', user);
+    console.log('🏢 Company ID:', user?.companyId);
+    
+    if (!user?.companyId || acceptedFiles.length === 0) {
+      console.log('❌ Early return - no company or files');
+      return;
+    }
     console.log('👤 User:', user);
     console.log('🏢 Company ID:', user?.companyId);
     console.log('📊 Accepted files length:', acceptedFiles.length);
