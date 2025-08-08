@@ -5,6 +5,9 @@ const { Lesson, Test, Training } = require('../models');
 
 console.log('🤖 AI Proxy routes loading...');
 
+// In-memory store of uploaded sources per company (simple cache for dashboard listing)
+const uploadedMemory = [];
+
 // Placement Test API
 router.get('/placement-test/:companyId', async (req, res) => {
   try {
@@ -101,20 +104,25 @@ router.post('/placement-test/analyze', async (req, res) => {
 // Content Management API
 router.get('/content/company/:companyId', async (req, res) => {
   try {
-    console.log('📚 Content GET for company:', req.params.companyId);
+    const companyId = parseInt(req.params.companyId);
+    console.log('📚 Content GET for company:', companyId);
+
+    const items = uploadedMemory
+      .filter(i => i.company_id === companyId)
+      .sort((a, b) => b.created_at - a.created_at)
+      .map(i => ({
+        id: i.id,
+        title: i.title,
+        status: i.status,
+        file_size: i.file_size,
+        word_count: i.word_count,
+        lesson_id: i.lesson_id,
+        content_preview: i.content_preview
+      }));
+
     res.json({
-      company_id: parseInt(req.params.companyId),
-      available_sources: [
-        {
-          id: 1,
-          title: 'Sample Training Material',
-          status: 'ready',
-          file_size: 1024,
-          word_count: 150,
-          lesson_id: 1,
-          content_preview: 'This is a sample training material...'
-        }
-      ]
+      company_id: companyId,
+      content_sources: items
     });
   } catch (error) {
     console.error('❌ Content GET error:', error.message);
@@ -246,14 +254,19 @@ router.post('/content/upload', async (req, res) => {
 
     const uploadedSources = [{
       id: Date.now(),
+      company_id: parseInt(req.body.company_id || '0') || 0,
       title: req.body.title || fileName || 'Uploaded Content',
       status: 'ready',
-      file_size: req.files && req.files.files ? (Array.isArray(req.files.files) ? req.files.files[0]?.size : req.files.files.size) || textContent.length : textContent.length,
+      file_size: req.files && req.files.files ? (Array.isArray(req.files.files) ? req.files.files[0]?.size : req.files.files.size) || (textContent ? Buffer.byteLength(textContent, 'utf8') : 0) : (textContent ? Buffer.byteLength(textContent, 'utf8') : 0),
       word_count: (textContent || '').split(' ').filter(Boolean).length,
       lesson_id: targetLessonId,
       content_preview: (textContent || '').substring(0, 200) + '...',
-      generated_tests: generatedTests
+      generated_tests: generatedTests,
+      created_at: Date.now()
     }];
+
+    // Save to in-memory store for listing
+    uploadedMemory.push(uploadedSources[0]);
 
     console.log('✅ Content upload successful:', uploadedSources[0]);
     console.log('📊 Response data:', {
@@ -270,10 +283,8 @@ router.post('/content/upload', async (req, res) => {
       },
       message: 'Upload processed'
     });
-
   } catch (error) {
     console.error('❌ Content upload error:', error.message);
-    console.error('📋 Error stack:', error.stack);
     res.status(500).json({ success: false, error: error.message });
   }
 });
