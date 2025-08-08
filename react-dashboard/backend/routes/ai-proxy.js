@@ -139,6 +139,12 @@ router.post('/content/upload', async (req, res) => {
     console.log('🏢 Company ID:', req.body.company_id);
     console.log('📝 Title:', req.body.title);
     console.log('🔧 Content type:', req.body.content_type);
+    console.log('📊 Form data keys:', Object.keys(req.body));
+    console.log('📁 Files object:', req.files);
+    if (req.files && req.files.files) {
+      console.log('📄 Files array length:', Array.isArray(req.files.files) ? req.files.files.length : 1);
+      console.log('📄 First file:', Array.isArray(req.files.files) ? req.files.files[0]?.name : req.files.files?.name);
+    }
 
     let textContent = '';
     let fileName = '';
