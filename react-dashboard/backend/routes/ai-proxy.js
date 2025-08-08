@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios'); // Added for OpenAI API call
+const { Lesson, Test, Training } = require('../models');
 
 console.log('🤖 AI Proxy routes loading...');
 
@@ -135,7 +136,7 @@ router.post('/content/upload', async (req, res) => {
     let fileName = '';
 
     // Extract text content from uploaded files
-    if (req.files && req.files.files) {
+    if (req.files && req.files.files && (Array.isArray(req.files.files) ? req.files.files.length > 0 : true)) {
       const files = Array.isArray(req.files.files) ? req.files.files : [req.files.files];
       
       for (const file of files) {
@@ -215,37 +216,31 @@ router.post('/content/upload', async (req, res) => {
 
     // NEW: Automatic Test Generation
     let generatedTests = [];
-    if (generateTests && textContent.length > 50) {
+    if (generateTests && textContent && textContent.trim().length > 50) {
       console.log('🤖 Generating automatic tests from content...');
       
       try {
-        // Generate questions using OpenAI
         const questions = await generateQuestionsFromContent(textContent, newLessonTitle || 'Generated Test');
-        
         if (questions && questions.length > 0) {
-          // Create test for the lesson
           const test = await Test.create({
             title: `${newLessonTitle || 'Generated'} Test`,
             description: `Automatically generated test from uploaded content`,
             questions: JSON.stringify(questions),
             lessonId: targetLessonId,
             type: 'multiple_choice',
-            timeLimit: 600, // 10 minutes
+            timeLimit: 600,
             passingScore: 70
           });
-          
           generatedTests.push({
             testId: test.id,
             title: test.title,
             questionCount: questions.length,
             type: 'multiple_choice'
           });
-          
           console.log(`✅ Generated test with ${questions.length} questions`);
         }
       } catch (testGenError) {
         console.error('❌ Test generation failed:', testGenError.message);
-        // Continue without test generation
       }
     }
 
@@ -253,11 +248,11 @@ router.post('/content/upload', async (req, res) => {
       id: Date.now(),
       title: req.body.title || fileName || 'Uploaded Content',
       status: 'ready',
-      file_size: req.files && req.files.files ? req.files.files.size || textContent.length : textContent.length,
-      word_count: textContent.split(' ').length,
+      file_size: req.files && req.files.files ? (Array.isArray(req.files.files) ? req.files.files[0]?.size : req.files.files.size) || textContent.length : textContent.length,
+      word_count: (textContent || '').split(' ').filter(Boolean).length,
       lesson_id: targetLessonId,
-      content_preview: textContent.substring(0, 200) + '...',
-      generated_tests: generatedTests // NEW: Include generated tests
+      content_preview: (textContent || '').substring(0, 200) + '...',
+      generated_tests: generatedTests
     }];
 
     console.log('✅ Content upload successful:', uploadedSources[0]);
@@ -268,10 +263,12 @@ router.post('/content/upload', async (req, res) => {
     });
     res.json({
       success: true,
-      uploaded_sources: uploadedSources,
-      message: `Successfully uploaded content: ${uploadedSources[0].title}`,
-      lesson_assignment: targetLessonId ? `Assigned to lesson ID: ${targetLessonId}` : 'No lesson assignment',
-      generated_tests: generatedTests.length > 0 ? `Generated ${generatedTests.length} test(s)` : 'No tests generated'
+      uploadedSources,
+      lesson_assignment: {
+        lessonId: targetLessonId,
+        createdNew: createNewLesson && !!targetLessonId
+      },
+      message: 'Upload processed'
     });
 
   } catch (error) {

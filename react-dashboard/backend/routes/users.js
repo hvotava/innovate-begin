@@ -420,10 +420,10 @@ router.post('/:id/call', auth, adminOnly, async (req, res) => {
             solution: 'Enable Czech Republic (+420) in Twilio Geo Permissions'
           });
         } else {
-          res.status(500).json({ 
-            error: 'Nepodařilo se zahájit Twilio volání',
-            details: twilioError.message || 'Neznámá chyba'
-          });
+        res.status(500).json({ 
+          error: 'Nepodařilo se zahájit Twilio volání',
+          details: twilioError.message || 'Neznámá chyba'
+        });
         }
       }
     } else {
