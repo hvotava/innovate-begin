@@ -572,7 +572,7 @@ const ContentManagement: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <Chip 
-                            label={source.content_type.toUpperCase()} 
+                            label={(source.content_type || 'unknown').toUpperCase()} 
                             size="small" 
                             variant="outlined"
                           />

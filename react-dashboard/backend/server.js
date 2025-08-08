@@ -59,6 +59,7 @@ app.use('/api/content', require('./routes/content'));
 app.use('/api/ai-proxy', require('./routes/ai-proxy'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/questions', require('./routes/questions'));
+app.use('/api/courses', require('./routes/courses'));
 
 // AI Tutor API Proxy - forward these paths to Python backend
 const pythonBackendUrl = process.env.PYTHON_BACKEND_URL || 'https://lecture-app-production.up.railway.app';
