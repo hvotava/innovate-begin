@@ -148,6 +148,21 @@ function generateQuestionsFromLesson(lesson) {
         question: 'Co je podle vás nejdůležitější informace z této lekce?',
         options: ['Teoretické znalosti', 'Praktické dovednosti', 'Bezpečnostní pravidla', 'Všechny informace'],
         correctAnswer: 3
+      },
+      {
+        question: 'Jak byste využili tyto znalosti ve své práci?',
+        options: ['Pro lepší výkon', 'Pro bezpečnost', 'Pro komunikaci', 'Všechny možnosti'],
+        correctAnswer: 3
+      },
+      {
+        question: 'Co je nejdůležitější při aplikaci těchto znalostí?',
+        options: ['Přesnost', 'Bezpečnost', 'Rychlost', 'Všechny faktory'],
+        correctAnswer: 3
+      },
+      {
+        question: 'Jak byste shrnuli tuto lekci v jedné větě?',
+        options: ['Praktické školení', 'Bezpečnostní opatření', 'Teoretické znalosti', 'Komplexní přístup'],
+        correctAnswer: 3
       }
     ];
   }
