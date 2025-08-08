@@ -132,11 +132,11 @@ const ContentManagement: React.FC = () => {
 
   // Load data
   const loadContentSources = useCallback(async () => {
-    if (!user?.companyId) return;
+    const companyId = user?.companyId || 1;
 
     try {
       setLoading(true);
-      const response = await api.get(`/ai-proxy/content/company/${user.companyId}`);
+      const response = await api.get(`/ai-proxy/content/company/${companyId}`);
       setContentSources(response.data.content_sources || []);
     } catch (err: any) {
       console.error('Error loading content sources:', err);
@@ -147,10 +147,10 @@ const ContentManagement: React.FC = () => {
   }, [user?.companyId]);
 
   const loadCourses = useCallback(async () => {
-    if (!user?.companyId) return;
+    const companyId = user?.companyId || 1;
 
     try {
-      const response = await api.get(`/courses/company/${user.companyId}`);
+      const response = await api.get(`/courses/company/${companyId}`);
       setCourses(response.data.courses || []);
     } catch (err: any) {
       console.error('Error loading courses:', err);
@@ -187,18 +187,12 @@ const ContentManagement: React.FC = () => {
     console.log('👤 User:', user);
     console.log('🏢 Company ID:', user?.companyId);
     
-    if (!user?.companyId || acceptedFiles.length === 0) {
-      console.log('❌ Early return - no company or files');
-      return;
-    }
-    console.log('👤 User:', user);
-    console.log('🏢 Company ID:', user?.companyId);
-    console.log('📊 Accepted files length:', acceptedFiles.length);
-    console.log('📄 File types:', acceptedFiles.map(f => f.type));
-    console.log('📄 File names:', acceptedFiles.map(f => f.name));
+    // Use companyId from user or default to 1 if not available
+    const companyId = user?.companyId || 1;
+    console.log('🏢 Using company ID:', companyId);
     
-    if (!user?.companyId || acceptedFiles.length === 0) {
-      console.log('❌ Early return - no company or files');
+    if (acceptedFiles.length === 0) {
+      console.log('❌ Early return - no files');
       return;
     }
 
@@ -209,7 +203,7 @@ const ContentManagement: React.FC = () => {
     try {
       console.log('📤 Starting upload process...');
       const formData = new FormData();
-      formData.append('company_id', user.companyId.toString());
+      formData.append('company_id', companyId.toString());
       formData.append('title', uploadTitle || acceptedFiles[0].name);
       formData.append('content_type', acceptedFiles[0].type.includes('pdf') ? 'pdf' : 'text');
       
@@ -283,7 +277,9 @@ const ContentManagement: React.FC = () => {
 
   // Text content upload
   const handleTextUpload = async () => {
-    if (!textContent.trim() || !user?.companyId) return;
+    if (!textContent.trim()) return;
+    
+    const companyId = user?.companyId || 1;
 
     setUploading(true);
     setError(null);
@@ -293,7 +289,7 @@ const ContentManagement: React.FC = () => {
       const file = new File([blob], uploadTitle || 'text-content.txt', { type: 'text/plain' });
       
       const formData = new FormData();
-      formData.append('company_id', user.companyId.toString());
+      formData.append('company_id', companyId.toString());
       formData.append('title', uploadTitle || 'Text Content');
       formData.append('content_type', 'text');
       formData.append('files', file);
