@@ -77,12 +77,6 @@ class VoiceNavigationManager {
 
     console.log(`🎯 Processing user input: "${userInput}" in state: ${state.currentState}`);
 
-    // Check for navigation commands
-    const navigationCommand = this.checkNavigationCommand(userInput);
-    if (navigationCommand) {
-      return this.handleNavigation(navigationCommand, state, userPhone);
-    }
-
     // Process based on current state
     switch (state.currentState) {
       case CONVERSATION_STATES.LESSON_PLAYING:
@@ -185,6 +179,14 @@ class VoiceNavigationManager {
   // Handle test completion
   static async handleTestCompleted(userInput, state, userPhone) {
     console.log('🎓 Test completed, showing navigation menu...');
+    console.log(`📊 Final score: ${state.score}/${state.totalQuestions} (${Math.round((state.score / state.totalQuestions) * 100)}%)`);
+    
+    // Check for navigation commands first
+    const navigationCommand = this.checkNavigationCommand(userInput);
+    if (navigationCommand) {
+      console.log(`🎮 Navigation command detected in test completion: ${navigationCommand}`);
+      return this.handleNavigation(navigationCommand, state, userPhone);
+    }
     
     // Save results
     try {
@@ -197,6 +199,8 @@ class VoiceNavigationManager {
     
     const percentage = Math.round((state.score / state.totalQuestions) * 100);
     const feedback = this.generateTestFeedback(percentage, state.userLanguage);
+    
+    console.log(`📋 Test feedback: ${feedback}`);
     
     return {
       questionType: 'navigation_menu',
@@ -448,9 +452,11 @@ class VoiceNavigationManager {
   // Handle test phase with improved answer checking
   static async handleTestPhase(userInput, state, userPhone) {
     console.log(`🧪 Test phase - Question ${state.currentQuestionIndex + 1}/${state.totalQuestions}`);
+    console.log(`🔍 Debug: currentQuestionIndex=${state.currentQuestionIndex}, totalQuestions=${state.totalQuestions}`);
     
     // Check if test is completed
     if (state.currentQuestionIndex >= state.totalQuestions) {
+      console.log('🎓 Test completed, transitioning to TEST_COMPLETED state');
       state.currentState = CONVERSATION_STATES.TEST_COMPLETED;
       return this.handleTestCompleted(userInput, state, userPhone);
     }
@@ -501,6 +507,8 @@ class VoiceNavigationManager {
     if (!correctAnswer) return false;
     
     console.log(`🔍 Checking answer: "${cleanInput}" against "${correctAnswer}"`);
+    console.log(`🔍 Question options: ${question.options.join(', ')}`);
+    console.log(`🔍 Correct answer index: ${question.correctAnswer}`);
     
     // Check exact match
     if (cleanInput.includes(correctAnswer.toLowerCase())) {
@@ -512,6 +520,20 @@ class VoiceNavigationManager {
     const correctLetter = String.fromCharCode(65 + question.correctAnswer);
     if (cleanInput.includes(correctLetter.toLowerCase())) {
       console.log('✅ Letter match found');
+      return true;
+    }
+    
+    // Check number match (1, 2, 3, 4)
+    const correctNumber = question.correctAnswer + 1;
+    if (cleanInput.includes(correctNumber.toString())) {
+      console.log('✅ Number match found');
+      return true;
+    }
+    
+    // Check Czech number words
+    const czechNumbers = ['jedna', 'dva', 'tři', 'čtyři'];
+    if (cleanInput.includes(czechNumbers[question.correctAnswer])) {
+      console.log('✅ Czech number match found');
       return true;
     }
     
