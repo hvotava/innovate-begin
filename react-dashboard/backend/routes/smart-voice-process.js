@@ -141,7 +141,7 @@ async function smartVoiceProcess(req, res) {
     
     const response = await VoiceNavigationManager.processUserResponse(
       fallbackResponse,
-      CallSid,
+      req.body.CallSid,
       req.body.Called || req.body.Caller
     );
     
@@ -463,10 +463,10 @@ async function smartTranscribeProcess(req, res) {
       
       console.log('🔄 FALLBACK: Using realistic response:', fallbackResponse);
       
-      const response = await ConversationManager.processUserResponse(
+      const response = await VoiceNavigationManager.processUserResponse(
         fallbackResponse,
-        CallSid,
-        Called || Caller
+        req.body.CallSid,
+        req.body.Called || req.body.Caller
       );
       
       console.log('🧠 Fallback conversation response:', response);
