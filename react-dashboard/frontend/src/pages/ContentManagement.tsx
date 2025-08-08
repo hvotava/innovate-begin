@@ -182,6 +182,9 @@ const ContentManagement: React.FC = () => {
     console.log('📁 onDrop called with files:', acceptedFiles);
     console.log('👤 User:', user);
     console.log('🏢 Company ID:', user?.companyId);
+    console.log('📊 Accepted files length:', acceptedFiles.length);
+    console.log('📄 File types:', acceptedFiles.map(f => f.type));
+    console.log('📄 File names:', acceptedFiles.map(f => f.name));
     
     if (!user?.companyId || acceptedFiles.length === 0) {
       console.log('❌ Early return - no company or files');
@@ -250,7 +253,16 @@ const ContentManagement: React.FC = () => {
       'text/plain': ['.txt'],
     },
     multiple: true,
-    disabled: uploading
+    disabled: uploading,
+    onDropRejected: (rejectedFiles) => {
+      console.log('❌ Files rejected:', rejectedFiles);
+    },
+    onDragEnter: () => {
+      console.log('📁 Drag enter detected');
+    },
+    onDragLeave: () => {
+      console.log('📁 Drag leave detected');
+    }
   });
 
   // Text content upload
