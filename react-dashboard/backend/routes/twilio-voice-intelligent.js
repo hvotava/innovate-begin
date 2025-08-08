@@ -76,7 +76,7 @@ async function intelligentVoiceCall(req, res) {
         ${lessonContent}
     </Say>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.82" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
-        První otázka: ${Array.isArray(lessonData.questions) && lessonData.questions[0] && lessonData.questions[0].question ? `${lessonData.questions[0].question} ${lessonData.questions[0].options ? ' Možnosti: ' + lessonData.questions[0].options.map((o,i)=>String.fromCharCode(65+i)+') '+o).join('. ') + '.' : ''}` : 'Otázka není k dispozici.'}
+        První otázka: ${Array.isArray(lessonData.questions) && lessonData.questions[0] ? `${lessonData.questions[0].question || lessonData.questions[0].text || 'Otázka'} ${lessonData.questions[0].options && Array.isArray(lessonData.questions[0].options) ? ' Možnosti: ' + lessonData.questions[0].options.map((o,i)=>String.fromCharCode(65+i)+') '+o).join('. ') + '.' : ''}` : 'Otázka není k dispozici.'}
     </Say>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         Nyní krátký test k této lekci.
