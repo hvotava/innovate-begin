@@ -186,6 +186,13 @@ class VoiceNavigationManager {
   static async handleTestCompleted(userInput, state, userPhone) {
     console.log('🎓 Test completed, showing navigation menu...');
     
+    // Save results
+    try {
+      await this.saveTestResults(state);
+    } catch (e) {
+      console.error('❌ Saving test results failed:', e.message);
+    }
+    
     state.currentState = CONVERSATION_STATES.NAVIGATION_MENU;
     
     const percentage = Math.round((state.score / state.totalQuestions) * 100);
@@ -197,6 +204,30 @@ class VoiceNavigationManager {
       nextQuestion: this.getNavigationMenu(state.userLanguage),
       navigationOptions: this.getNavigationOptions(state.userLanguage)
     };
+  }
+
+  static async saveTestResults(state) {
+    try {
+      const TestResult = require('../models/TestResult');
+      const userId = state.lesson?.user_id || null;
+      const lessonId = state.lesson?.lesson_id || null;
+      const percentage = Math.round((state.score / state.totalQuestions) * 100);
+      
+      for (const ans of state.userAnswers) {
+        await TestResult.create({
+          userId,
+          lessonId,
+          question: ans.question,
+          userAnswer: ans.userAnswer,
+          isCorrect: ans.correct,
+          correctAnswer: ans.correctAnswer,
+          scorePercentage: percentage
+        });
+      }
+      console.log('✅ Test results saved');
+    } catch (error) {
+      console.error('❌ Error creating TestResult records:', error.message);
+    }
   }
 
   // Handle navigation menu
@@ -216,10 +247,30 @@ class VoiceNavigationManager {
   }
 
   // Load next lesson
-  static async loadNextLesson(state, userPhone) {
+  static async loadNextLesson(state, userPhone) { // Uses next lesson after current
+    const { getNextLesson, loadTestQuestionsFromDB } = require('./lesson-selector');
     try {
-      const { getLessonForUser } = require('./lesson-selector');
-      const nextLesson = await getLessonForUser(userPhone);
+      const currentId = state.lesson?.lesson_id;
+      let nextLessonRecord = null;
+      if (currentId) {
+        nextLessonRecord = await getNextLesson(currentId);
+      }
+      if (!nextLessonRecord) {
+        return {
+          questionType: 'navigation_menu',
+          feedback: 'Žádná další lekce nenavazuje.',
+          nextQuestion: this.getNavigationMenu(state.userLanguage)
+        };
+      }
+      const questions = await loadTestQuestionsFromDB(nextLessonRecord.id);
+      const nextLesson = {
+        type: 'lesson',
+        lesson_id: nextLessonRecord.id,
+        title: nextLessonRecord.title,
+        content: nextLessonRecord.content || nextLessonRecord.description,
+        language: state.userLanguage,
+        questions
+      };
       
       if (nextLesson && nextLesson.type === 'lesson') {
         state.lesson = nextLesson;
@@ -250,10 +301,30 @@ class VoiceNavigationManager {
   }
 
   // Load previous lesson
-  static async loadPreviousLesson(state, userPhone) {
+  static async loadPreviousLesson(state, userPhone) { // Uses previous lesson before current
+    const { getPreviousLesson, loadTestQuestionsFromDB } = require('./lesson-selector');
     try {
-      const { getLessonForUser } = require('./lesson-selector');
-      const prevLesson = await getLessonForUser(userPhone);
+      const currentId = state.lesson?.lesson_id;
+      let prevLessonRecord = null;
+      if (currentId) {
+        prevLessonRecord = await getPreviousLesson(currentId);
+      }
+      if (!prevLessonRecord) {
+        return {
+          questionType: 'navigation_menu',
+          feedback: 'Žádná předchozí lekce není k dispozici.',
+          nextQuestion: this.getNavigationMenu(state.userLanguage)
+        };
+      }
+      const questions = await loadTestQuestionsFromDB(prevLessonRecord.id);
+      const prevLesson = {
+        type: 'lesson',
+        lesson_id: prevLessonRecord.id,
+        title: prevLessonRecord.title,
+        content: prevLessonRecord.content || prevLessonRecord.description,
+        language: state.userLanguage,
+        questions
+      };
       
       if (prevLesson && prevLesson.type === 'lesson') {
         state.lesson = prevLesson;

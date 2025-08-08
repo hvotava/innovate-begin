@@ -57,7 +57,7 @@ app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/twilio', require('./routes/twilio'));
 app.use('/api/content', require('./routes/content'));
 app.use('/api/ai-proxy', require('./routes/ai-proxy'));
-// app.use('/api/test-results', require('./routes/test-results')); // TODO: Re-enable after DB migration
+app.use('/api/analytics', require('./routes/analytics'));
 
 // AI Tutor API Proxy - forward these paths to Python backend
 const pythonBackendUrl = process.env.PYTHON_BACKEND_URL || 'https://lecture-app-production.up.railway.app';

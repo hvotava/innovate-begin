@@ -66,21 +66,24 @@ async function intelligentVoiceCall(req, res) {
       
       console.log(`🎯 Lesson content:`, lessonContent);
       
-      // Regular lesson TwiML
+      // Regular lesson TwiML (lesson first)
       twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.9" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         ${lessonData.message}
     </Say>
-    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
-        První otázka: ${firstQuestion}
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.85" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
+        ${lessonContent}
+    </Say>
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
+        Nyní krátký test k této lekci.
     </Say>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.7" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         ${getLocalizedInstructions(userLanguage)}
     </Say>
     <Record finishOnKey="#" 
-        timeout="10"
-        maxLength="30"
+        timeout="20"
+        maxLength="90"
         playBeep="true"
         action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
         method="POST"

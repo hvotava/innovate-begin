@@ -215,4 +215,14 @@ function getLocalizedInstructions(language) {
   }
 }
 
-module.exports = { getLessonForUser, getLocalizedInstructions };
+async function getNextLesson(currentLessonId) {
+  const next = await Lesson.findOne({ where: { id: { [require('sequelize').Op.gt]: currentLessonId } }, order: [['id', 'ASC']] });
+  return next;
+}
+
+async function getPreviousLesson(currentLessonId) {
+  const prev = await Lesson.findOne({ where: { id: { [require('sequelize').Op.lt]: currentLessonId } }, order: [['id', 'DESC']] });
+  return prev;
+}
+
+module.exports = { getLessonForUser, getLocalizedMessage, getLocalizedContent, getLocalizedInstructions, loadTestQuestionsFromDB, getNextLesson, getPreviousLesson };

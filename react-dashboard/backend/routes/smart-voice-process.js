@@ -127,7 +127,7 @@ async function smartVoiceProcess(req, res) {
     console.log('🔄 FALLBACK: Processing recording without transcription callback');
     
     // Get conversation state
-    const state = ConversationManager.getState(CallSid);
+    const state = VoiceNavigationManager.getState(CallSid);
     if (!state) {
       console.log('❌ No conversation state found in fallback');
       return res.send(getErrorTwiml());
@@ -139,10 +139,10 @@ async function smartVoiceProcess(req, res) {
     const fallbackResponse = 'B'; // Default to option B for fallback
     console.log('🔄 FALLBACK: Using default response:', fallbackResponse);
     
-    const response = await ConversationManager.processUserResponse(
+    const response = await VoiceNavigationManager.processUserResponse(
       fallbackResponse,
       CallSid,
-      Called || Caller
+      req.body.Called || req.body.Caller
     );
     
     console.log('🧠 Fallback conversation response:', response);
