@@ -183,15 +183,8 @@ class VoiceNavigationManager {
 
   // Handle test completion
   static async handleTestCompleted(userInput, state, userPhone) {
-    console.log('🎓 Test completed, showing navigation menu...');
+    console.log('🎓 Test completed, ending session...');
     console.log(`📊 Final score: ${state.score}/${state.totalQuestions} (${Math.round((state.score / state.totalQuestions) * 100)}%)`);
-    
-    // Check for navigation commands first
-    const navigationCommand = this.checkNavigationCommand(userInput);
-    if (navigationCommand) {
-      console.log(`🎮 Navigation command detected in test completion: ${navigationCommand}`);
-      return this.handleNavigation(navigationCommand, state, userPhone);
-    }
     
     // Save results
     try {
@@ -200,18 +193,14 @@ class VoiceNavigationManager {
       console.error('❌ Saving test results failed:', e.message);
     }
     
-    state.currentState = CONVERSATION_STATES.NAVIGATION_MENU;
-    
     const percentage = Math.round((state.score / state.totalQuestions) * 100);
     const feedback = this.generateTestFeedback(percentage, state.userLanguage);
     
     console.log(`📋 Test feedback: ${feedback}`);
     
     return {
-      questionType: 'navigation_menu',
-      feedback: feedback,
-      nextQuestion: this.getNavigationMenu(state.userLanguage),
-      navigationOptions: this.getNavigationOptions(state.userLanguage)
+      questionType: 'session_complete',
+      feedback: feedback
     };
   }
 
@@ -432,7 +421,32 @@ class VoiceNavigationManager {
     
     // Automatically transition to test after any user input during lesson
     console.log('✅ Lesson completed, automatically transitioning to test');
-    return this.handleLessonCompleted(userInput, state, userPhone);
+    state.currentState = CONVERSATION_STATES.TEST_ACTIVE;
+    state.currentQuestionIndex = 0;
+    state.totalQuestions = state.lesson.questions ? state.lesson.questions.length : 0;
+    state.score = 0;
+    state.userAnswers = [];
+    
+    console.log(`🔍 Debug: questions array length = ${state.lesson.questions ? state.lesson.questions.length : 'undefined'}`);
+    console.log(`🔍 Debug: totalQuestions = ${state.totalQuestions}`);
+    
+    if (state.totalQuestions === 0) {
+      console.log('⚠️ No questions found, ending session');
+      return {
+        questionType: 'session_complete',
+        feedback: 'Lekce dokončena. Test není k dispozici.'
+      };
+    }
+    
+    const firstQuestion = this.formatTestQuestion(state.lesson.questions[0], state.userLanguage);
+    console.log(`✅ Starting test with first question: ${firstQuestion.substring(0, 100)}...`);
+    
+    return {
+      questionType: 'test',
+      feedback: 'Lekce dokončena. Začínáme test.',
+      nextQuestion: firstQuestion,
+      navigationOptions: this.getNavigationOptions(state.userLanguage)
+    };
   }
 
   // Handle test phase with improved answer checking
@@ -464,6 +478,27 @@ class VoiceNavigationManager {
       correct: isCorrect,
       correctAnswer: currentQuestion.options[currentQuestion.correctAnswer]
     });
+    
+    // Save each answer immediately to database
+    try {
+      const TestResult = require('../models/TestResult');
+      const userId = state.lesson?.user_id || null;
+      const lessonId = state.lesson?.lesson_id || null;
+      
+      await TestResult.create({
+        userId,
+        lessonId,
+        question: currentQuestion.question,
+        userAnswer: userInput,
+        isCorrect: isCorrect,
+        correctAnswer: currentQuestion.options[currentQuestion.correctAnswer],
+        scorePercentage: null // Will be calculated at the end
+      });
+      
+      console.log(`💾 Answer saved to database: ${isCorrect ? 'CORRECT' : 'WRONG'}`);
+    } catch (error) {
+      console.error('❌ Error saving answer to database:', error.message);
+    }
     
     state.currentQuestionIndex++;
     

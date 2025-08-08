@@ -57,7 +57,6 @@ async function intelligentVoiceCall(req, res) {
     </Say>
 </Response>`;
     } else if (lessonData.type === 'lesson') {
-      // Format first question properly (could be object with multiple choice)
       // Format lesson content for TwiML
       let lessonContent = lessonData.content || lessonData.description || 'Praktické školení.';
       if (lessonData.title) {
@@ -66,7 +65,7 @@ async function intelligentVoiceCall(req, res) {
       
       console.log(`🎯 Lesson content:`, lessonContent);
       
-      // Regular lesson TwiML (lesson first)
+      // Regular lesson TwiML (lesson only, no test mention)
       twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.9" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
@@ -75,11 +74,8 @@ async function intelligentVoiceCall(req, res) {
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.85" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         ${lessonContent}
     </Say>
-    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
-        Nyní krátký test k této lekci.
-    </Say>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.7" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
-        ${getLocalizedInstructions(userLanguage)}
+        Řekněte cokoliv pro pokračování.
     </Say>
     <Record finishOnKey="#" 
         timeout="20"
