@@ -421,7 +421,13 @@ class VoiceNavigationManager {
   static async handleLessonPhase(userInput, state, userPhone) {
     console.log(`📚 Lesson phase - Question ${state.currentQuestionIndex + 1}`);
     
-    // Check if lesson is completed
+    // If this is the first interaction after lesson was read, transition to test
+    if (state.currentQuestionIndex === 0) {
+      state.currentState = CONVERSATION_STATES.LESSON_COMPLETED;
+      return this.handleLessonCompleted(userInput, state, userPhone);
+    }
+    
+    // Check if lesson is completed (should not happen in normal flow)
     if (state.currentQuestionIndex >= (state.lesson.questions ? state.lesson.questions.length : 0)) {
       state.currentState = CONVERSATION_STATES.LESSON_COMPLETED;
       return this.handleLessonCompleted(userInput, state, userPhone);
