@@ -68,6 +68,11 @@ interface QuestionFormData {
   options: string[];
   correctAnswer: number;
   explanation?: string;
+  type?: 'multiple_choice' | 'free_text' | 'fill_in_blank' | 'matching';
+  difficulty?: 'easy' | 'medium' | 'hard';
+  keyWords?: string[];
+  alternatives?: string[];
+  pairs?: Array<{term: string; definition: string}>;
 }
 
 const Tests: React.FC = () => {
@@ -95,7 +100,12 @@ const Tests: React.FC = () => {
     question: '',
     options: ['', '', '', ''],
     correctAnswer: 0,
-    explanation: ''
+    explanation: '',
+    type: 'multiple_choice',
+    difficulty: 'medium',
+    keyWords: [],
+    alternatives: [],
+    pairs: []
   });
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -763,7 +773,7 @@ const Tests: React.FC = () => {
                     </AccordionSummary>
                     <AccordionDetails>
                       <Box sx={{ mb: 2 }}>
-                        {question.type === 'multiple_choice' && (
+                        {(question.type === 'multiple_choice' || !question.type) && (
                           <>
                             <Typography variant="subtitle2" sx={{ mb: 1 }}>Možnosti:</Typography>
                             {question.options.map((option, optIndex) => (
@@ -985,7 +995,7 @@ const Tests: React.FC = () => {
         onClose={() => setAiGeneratorOpen(false)}
         onQuestionsGenerated={(questions) => {
           // Convert AI questions to test format and add to formData
-          const convertedQuestions = questions.map(q => ({
+          const convertedQuestions: Question[] = questions.map(q => ({
             question: q.question,
             options: q.type === 'multiple_choice' ? q.options || [] : 
                     q.type === 'fill_in_blank' ? [`${q.correctAnswer}`, ...(q.alternatives || [])] :
@@ -993,8 +1003,8 @@ const Tests: React.FC = () => {
                     [q.correctAnswer],
             correctAnswer: 0, // First option is always correct for AI generated questions
             explanation: q.explanation || '',
-            type: q.type || 'multiple_choice',
-            difficulty: q.difficulty || 'medium',
+            type: (q.type as 'multiple_choice' | 'free_text' | 'fill_in_blank' | 'matching') || 'multiple_choice',
+            difficulty: (q.difficulty as 'easy' | 'medium' | 'hard') || 'medium',
             keyWords: q.keyWords || [],
             alternatives: q.alternatives || [],
             pairs: q.pairs || []
