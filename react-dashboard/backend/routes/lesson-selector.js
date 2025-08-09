@@ -29,6 +29,7 @@ async function getLessonForUser(phoneNumber) {
         return {
           type: 'lesson',
           lesson_id: firstLesson.id,
+          user_id: 1, // Fallback to admin user when phone not found
           title: firstLesson.title,
           message: `Vítejte! Začneme s lekcí "${firstLesson.title}".`,
           content: firstLesson.content || firstLesson.description || 'Praktické školení podle materiálů.',
@@ -98,9 +99,11 @@ async function getLessonForUser(phoneNumber) {
     
     console.log(`📋 Generated lesson:`, {
       id: lesson.lesson_id,
+      user_id: lesson.user_id,
       title: lesson.title,
       questionsCount: lesson.questions.length
     });
+    console.log(`🔍 DEBUG: Lesson will be saved with user_id: ${lesson.user_id}`);
     
     return lesson;
     

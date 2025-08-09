@@ -495,6 +495,12 @@ class VoiceNavigationManager {
       const userId = state.lesson?.user_id || null;
       const lessonTitle = state.lesson?.title || null;
       const trainingType = state.lesson?.trainingType || 'lesson_test';
+      
+      console.log(`🔍 DEBUG: About to save TestResult - userId: ${userId}, lessonTitle: ${lessonTitle}, hasLesson: ${!!state.lesson}`);
+      if (state.lesson) {
+        console.log(`🔍 DEBUG: Lesson object keys:`, Object.keys(state.lesson));
+        console.log(`🔍 DEBUG: Lesson user_id:`, state.lesson.user_id);
+      }
 
       await TestResult.create({
         userId,
