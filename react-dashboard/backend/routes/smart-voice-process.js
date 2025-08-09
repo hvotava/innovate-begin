@@ -93,8 +93,17 @@ async function smartVoiceProcess(req, res) {
       if (state.currentState === 'lesson_playing') {
         console.log('🎯 Transitioning from lesson to test via AUTO_START');
         const response = await VoiceNavigationManager.processUserResponse('AUTO_START', CallSid, userPhone);
+        
+        console.log('🔍 DEBUG: AUTO_START response:', {
+          hasResponse: !!response,
+          questionType: response?.questionType,
+          hasNextQuestion: !!response?.nextQuestion,
+          hasFeedback: !!response?.feedback,
+          nextQuestionLength: response?.nextQuestion?.length || 0
+        });
 
         if (response && response.nextQuestion) {
+          console.log('✅ Response has nextQuestion, generating TwiML with Record tag');
           const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say language="${getTwilioLanguage(userLanguage)}" rate="0.85" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">${response.feedback}</Say>
@@ -110,10 +119,6 @@ async function smartVoiceProcess(req, res) {
     transcribe="true"
     transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
     transcribeCallbackMethod="POST"
-        language="${getTwilioLanguage(userLanguage)}"
-        transcribeLanguage="${getTwilioLanguage(userLanguage)}"
-        speechTimeout="auto"
-        speechModel="phone_call"
     language="${getTwilioLanguage(userLanguage)}"
     transcribeLanguage="${getTwilioLanguage(userLanguage)}"
     speechTimeout="auto"
@@ -121,10 +126,25 @@ async function smartVoiceProcess(req, res) {
     trim="trim-silence"
   />
 </Response>`;
+          console.log('📤 Sending AUTO_START TwiML response...');
+          console.log('🔍 DEBUG: TwiML length:', twimlResponse.length);
+          console.log('🔍 DEBUG: TwiML contains Record tag:', twimlResponse.includes('<Record'));
           res.set('Content-Type', 'application/xml');
           res.send(twimlResponse);
+          console.log('✅ AUTO_START TwiML response sent successfully');
+          return;
+        } else {
+          console.log('❌ No nextQuestion in AUTO_START response, ending call');
+          console.log('🔍 DEBUG: Response details:', JSON.stringify(response, null, 2));
+          const errorTwiml = getErrorTwiml(userLanguage);
+          res.set('Content-Type', 'application/xml');
+          res.send(errorTwiml);
           return;
         }
+      } else {
+        console.log('❌ State is not lesson_playing, cannot transition to test');
+        console.log('🔍 DEBUG: Current state:', state.currentState);
+        console.log('🔍 DEBUG: Available states:', Object.keys(state));
       }
 
       // Fallback for other states without RecordingUrl
