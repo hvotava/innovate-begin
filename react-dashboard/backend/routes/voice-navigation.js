@@ -590,6 +590,25 @@ class VoiceNavigationManager {
       return true;
     }
     
+    // Check specific Czech number phrases (for common medical/scientific numbers)
+    const specificNumbers = {
+      '206': ['dveste sest', 'dvěstě šest', 'dvesta sest', 'dvě stě šest', '206'],
+      '100': ['sto', 'jedna sta', '100'],
+      '365': ['tri sta sedesatpet', 'tři sta šedesát pět', '365'],
+      '52': ['padesatdva', 'padesát dva', '52']
+    };
+    
+    for (const [number, phrases] of Object.entries(specificNumbers)) {
+      if (correctAnswer === number) {
+        for (const phrase of phrases) {
+          if (cleanInput.includes(normalize(phrase))) {
+            console.log(`✅ Specific Czech number match found: "${phrase}" for ${number}`);
+            return true;
+          }
+        }
+      }
+    }
+    
     // Check fuzzy match with Levenshtein distance (75% similarity)
     const normalizedCorrect = normalize(correctAnswer);
     const distance = levenshtein(cleanInput, normalizedCorrect);
