@@ -151,6 +151,8 @@ const UserProgressAnalytics: React.FC = () => {
       const params = new URLSearchParams();
       if (filters.companyId) params.append('companyId', filters.companyId);
       if (filters.userId) params.append('userId', filters.userId);
+      // Cache busting
+      params.append('t', Date.now().toString());
       
       const response = await api.get(`/api/analytics/users/progress?${params}`);
       if (response.data.success) {
