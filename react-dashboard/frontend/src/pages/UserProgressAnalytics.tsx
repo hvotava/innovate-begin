@@ -154,7 +154,7 @@ const UserProgressAnalytics: React.FC = () => {
       // Cache busting
       params.append('t', Date.now().toString());
       
-      const response = await api.get(`/api/analytics/users/progress?${params}`);
+      const response = await api.get(`/analytics/users/progress?${params}`);
       if (response.data.success) {
         let userData = response.data.users;
         
