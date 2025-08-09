@@ -171,16 +171,20 @@ router.post('/', [
   body('orderNumber').optional().isInt({ min: 0 }).withMessage('Order number must be non-negative integer'),
   body('questions').isArray({ min: 1 }).withMessage('At least one question is required'),
   body('questions.*.question').notEmpty().withMessage('Question text is required'),
-  body('questions.*.options').isArray({ min: 2 }).withMessage('At least 2 options are required'),
+  body('questions.*.options').isArray({ min: 1 }).withMessage('At least 1 option is required'),
   body('questions.*.correctAnswer').isInt({ min: 0 }).withMessage('Correct answer index is required')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Test validation errors:', errors.array());
+      console.log('📝 Request body:', JSON.stringify(req.body, null, 2));
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { title, lessonId, orderNumber, questions } = req.body;
+    
+    console.log('✅ Test validation passed, creating test:', { title, lessonId, orderNumber, questionsCount: questions?.length });
 
     // Zkontroluj, jestli lekce existuje a přístup k ní
     const lesson = await Lesson.findByPk(lessonId, {
