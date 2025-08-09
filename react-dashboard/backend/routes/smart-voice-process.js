@@ -692,9 +692,14 @@ async function transcribeWithWhisper(audioUrl, language = 'cs') {
       return null;
     }
     
+    // Wait a bit for Twilio to make recording available
+    console.log('⏳ WHISPER: Waiting 2s for recording to be available...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
     // Download audio from Twilio URL with proper authentication
     const audioResponse = await axios.get(audioUrl, {
       responseType: 'arraybuffer',
+      timeout: 10000,
       auth: {
         username: TWILIO_ACCOUNT_SID,
         password: TWILIO_AUTH_TOKEN
@@ -727,6 +732,45 @@ async function transcribeWithWhisper(audioUrl, language = 'cs') {
     
     return transcription;
   } catch (error) {
+    if (error.response?.status === 404) {
+      console.error('❌ WHISPER: Recording not found (404) - may not be available yet');
+      console.log('⏳ WHISPER: Retrying after 3s...');
+      try {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        const retryResponse = await axios.get(audioUrl, {
+          responseType: 'arraybuffer',
+          timeout: 10000,
+          auth: {
+            username: TWILIO_ACCOUNT_SID,
+            password: TWILIO_AUTH_TOKEN
+          }
+        });
+        console.log('✅ WHISPER: Retry successful, audio size:', retryResponse.data.length);
+        // Continue with Whisper processing...
+        const FormData = require('form-data');
+        const form = new FormData();
+        form.append('file', retryResponse.data, {
+          filename: 'audio.mp3',
+          contentType: 'audio/mpeg'
+        });
+        form.append('model', 'whisper-1');
+        form.append('language', language);
+        form.append('response_format', 'text');
+        
+        const whisperResponse = await axios.post(OPENAI_WHISPER_URL, form, {
+          headers: {
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            ...form.getHeaders()
+          }
+        });
+        
+        const transcription = whisperResponse.data;
+        console.log('✅ WHISPER: Retry transcription successful:', transcription);
+        return transcription;
+      } catch (retryError) {
+        console.error('❌ WHISPER: Retry also failed:', retryError.message);
+      }
+    }
     console.error('❌ WHISPER: Transcription failed:', error.message);
     console.error('🔍 DEBUG: Error details:', {
       status: error.response?.status,
