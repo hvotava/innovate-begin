@@ -580,7 +580,6 @@ class VoiceNavigationManager {
   static checkMultipleChoiceAnswer(cleanInput, question) {
     const correctAnswer = question.options[question.correctAnswer];
     
-    console.log(`🔍 DEBUG: Raw input: "${userInput}"`);
     console.log(`🔍 DEBUG: Normalized input: "${cleanInput}"`);
     console.log(`🔍 DEBUG: Expected answer: "${correctAnswer}"`);
     
