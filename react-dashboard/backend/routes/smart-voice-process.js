@@ -323,99 +323,10 @@ async function smartTranscribeProcess(req, res) {
   
   if (req.body.TranscriptionStatus === 'completed' && transcribedText) {
     console.log(`💬 User said: "${transcribedText}"`);
-          console.log('✅ Transcription completed successfully, processing with VoiceNavigationManager...');
-    
-    try {
-              // Process with new VoiceNavigationManager
-      console.log('🧠 Calling VoiceNavigationManager.processUserResponse...');
-      const response = await VoiceNavigationManager.processUserResponse(
-        transcribedText, 
-        callSid,
-        req.body.Called || req.body.Caller
-      );
-      
-      console.log('🧠 Conversation Analysis:', response);
-      console.log('🔍 DEBUG: Response structure:', {
-        questionType: response.questionType,
-        hasNextQuestion: !!response.nextQuestion,
-        hasFeedback: !!response.feedback,
-        hasTestResults: !!response.testResults
-      });
-      
-      // Generate TwiML response based on conversation state
-      let twimlResponse = '';
-      
-      if (response.questionType === 'session_complete') {
-        // Test completed - speak score explicitly, then end call
-        const scoreLine = response.testResults ? `Získali jste ${response.testResults.score} z ${response.testResults.total} bodů, což je ${response.testResults.percentage} procent.` : '';
-        twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Say language="cs-CZ" rate="0.85" voice="Google.cs-CZ-Standard-A">
-        ${response.feedback}
-    </Say>
-    ${scoreLine ? `<Say language="cs-CZ" rate="0.85" voice="Google.cs-CZ-Standard-A">${scoreLine}</Say>` : ''}
-    <Hangup/>
-</Response>`;
-      } else if (response.nextQuestion) {
-        // Continue with next question
-        twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
-        ${response.feedback}
-    </Say>
-    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
-        ${response.nextQuestion}
-    </Say>
-    <Say language="cs-CZ" rate="0.7" voice="Google.cs-CZ-Standard-A">
-        Řekněte svoji odpověď.
-    </Say>
-    <Record 
-        timeout="10"
-        maxLength="30"
-        playBeep="true"
-        finishOnKey="#"
-        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
-        method="POST"
-        transcribe="true" transcribeCallbackMethod="POST" transcribeLanguage="cs-CZ" speechTimeout="auto" speechModel="phone_call"
-        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
-    />
-</Response>`;
-      } else {
-        // Error or unknown state
-        twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
-        ${response.feedback || 'Omlouvám se, došlo k chybě.'}
-    </Say>
-    <Hangup/>
-</Response>`;
-      }
-      
-      // Send TwiML response
-      console.log('📤 Sending TwiML response to Twilio...');
-      console.log('🔍 DEBUG: TwiML response length:', twimlResponse.length);
-      res.set('Content-Type', 'application/xml');
-      res.send(twimlResponse);
-      console.log('✅ TwiML response sent successfully');
-      
-      // Save test results when test is completed
-      if (response.testResults) {
-        console.log('📊 Test Results:', {
-          score: `${response.testResults.score}/${response.testResults.total}`,
-          percentage: `${response.testResults.percentage}%`
-        });
-        
-        console.log('✅ Test results have been saved to database by VoiceNavigationManager');
-      }
-      
-    } catch (error) {
-      console.error('❌ Transcription processing error:', error.message);
-      console.error('📋 Error details:', error.stack);
-      
-      // Send error TwiML
-      res.set('Content-Type', 'application/xml');
-      res.send(getErrorTwiml());
-    }
+    console.log('✅ Transcription completed successfully, but processing is handled by action callback');
+    console.log('📤 ACK transcription callback without processing (to avoid duplicate)');
+    res.status(200).send('OK');
+    return;
   } else if (req.body.TranscriptionStatus === 'failed') {
     console.log('❌ Twilio transcription failed, trying OpenAI Whisper fallback');
     console.log('📋 Recording URL:', req.body.RecordingUrl);
