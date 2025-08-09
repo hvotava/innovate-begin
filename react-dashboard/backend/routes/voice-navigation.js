@@ -514,10 +514,15 @@ class VoiceNavigationManager {
     
     state.currentQuestionIndex++;
     
+    console.log(`🔍 DEBUG: After increment - currentQuestionIndex=${state.currentQuestionIndex}, totalQuestions=${state.totalQuestions}`);
+    console.log(`🔍 DEBUG: Test completion check: ${state.currentQuestionIndex} < ${state.totalQuestions} = ${state.currentQuestionIndex < state.totalQuestions}`);
+    
     // Get next question or complete test
     if (state.currentQuestionIndex < state.totalQuestions) {
+      console.log(`✅ Moving to next question (${state.currentQuestionIndex + 1}/${state.totalQuestions})`);
       const nextQuestion = this.formatTestQuestion(state.lesson.questions[state.currentQuestionIndex], state.userLanguage);
       
+      console.log(`📤 Returning next question response: feedback="${isCorrect ? 'Správně!' : 'Špatně.'}", questionLength=${nextQuestion.length}`);
       return {
         questionType: 'test',
         feedback: isCorrect ? 'Správně!' : 'Špatně.',
@@ -525,6 +530,7 @@ class VoiceNavigationManager {
         navigationOptions: this.getNavigationOptions(state.userLanguage)
       };
     } else {
+      console.log(`🎓 Test completed! Moving to handleTestCompleted`);
       state.currentState = CONVERSATION_STATES.TEST_COMPLETED;
       return this.handleTestCompleted(userInput, state, userPhone);
     }
@@ -537,6 +543,10 @@ class VoiceNavigationManager {
     const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
     const cleanInput = normalize(userInput);
     const correctAnswer = question.options[question.correctAnswer];
+    
+    console.log(`🔍 DEBUG: Raw input: "${userInput}"`);
+    console.log(`🔍 DEBUG: Normalized input: "${cleanInput}"`);
+    console.log(`🔍 DEBUG: Expected answer: "${correctAnswer}"`);
     
     if (!correctAnswer) return false;
     
@@ -650,6 +660,7 @@ class VoiceNavigationManager {
     }
     
     console.log('❌ No match found');
+    console.log(`🔍 DEBUG: Tried all matching methods for "${cleanInput}" vs "${correctAnswer}" - no success`);
     return false;
   }
 
