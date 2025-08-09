@@ -49,10 +49,12 @@ import {
   CheckCircle as CheckCircleIcon,
   ExpandMore as ExpandMoreIcon,
   School as SchoolIcon,
-  TrendingUp as TrendingUpIcon
+  TrendingUp as TrendingUpIcon,
+  AutoAwesome as AIIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
+import AITestGenerator from '../components/AITestGenerator';
 
 interface Lesson {
   id: number;
@@ -97,6 +99,7 @@ const QuestionManager: React.FC = () => {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [aiGeneratorOpen, setAiGeneratorOpen] = useState(false);
   
   // Generation settings
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
@@ -256,15 +259,26 @@ const QuestionManager: React.FC = () => {
           </Box>
           
           {selectedLesson && (
-            <Button
-              variant="contained"
-              color="secondary"
-              startIcon={<PsychologyIcon />}
-              onClick={() => setShowGenerateDialog(true)}
-              disabled={generating}
-            >
-              Generate Questions
-            </Button>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<AIIcon />}
+                onClick={() => setAiGeneratorOpen(true)}
+                disabled={generating}
+              >
+                AI Generátor otázek
+              </Button>
+              <Button
+                variant="outlined"
+                color="secondary"
+                startIcon={<PsychologyIcon />}
+                onClick={() => setShowGenerateDialog(true)}
+                disabled={generating}
+              >
+                Generate Questions
+              </Button>
+            </Box>
           )}
         </Box>
       </Paper>
@@ -650,6 +664,22 @@ const QuestionManager: React.FC = () => {
           <Button onClick={() => setShowQuestionDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      {/* AI Test Generator */}
+      <AITestGenerator
+        open={aiGeneratorOpen}
+        onClose={() => setAiGeneratorOpen(false)}
+        onQuestionsGenerated={(questions) => {
+          console.log('AI Generated questions:', questions);
+          setSuccess(`Úspěšně vygenerováno ${questions.length} otázek pomocí AI!`);
+          // Reload questions for the current lesson
+          if (selectedLesson) {
+            loadQuestions(selectedLesson.id);
+          }
+        }}
+        lessonId={selectedLesson?.id}
+        language="cs"
+      />
     </Box>
   );
 };

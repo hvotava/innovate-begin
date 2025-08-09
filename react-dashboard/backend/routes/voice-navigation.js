@@ -551,12 +551,33 @@ class VoiceNavigationManager {
     }
   }
 
-  // Enhanced test answer checking with fuzzy matching
+  // Enhanced test answer checking with fuzzy matching - supports multiple question types
   static checkTestAnswer(userInput, question) {
     if (!question || !question.correctAnswer) return false;
     
     const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
     const cleanInput = normalize(userInput);
+    
+    console.log(`🔍 DEBUG: Question type: ${question.type || 'multiple_choice'}`);
+    console.log(`🔍 DEBUG: Raw input: "${userInput}"`);
+    console.log(`🔍 DEBUG: Normalized input: "${cleanInput}"`);
+    
+    // Handle different question types
+    switch (question.type) {
+      case 'free_text':
+        return this.checkFreeTextAnswer(cleanInput, question);
+      case 'fill_in_blank':
+        return this.checkFillInBlankAnswer(cleanInput, question);
+      case 'matching':
+        return this.checkMatchingAnswer(cleanInput, question);
+      case 'multiple_choice':
+      default:
+        return this.checkMultipleChoiceAnswer(cleanInput, question);
+    }
+  }
+
+  // Check multiple choice answer
+  static checkMultipleChoiceAnswer(cleanInput, question) {
     const correctAnswer = question.options[question.correctAnswer];
     
     console.log(`🔍 DEBUG: Raw input: "${userInput}"`);
@@ -676,6 +697,146 @@ class VoiceNavigationManager {
     
     console.log('❌ No match found');
     console.log(`🔍 DEBUG: Tried all matching methods for "${cleanInput}" vs "${correctAnswer}" - no success`);
+    return false;
+  }
+
+  // Check free text answer using key words and semantic matching
+  static checkFreeTextAnswer(cleanInput, question) {
+    const correctAnswer = question.correctAnswer;
+    const keyWords = question.keyWords || [];
+    
+    console.log(`🔍 DEBUG: Free text - Expected: "${correctAnswer}"`);
+    console.log(`🔍 DEBUG: Free text - Key words: [${keyWords.join(', ')}]`);
+    
+    const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const normalizedCorrect = normalize(correctAnswer);
+    
+    // Levenshtein distance for similarity
+    const levenshtein = (a, b) => {
+      if (a.length === 0) return b.length;
+      if (b.length === 0) return a.length;
+      const matrix = Array(b.length + 1).fill().map(() => Array(a.length + 1).fill(0));
+      for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
+      for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
+      for (let j = 1; j <= b.length; j++) {
+        for (let i = 1; i <= a.length; i++) {
+          matrix[j][i] = Math.min(
+            matrix[j-1][i] + 1,
+            matrix[j][i-1] + 1,
+            matrix[j-1][i-1] + (a[i-1] === b[j-1] ? 0 : 1)
+          );
+        }
+      }
+      return matrix[b.length][a.length];
+    };
+    
+    // Check direct similarity with correct answer
+    const distance = levenshtein(cleanInput, normalizedCorrect);
+    const similarity = 1 - (distance / Math.max(cleanInput.length, normalizedCorrect.length));
+    
+    if (similarity >= 0.6) {
+      console.log(`✅ Free text: High similarity (${Math.round(similarity * 100)}%)`);
+      return true;
+    }
+    
+    // Check key words presence
+    if (keyWords.length > 0) {
+      let keyWordMatches = 0;
+      for (const keyWord of keyWords) {
+        const normalizedKeyWord = normalize(keyWord);
+        if (cleanInput.includes(normalizedKeyWord)) {
+          keyWordMatches++;
+        }
+      }
+      
+      const keyWordScore = keyWordMatches / keyWords.length;
+      if (keyWordScore >= 0.5) {
+        console.log(`✅ Free text: Key words match (${Math.round(keyWordScore * 100)}%)`);
+        return true;
+      }
+    }
+    
+    console.log(`❌ Free text: No match (similarity: ${Math.round(similarity * 100)}%)`);
+    return false;
+  }
+
+  // Check fill-in-blank answer
+  static checkFillInBlankAnswer(cleanInput, question) {
+    const correctAnswer = question.correctAnswer;
+    const alternatives = question.alternatives || [];
+    
+    console.log(`🔍 DEBUG: Fill-in-blank - Expected: "${correctAnswer}"`);
+    console.log(`🔍 DEBUG: Fill-in-blank - Alternatives: [${alternatives.join(', ')}]`);
+    
+    const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const normalizedCorrect = normalize(correctAnswer);
+    
+    // Check exact match with correct answer
+    if (cleanInput === normalizedCorrect) {
+      console.log('✅ Fill-in-blank: Exact match');
+      return true;
+    }
+    
+    // Check alternatives
+    for (const alt of alternatives) {
+      const normalizedAlt = normalize(alt);
+      if (cleanInput === normalizedAlt) {
+        console.log('✅ Fill-in-blank: Alternative match');
+        return true;
+      }
+    }
+    
+    // Check partial match (70% similarity)
+    const levenshtein = (a, b) => {
+      if (a.length === 0) return b.length;
+      if (b.length === 0) return a.length;
+      const matrix = Array(b.length + 1).fill().map(() => Array(a.length + 1).fill(0));
+      for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
+      for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
+      for (let j = 1; j <= b.length; j++) {
+        for (let i = 1; i <= a.length; i++) {
+          matrix[j][i] = Math.min(
+            matrix[j-1][i] + 1,
+            matrix[j][i-1] + 1,
+            matrix[j-1][i-1] + (a[i-1] === b[j-1] ? 0 : 1)
+          );
+        }
+      }
+      return matrix[b.length][a.length];
+    };
+    
+    const distance = levenshtein(cleanInput, normalizedCorrect);
+    const similarity = 1 - (distance / Math.max(cleanInput.length, normalizedCorrect.length));
+    
+    if (similarity >= 0.7) {
+      console.log(`✅ Fill-in-blank: Partial match (${Math.round(similarity * 100)}%)`);
+      return true;
+    }
+    
+    console.log(`❌ Fill-in-blank: No match (similarity: ${Math.round(similarity * 100)}%)`);
+    return false;
+  }
+
+  // Check matching answer (simplified - expects term or definition)
+  static checkMatchingAnswer(cleanInput, question) {
+    const pairs = question.pairs || [];
+    
+    console.log(`🔍 DEBUG: Matching - Pairs: ${pairs.length}`);
+    
+    const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    
+    // For voice input, we check if user mentioned any term or definition
+    for (const pair of pairs) {
+      const normalizedTerm = normalize(pair.term);
+      const normalizedDef = normalize(pair.definition);
+      
+      if (cleanInput.includes(normalizedTerm) || cleanInput.includes(normalizedDef)) {
+        console.log(`✅ Matching: Found term/definition match`);
+        return true;
+      }
+    }
+    
+    console.log(`❌ Matching: No term/definition found`);
     return false;
   }
 
