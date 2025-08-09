@@ -92,9 +92,45 @@ async function smartVoiceProcess(req, res) {
   
   // Check if we have a recording URL (user response)
   if (!RecordingUrl) {
-    console.log('❌ No recording URL provided - waiting for user response');
-    console.log('🔍 DEBUG: This should not happen during normal flow');
-    return res.send(getContinueTwiml());
+    console.log('ℹ️ No recording URL provided - starting test after lesson');
+    try {
+      const state = VoiceNavigationManager.getState(CallSid);
+      const userLanguage = state?.lesson?.language || 'cs';
+      const userPhone = Called || Caller;
+      const response = await VoiceNavigationManager.processUserResponse('AUTO_START', CallSid, userPhone);
+
+      if (response && response.nextQuestion) {
+        const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="${getTwilioLanguage(userLanguage)}" rate="0.85" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">${response.feedback}</Say>
+  <Say language="${getTwilioLanguage(userLanguage)}" rate="0.85" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">${response.nextQuestion}</Say>
+  <Say language="${getTwilioLanguage(userLanguage)}" rate="0.75" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">Po pípnutí řekněte svoji odpověď.</Say>
+  <Record 
+    timeout="20"
+    maxLength="90"
+    playBeep="true"
+    finishOnKey="#"
+    action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
+    method="POST"
+    transcribe="true"
+    transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
+    transcribeCallbackMethod="POST"
+    language="${getTwilioLanguage(userLanguage)}"
+    trim="trim-silence"
+  />
+</Response>`;
+        res.set('Content-Type', 'application/xml');
+        res.send(twimlResponse);
+        return;
+      }
+
+      // Fallback if response has no nextQuestion
+      console.log('⚠️ Unexpected: No nextQuestion after lesson → sending generic continue');
+      return res.send(getContinueTwiml());
+    } catch (err) {
+      console.error('❌ Error starting test after lesson:', err.message);
+      return res.send(getErrorTwiml());
+    }
   }
   
   console.log('✅ RecordingUrl found, proceeding with transcription callback');

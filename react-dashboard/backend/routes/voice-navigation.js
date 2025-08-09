@@ -420,10 +420,17 @@ class VoiceNavigationManager {
 
   // Handle lesson phase
   static async handleLessonPhase(userInput, state, userPhone) {
-    console.log('📚 Lesson phase - processing user input');
+    console.log('📚 Lesson phase - processing');
     
-    // Automatically transition to test without user input
-    console.log('✅ Lesson completed, automatically transitioning to test');
+    // Only transition when explicitly triggered after lesson ends
+    if (userInput !== 'AUTO_START') {
+      return {
+        questionType: 'lesson',
+        feedback: state.lesson.message,
+        nextQuestion: state.lesson.content
+      };
+    }
+    console.log('✅ Lesson completed, starting test');
     state.currentState = CONVERSATION_STATES.TEST_ACTIVE;
     state.currentQuestionIndex = 0;
     state.totalQuestions = state.lesson.questions ? state.lesson.questions.length : 0;
