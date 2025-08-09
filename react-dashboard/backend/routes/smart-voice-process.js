@@ -66,29 +66,15 @@ async function smartVoiceProcess(req, res) {
   
   const { RecordingUrl, CallSid, RecordingDuration, Called, Caller } = req.body;
   
-  // Initialize conversation on first call
-  if (!initializedCalls.has(CallSid)) {
-    console.log(`🚀 Initializing conversation for call: ${CallSid}`);
-    
-    try {
-      // Get lesson for user based on phone number
-      const userPhone = Called || Caller;
-      const lesson = await getLessonForUser(userPhone);
-      
-      if (lesson && lesson.type === 'lesson') {
-        // Initialize voice navigation manager
-        VoiceNavigationManager.initializeState(CallSid, lesson);
-        initializedCalls.add(CallSid);
-        console.log(`✅ Voice Navigation initialized for lesson: ${lesson.title}`);
-      } else {
-        console.log(`❌ Could not initialize lesson for phone: ${userPhone}`);
-        return res.send(getErrorTwiml());
-      }
-    } catch (error) {
-      console.error('❌ Error initializing conversation:', error.message);
-      return res.send(getErrorTwiml());
-    }
+  // Check if conversation is already initialized (should be done by twilio-voice-intelligent)
+  const existingState = VoiceNavigationManager.getState(CallSid);
+  if (!existingState) {
+    console.log(`⚠️ No conversation state found for ${CallSid} - this should not happen`);
+    console.log(`📋 Available states:`, Array.from(VoiceNavigationManager.conversationStates.keys()));
+    return res.send(getErrorTwiml());
   }
+  console.log(`✅ Using existing conversation state for: ${existingState.lesson?.title}`);
+  console.log(`📊 Current state: ${existingState.currentState}, Questions: ${existingState.totalQuestions}`);
   
   // Check if we have a recording URL (user response) or if this is a redirect after lesson
   if (!RecordingUrl) {
