@@ -700,6 +700,11 @@ async function transcribeWithWhisper(audioUrl, language = 'cs') {
     form.append('model', 'whisper-1');
     form.append('language', language);
     form.append('response_format', 'text');
+    form.append('temperature', '0');
+    // Add prompt for better number recognition in Czech
+    if (language === 'cs') {
+      form.append('prompt', 'Rozpoznej čísla a písmena: A, B, C, D, jedna, dva, tři, čtyři, dvěstě šest, 206, mozek, plíce, žaludek, játra, srdce, krev');
+    }
     
     // Send to OpenAI Whisper
     const whisperResponse = await axios.post(OPENAI_WHISPER_URL, form, {
@@ -738,6 +743,11 @@ async function transcribeWithWhisper(audioUrl, language = 'cs') {
         form.append('model', 'whisper-1');
         form.append('language', language);
         form.append('response_format', 'text');
+        form.append('temperature', '0');
+        // Add prompt for better number recognition in Czech
+        if (language === 'cs') {
+          form.append('prompt', 'Rozpoznej čísla a písmena: A, B, C, D, jedna, dva, tři, čtyři, dvěstě šest, 206, mozek, plíce, žaludek, játra, srdce, krev');
+        }
         
         const whisperResponse = await axios.post(OPENAI_WHISPER_URL, form, {
           headers: {
