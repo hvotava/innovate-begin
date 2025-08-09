@@ -133,19 +133,48 @@ async function smartVoiceProcess(req, res) {
       return res.send(getErrorTwiml());
     }
     
-    console.log('✅ Conversation state found in fallback, processing with fallback text');
-    
-    // Process with fallback text (since we don't have transcription)
-    const fallbackResponse = 'B'; // Default to option B for fallback
-    console.log('🔄 FALLBACK: Using default response:', fallbackResponse);
-    
-    const response = await VoiceNavigationManager.processUserResponse(
-      fallbackResponse,
-      req.body.CallSid,
-      req.body.Called || req.body.Caller
-    );
-    
-    console.log('🧠 Fallback conversation response:', response);
+    console.log('✅ Conversation state found in fallback, attempting Whisper transcription');
+
+    // Try Whisper directly from RecordingUrl instead of defaulting to a letter
+    const userLanguage = (state && state.lesson && state.lesson.language) ? state.lesson.language : 'cs';
+    const whisperTranscription = await transcribeWithWhisper(RecordingUrl, userLanguage);
+
+    let response;
+    if (whisperTranscription) {
+      console.log('✅ WHISPER (direct):', whisperTranscription);
+      response = await VoiceNavigationManager.processUserResponse(
+        whisperTranscription,
+        req.body.CallSid,
+        req.body.Called || req.body.Caller
+      );
+      console.log('🧠 Whisper conversation response:', response);
+    } else {
+      console.log('❌ Whisper failed in direct path, reprompting same question without advancing');
+      // Reprompt same question (do not advance index)
+      const repromptLanguage = (state && state.lesson && state.lesson.language) ? state.lesson.language : 'cs';
+      const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say language="${getTwilioLanguage(repromptLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(repromptLanguage)}-Standard-A">
+        Omlouvám se, nerozpoznal jsem vaši odpověď. Zopakujte prosím odpověď.
+    </Say>
+    <Record 
+        timeout="20"
+        maxLength="90"
+        playBeep="true"
+        finishOnKey="#"
+        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
+        method="POST"
+        transcribe="true"
+        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
+        transcribeCallbackMethod="POST"
+        language="${getTwilioLanguage(repromptLanguage)}"
+        trim="trim-silence"
+    />
+</Response>`;
+      res.set('Content-Type', 'application/xml');
+      res.send(twimlResponse);
+      return;
+    }
     
     // Generate TwiML response
     let twimlResponse = '';
