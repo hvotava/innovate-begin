@@ -4,10 +4,14 @@ const { User, Company, Lesson, Training } = require('../models');
 const TestResult = require('../models/TestResult');
 const { Op } = require('sequelize');
 
+console.log('📊 Analytics API loading with TestResult model:', !!TestResult);
+
 // Get detailed user progress analytics
 router.get('/users/progress', async (req, res) => {
   try {
     const { companyId, userId, limit = 50 } = req.query;
+    
+    console.log('🔍 DEBUG: User progress analytics request:', { companyId, userId, limit });
     
     let whereCondition = {};
     if (companyId) whereCondition.companyId = parseInt(companyId);
@@ -19,12 +23,26 @@ router.get('/users/progress', async (req, res) => {
       order: [['createdAt', 'DESC']]
     });
     
+    console.log(`🔍 DEBUG: Found ${users.length} users:`, users.map(u => ({ id: u.id, name: u.name })));
+    
     const userProgress = await Promise.all(users.map(async (user) => {
       // Get all test results for this user
       const testResults = await TestResult.findAll({
         where: { userId: user.id },
         order: [['createdAt', 'DESC']]
       });
+      
+      console.log(`🔍 DEBUG: User ${user.id} has ${testResults.length} test results`);
+      if (testResults.length > 0) {
+        console.log(`🔍 DEBUG: Sample TestResult:`, {
+          id: testResults[0].id,
+          userId: testResults[0].userId,
+          sessionId: testResults[0].sessionId,
+          questionText: testResults[0].questionText?.substring(0, 50) + '...',
+          hasAiEvaluation: !!testResults[0].aiEvaluation,
+          createdAt: testResults[0].createdAt
+        });
+      }
       
       // Group by session to get test attempts
       const sessionStats = {};
@@ -149,6 +167,14 @@ router.get('/users/progress', async (req, res) => {
         }))
       };
     }));
+    
+    console.log(`🔍 DEBUG: Returning ${userProgress.length} user progress records`);
+    console.log(`🔍 DEBUG: Sample data:`, userProgress.slice(0, 1).map(up => ({
+      userId: up.user.id,
+      totalAttempts: up.progress.totalAttempts,
+      lessonCount: up.lessonProgress.length,
+      sessionCount: up.recentSessions.length
+    })));
     
     res.json({ success: true, users: userProgress });
   } catch (error) {

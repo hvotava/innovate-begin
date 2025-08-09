@@ -515,8 +515,10 @@ class VoiceNavigationManager {
       });
       state.savedIndividually = true;
       console.log(`💾 Answer saved to database: ${isCorrect ? 'CORRECT' : 'WRONG'}`);
+      console.log(`🔍 DEBUG: Saved to TestResult - userId: ${userId}, sessionId: ${state.callSid}, question: "${currentQuestion.question.substring(0, 50)}..."`);
     } catch (error) {
       console.error('❌ Error saving answer to database:', error.message);
+      console.error('❌ Full error:', error);
     }
     
     state.currentQuestionIndex++;
