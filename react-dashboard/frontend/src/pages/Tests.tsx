@@ -46,13 +46,15 @@ import {
   Category as CategoryIcon,
   QuestionAnswer as QuestionIcon,
   ExpandMore as ExpandMoreIcon,
-  DragIndicator as DragIcon
+  DragIndicator as DragIcon,
+  AutoAwesome as AIIcon
 } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridActionsCellItem } from '@mui/x-data-grid';
 import { testsAPI, lessonsAPI, trainingsAPI } from '../services/api';
 import { Test, Lesson, Training, Question } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { canManageTests, canViewAllData } from '../utils/permissions';
+import AITestGenerator from '../components/AITestGenerator';
 
 interface TestFormData {
   title: string;
@@ -99,6 +101,7 @@ const Tests: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [lessonFilter, setLessonFilter] = useState('');
   const [trainingFilter, setTrainingFilter] = useState('');
+  const [aiGeneratorOpen, setAiGeneratorOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -705,14 +708,25 @@ const Tests: React.FC = () => {
               <Typography variant="h6">
                 Otázky ({formData.questions.length})
               </Typography>
-              <Button 
-                startIcon={<AddIcon />}
-                onClick={() => handleOpenQuestionDialog()}
-                variant="outlined"
-                size="small"
-              >
-                Přidat otázku
-              </Button>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button 
+                  startIcon={<AIIcon />}
+                  onClick={() => setAiGeneratorOpen(true)}
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                >
+                  AI Generátor
+                </Button>
+                <Button 
+                  startIcon={<AddIcon />}
+                  onClick={() => handleOpenQuestionDialog()}
+                  variant="outlined"
+                  size="small"
+                >
+                  Přidat otázku
+                </Button>
+              </Box>
             </Box>
             
             {formData.questions.length > 0 ? (
@@ -725,29 +739,113 @@ const Tests: React.FC = () => {
                         <Typography sx={{ flexGrow: 1 }}>
                           {index + 1}. {question.question}
                         </Typography>
-                        <Chip 
-                          label={`${question.options.length} možností`}
-                          size="small" 
-                          color="primary"
-                        />
+                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                          <Chip 
+                            label={question.type === 'multiple_choice' ? `${question.options.length} možností` :
+                                  question.type === 'free_text' ? 'Volná odpověď' :
+                                  question.type === 'fill_in_blank' ? 'Doplňovačka' :
+                                  question.type === 'matching' ? `${question.pairs?.length || 0} párů` :
+                                  `${question.options.length} možností`}
+                            size="small" 
+                            color="primary"
+                            variant="outlined"
+                          />
+                          {question.difficulty && (
+                            <Chip 
+                              label={question.difficulty}
+                              size="small" 
+                              color={question.difficulty === 'hard' ? 'error' : question.difficulty === 'medium' ? 'warning' : 'success'}
+                              variant="outlined"
+                            />
+                          )}
+                        </Box>
                       </Box>
                     </AccordionSummary>
                     <AccordionDetails>
                       <Box sx={{ mb: 2 }}>
-                        <Typography variant="subtitle2" sx={{ mb: 1 }}>Možnosti:</Typography>
-                        {question.options.map((option, optIndex) => (
-                          <Typography 
-                            key={optIndex}
-                            variant="body2" 
-                            sx={{ 
-                              ml: 2, 
-                              color: optIndex === question.correctAnswer ? 'success.main' : 'text.secondary',
-                              fontWeight: optIndex === question.correctAnswer ? 'bold' : 'normal'
-                            }}
-                          >
-                            {optIndex + 1}. {option} {optIndex === question.correctAnswer && '✓'}
-                          </Typography>
-                        ))}
+                        {question.type === 'multiple_choice' && (
+                          <>
+                            <Typography variant="subtitle2" sx={{ mb: 1 }}>Možnosti:</Typography>
+                            {question.options.map((option, optIndex) => (
+                              <Typography 
+                                key={optIndex}
+                                variant="body2" 
+                                sx={{ 
+                                  ml: 2, 
+                                  color: optIndex === question.correctAnswer ? 'success.main' : 'text.secondary',
+                                  fontWeight: optIndex === question.correctAnswer ? 'bold' : 'normal'
+                                }}
+                              >
+                                {optIndex + 1}. {option} {optIndex === question.correctAnswer && '✓'}
+                              </Typography>
+                            ))}
+                          </>
+                        )}
+                        
+                        {question.type === 'free_text' && (
+                          <>
+                            <Typography variant="subtitle2" sx={{ mb: 1 }}>Vzorová odpověď:</Typography>
+                            <Typography variant="body2" sx={{ ml: 2, mb: 1, color: 'success.main' }}>
+                              {question.options[question.correctAnswer]}
+                            </Typography>
+                            {question.keyWords && question.keyWords.length > 0 && (
+                              <>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>Klíčová slova:</Typography>
+                                <Box sx={{ ml: 2, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                                  {question.keyWords.map((word, idx) => (
+                                    <Chip key={idx} label={word} size="small" variant="outlined" />
+                                  ))}
+                                </Box>
+                              </>
+                            )}
+                          </>
+                        )}
+                        
+                        {question.type === 'fill_in_blank' && (
+                          <>
+                            <Typography variant="subtitle2" sx={{ mb: 1 }}>Správná odpověď:</Typography>
+                            <Typography variant="body2" sx={{ ml: 2, mb: 1, color: 'success.main' }}>
+                              {question.options[question.correctAnswer]}
+                            </Typography>
+                            {question.alternatives && question.alternatives.length > 0 && (
+                              <>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>Alternativní odpovědi:</Typography>
+                                <Box sx={{ ml: 2 }}>
+                                  {question.alternatives.map((alt, idx) => (
+                                    <Typography key={idx} variant="body2" sx={{ color: 'text.secondary' }}>
+                                      • {alt}
+                                    </Typography>
+                                  ))}
+                                </Box>
+                              </>
+                            )}
+                          </>
+                        )}
+                        
+                        {question.type === 'matching' && (
+                          <>
+                            <Typography variant="subtitle2" sx={{ mb: 1 }}>Páry:</Typography>
+                            {question.pairs?.map((pair, idx) => (
+                              <Box key={idx} sx={{ ml: 2, mb: 1, display: 'flex', gap: 2 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 'bold', minWidth: '120px' }}>
+                                  {pair.term}
+                                </Typography>
+                                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                                  → {pair.definition}
+                                </Typography>
+                              </Box>
+                            ))}
+                          </>
+                        )}
+                        
+                        {question.explanation && (
+                          <Box sx={{ mt: 2, p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
+                            <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Vysvětlení:</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {question.explanation}
+                            </Typography>
+                          </Box>
+                        )}
                       </Box>
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <Button 
@@ -880,6 +978,42 @@ const Tests: React.FC = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* AI Test Generator */}
+      <AITestGenerator
+        open={aiGeneratorOpen}
+        onClose={() => setAiGeneratorOpen(false)}
+        onQuestionsGenerated={(questions) => {
+          // Convert AI questions to test format and add to formData
+          const convertedQuestions = questions.map(q => ({
+            question: q.question,
+            options: q.type === 'multiple_choice' ? q.options || [] : 
+                    q.type === 'fill_in_blank' ? [`${q.correctAnswer}`, ...(q.alternatives || [])] :
+                    q.type === 'matching' ? q.pairs?.map(p => `${p.term}: ${p.definition}`) || [] :
+                    [q.correctAnswer],
+            correctAnswer: 0, // First option is always correct for AI generated questions
+            explanation: q.explanation || '',
+            type: q.type || 'multiple_choice',
+            difficulty: q.difficulty || 'medium',
+            keyWords: q.keyWords || [],
+            alternatives: q.alternatives || [],
+            pairs: q.pairs || []
+          }));
+
+          setFormData(prev => ({
+            ...prev,
+            questions: [...prev.questions, ...convertedQuestions]
+          }));
+
+          setSnackbar({
+            open: true,
+            message: `Úspěšně přidáno ${questions.length} AI generovaných otázek!`,
+            severity: 'success'
+          });
+        }}
+        lessonId={typeof formData.lessonId === 'number' ? formData.lessonId : undefined}
+        language="cs"
+      />
     </Box>
   );
 };

@@ -70,6 +70,11 @@ export interface Question {
   options: string[];
   correctAnswer: number; // Index správné odpovědi v options array
   explanation?: string;
+  type?: 'multiple_choice' | 'free_text' | 'fill_in_blank' | 'matching';
+  difficulty?: 'easy' | 'medium' | 'hard';
+  keyWords?: string[];
+  alternatives?: string[];
+  pairs?: Array<{term: string; definition: string}>;
 }
 
 // UserTraining types

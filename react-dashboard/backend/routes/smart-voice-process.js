@@ -612,7 +612,7 @@ async function transcribeWithWhisper(audioUrl, language = 'cs') {
     console.log('✅ WHISPER: Transcription successful:', transcription);
     
     return transcription;
-  } catch (error) {
+    } catch (error) {
     if (error.response?.status === 404) {
       console.error('❌ WHISPER: Recording not found (404) - may not be available yet');
       console.log('⏳ WHISPER: Retrying after 3s...');
