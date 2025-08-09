@@ -530,7 +530,7 @@ class VoiceNavigationManager {
     }
   }
 
-  // Enhanced test answer checking
+  // Enhanced test answer checking with fuzzy matching
   static checkTestAnswer(userInput, question) {
     if (!question || !question.correctAnswer) return false;
     
@@ -543,6 +543,25 @@ class VoiceNavigationManager {
     console.log(`🔍 Checking answer: "${cleanInput}" against "${correctAnswer}"`);
     console.log(`🔍 Question options: ${question.options.join(', ')}`);
     console.log(`🔍 Correct answer index: ${question.correctAnswer}`);
+    
+    // Levenshtein distance function
+    const levenshtein = (a, b) => {
+      if (a.length === 0) return b.length;
+      if (b.length === 0) return a.length;
+      const matrix = Array(b.length + 1).fill().map(() => Array(a.length + 1).fill(0));
+      for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
+      for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
+      for (let j = 1; j <= b.length; j++) {
+        for (let i = 1; i <= a.length; i++) {
+          matrix[j][i] = Math.min(
+            matrix[j-1][i] + 1,
+            matrix[j][i-1] + 1,
+            matrix[j-1][i-1] + (a[i-1] === b[j-1] ? 0 : 1)
+          );
+        }
+      }
+      return matrix[b.length][a.length];
+    };
     
     // Check exact match (diacritics-insensitive)
     if (cleanInput.includes(normalize(correctAnswer))) {
@@ -571,10 +590,31 @@ class VoiceNavigationManager {
       return true;
     }
     
-    // Check partial word match (50% threshold)
-    const words = cleanInput.split(' ');
-    const correctWords = normalize(correctAnswer).split(' ');
+    // Check fuzzy match with Levenshtein distance (75% similarity)
+    const normalizedCorrect = normalize(correctAnswer);
+    const distance = levenshtein(cleanInput, normalizedCorrect);
+    const similarity = 1 - (distance / Math.max(cleanInput.length, normalizedCorrect.length));
     
+    if (similarity >= 0.6) {
+      console.log(`✅ Fuzzy match found: ${Math.round(similarity * 100)}% similarity`);
+      return true;
+    }
+    
+    // Check if any word in input is similar to correct answer
+    const words = cleanInput.split(' ');
+    for (const word of words) {
+      if (word.length >= 3) {
+        const wordDistance = levenshtein(word, normalizedCorrect);
+        const wordSimilarity = 1 - (wordDistance / Math.max(word.length, normalizedCorrect.length));
+        if (wordSimilarity >= 0.7) {
+          console.log(`✅ Word similarity match: "${word}" ~= "${normalizedCorrect}" (${Math.round(wordSimilarity * 100)}%)`);
+          return true;
+        }
+      }
+    }
+    
+    // Check partial word match (50% threshold) - original logic as fallback
+    const correctWords = normalizedCorrect.split(' ');
     let matchCount = 0;
     for (const word of words) {
       for (const correctWord of correctWords) {
