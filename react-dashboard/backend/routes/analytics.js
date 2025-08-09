@@ -21,7 +21,7 @@ router.get('/users/progress', async (req, res) => {
     const users = await User.findAll({ 
       where: whereCondition,
       limit: parseInt(limit),
-      order: [['createdAt', 'DESC']]
+      order: [['created_at', 'DESC']]
     });
     
     console.log(`🔍 DEBUG: Found ${users.length} users:`, users.map(u => ({ id: u.id, name: u.name })));
@@ -30,7 +30,7 @@ router.get('/users/progress', async (req, res) => {
       // Get all test results for this user
       const testResults = await TestResult.findAll({
         where: { userId: user.id },
-        order: [['createdAt', 'DESC']]
+        order: [['created_at', 'DESC']]
       });
       
       console.log(`🔍 DEBUG: User ${user.id} has ${testResults.length} test results`);
@@ -41,7 +41,7 @@ router.get('/users/progress', async (req, res) => {
           sessionId: testResults[0].sessionId,
           questionText: testResults[0].questionText?.substring(0, 50) + '...',
           hasAiEvaluation: !!testResults[0].aiEvaluation,
-          createdAt: testResults[0].createdAt
+          createdAt: testResults[0].created_at
         });
       }
       
@@ -59,7 +59,7 @@ router.get('/users/progress', async (req, res) => {
             sessionId,
             lessonTitle,
             trainingType: result.trainingType,
-            startTime: result.createdAt,
+            startTime: result.created_at,
             questions: [],
             totalQuestions: 0,
             correctAnswers: 0,
@@ -74,7 +74,7 @@ router.get('/users/progress', async (req, res) => {
             question: result.questionText,
             userAnswer: result.userAnswer,
             isCorrect: result.aiEvaluation?.isCorrect || false,
-            timestamp: result.createdAt
+            timestamp: result.created_at
           });
           sessionStats[sessionId].totalQuestions++;
           if (result.aiEvaluation?.isCorrect) {
@@ -96,7 +96,7 @@ router.get('/users/progress', async (req, res) => {
         }
         
         lessonProgress[lessonTitle].attempts++;
-        lessonProgress[lessonTitle].lastAttempt = result.createdAt;
+        lessonProgress[lessonTitle].lastAttempt = result.created_at;
       });
       
       // Calculate scores for each session
@@ -147,7 +147,7 @@ router.get('/users/progress', async (req, res) => {
           training_type: user.training_type,
           language: user.language,
           companyId: user.companyId,
-          createdAt: user.createdAt
+          createdAt: user.created_at
         },
         progress: {
           totalAttempts,
@@ -198,7 +198,7 @@ router.get('/company/:companyId/users', async (req, res) => {
 
     const results = await TestResult.findAll({
       where: { userId: { [Op.in]: userIds } },
-      order: [['createdAt', 'DESC']]
+      order: [['created_at', 'DESC']]
     });
 
     const byUser = {};
@@ -212,7 +212,7 @@ router.get('/company/:companyId/users', async (req, res) => {
         question: r.question,
         correct: r.isCorrect,
         score: r.scorePercentage,
-        at: r.createdAt
+        at: r.created_at
       });
     }
     for (const u of Object.values(byUser)) {
