@@ -319,6 +319,10 @@ async function smartTranscribeProcess(req, res) {
     transcriptionTextLength: req.body.TranscriptionText ? req.body.TranscriptionText.length : 0
   });
   
+  // ACK transcription callback without controlling call flow here
+  res.status(200).send('OK');
+  return;
+  
   const transcribedText = req.body.TranscriptionText;
   const callSid = req.body.CallSid;
   
