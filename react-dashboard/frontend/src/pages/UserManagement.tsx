@@ -446,12 +446,12 @@ const UserManagement: React.FC = () => {
       headerName: 'Telefon',
       width: isMobile ? 100 : 140,
       renderCell: (params) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <PhoneIcon fontSize="small" color="action" />
           <Typography variant="body2">
             {params.value || '-'}
           </Typography>
-        </Box>
+          </Box>
       )
     },
     {
@@ -474,14 +474,14 @@ const UserManagement: React.FC = () => {
         };
         const display = getTrainingDisplay(params.value);
         return (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Box sx={{ color: `${display.color}.main` }}>
               {React.cloneElement(display.icon, { fontSize: 'small' })}
             </Box>
             <Typography variant="body2" color={display.color}>
               {display.name}
-            </Typography>
-          </Box>
+          </Typography>
+        </Box>
         );
       }
     },
@@ -505,42 +505,42 @@ const UserManagement: React.FC = () => {
       width: isMobile ? 120 : 200,
       getActions: (params) => {
         const actions = [
-          <GridActionsCellItem
-            icon={<EditIcon />}
-            label="Upravit"
-            onClick={() => handleOpenDialog(params.row)}
-            color="primary"
+        <GridActionsCellItem
+          icon={<EditIcon />}
+          label="Upravit"
+          onClick={() => handleOpenDialog(params.row)}
+          color="primary"
           />
         ];
 
         // Přidat další akce pouze na desktop
         if (!isMobile) {
           actions.push(
-            <GridActionsCellItem
-              icon={<GroupIcon />}
-              label="Role"
-              onClick={() => handleOpenRoleDialog(params.row)}
-              color="secondary"
-            />,
-            <GridActionsCellItem
-              icon={<PhoneIcon />}
+        <GridActionsCellItem
+          icon={<GroupIcon />}
+          label="Role"
+          onClick={() => handleOpenRoleDialog(params.row)}
+          color="secondary"
+        />,
+        <GridActionsCellItem
+          icon={<PhoneIcon />}
               label="Volat"
-              onClick={() => handleCallUser(params.row)}
-              color="success"
-              disabled={!params.row.phone}
+          onClick={() => handleCallUser(params.row)}
+          color="success"
+          disabled={!params.row.phone}
             />
           );
         }
 
         // Delete akce vždy
         actions.push(
-          <GridActionsCellItem
-            icon={<DeleteIcon />}
-            label="Smazat"
+        <GridActionsCellItem
+          icon={<DeleteIcon />}
+          label="Smazat"
             onClick={() => handleDeleteUser(params.row)}
-            color="error"
-            disabled={params.row.id === user?.id}
-          />
+          color="error"
+          disabled={params.row.id === user?.id}
+        />
         );
 
         return actions;
@@ -735,7 +735,7 @@ const UserManagement: React.FC = () => {
                 borderRadius: '4px'
               }
             }}>
-              {users.map((user) => (
+            {users.map((user) => (
                 <Card key={user.id} sx={{ 
                   mb: 2,
                   '&:hover': {
@@ -744,7 +744,7 @@ const UserManagement: React.FC = () => {
                     transition: 'all 0.2s ease-in-out'
                   }
                 }}>
-                  <CardContent>
+                <CardContent>
                   <Grid container spacing={2} alignItems="center">
                     <Grid item xs={12} sm={6}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -895,8 +895,8 @@ const UserManagement: React.FC = () => {
                     </Grid>
                   </Grid>
                 </CardContent>
-                  </Card>
-                ))}
+              </Card>
+            ))}
               </Box>
             
             {/* Mobile FAB */}

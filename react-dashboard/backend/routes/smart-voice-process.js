@@ -90,17 +90,26 @@ async function smartVoiceProcess(req, res) {
     }
   }
   
-  // Check if we have a recording URL (user response)
+  // Check if we have a recording URL (user response) or if this is a redirect after lesson
   if (!RecordingUrl) {
-    console.log('ℹ️ No recording URL provided - starting test after lesson');
+    console.log('ℹ️ No recording URL - this is likely redirect after lesson, starting test');
     try {
       const state = VoiceNavigationManager.getState(CallSid);
+      if (!state) {
+        console.log('❌ No conversation state found for redirect');
+        return res.send(getErrorTwiml());
+      }
+      
       const userLanguage = state?.lesson?.language || 'cs';
       const userPhone = Called || Caller;
-      const response = await VoiceNavigationManager.processUserResponse('AUTO_START', CallSid, userPhone);
+      
+      // Check if we're in lesson state and need to transition to test
+      if (state.currentState === 'lesson_playing') {
+        console.log('🎯 Transitioning from lesson to test via AUTO_START');
+        const response = await VoiceNavigationManager.processUserResponse('AUTO_START', CallSid, userPhone);
 
-      if (response && response.nextQuestion) {
-        const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+        if (response && response.nextQuestion) {
+          const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say language="${getTwilioLanguage(userLanguage)}" rate="0.85" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">${response.feedback}</Say>
   <Say language="${getTwilioLanguage(userLanguage)}" rate="0.85" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">${response.nextQuestion}</Say>
@@ -119,16 +128,17 @@ async function smartVoiceProcess(req, res) {
     trim="trim-silence"
   />
 </Response>`;
-        res.set('Content-Type', 'application/xml');
-        res.send(twimlResponse);
-        return;
+          res.set('Content-Type', 'application/xml');
+          res.send(twimlResponse);
+          return;
+        }
       }
 
-      // Fallback if response has no nextQuestion
-      console.log('⚠️ Unexpected: No nextQuestion after lesson → sending generic continue');
+      // Fallback for other states without RecordingUrl
+      console.log('⚠️ Unexpected state without RecordingUrl:', state.currentState);
       return res.send(getContinueTwiml());
     } catch (err) {
-      console.error('❌ Error starting test after lesson:', err.message);
+      console.error('❌ Error handling redirect after lesson:', err.message);
       return res.send(getErrorTwiml());
     }
   }
@@ -775,18 +785,9 @@ function getContinueTwiml() {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">
-        Poslechněte si otázku a odpovězte.
+        Omlouvám se, došlo k technické chybě. Zkuste to prosím později.
     </Say>
-    <Record 
-        timeout="3"
-        maxLength="30"
-        playBeep="false"
-        finishOnKey="#"
-        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
-        method="POST"
-        transcribe="true"
-        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
-    />
+    <Hangup/>
 </Response>`;
 }
 

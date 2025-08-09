@@ -98,7 +98,7 @@ router.get('/:id', auth, async (req, res) => {
     if (!test) {
       return res.status(404).json({ error: 'Test not found' });
     }
-    
+
     // DEBUG: Log questions data for comparison
     console.log(`🔍 DEBUG: Test ${test.id} questions data:`, {
       testId: test.id,
@@ -241,7 +241,7 @@ router.post('/', [
         return question;
       });
     }
-    
+
     const test = await Test.create({
       title,
       lessonId,
