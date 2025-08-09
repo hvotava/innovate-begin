@@ -596,6 +596,9 @@ class VoiceNavigationManager {
       options: question.options
     });
     
+    // Define normalize function locally
+    const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    
     const correctAnswer = question.options?.[question.correctAnswer];
     
     console.log(`🔍 DEBUG: Normalized input: "${cleanInput}"`);
