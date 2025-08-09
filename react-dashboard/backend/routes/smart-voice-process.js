@@ -71,7 +71,7 @@ async function smartVoiceProcess(req, res) {
   if (!existingState) {
     console.log(`⚠️ No conversation state found for ${CallSid} - this should not happen`);
     console.log(`📋 Available states:`, Array.from(VoiceNavigationManager.conversationStates.keys()));
-    return res.send(getErrorTwiml());
+    return res.send(getErrorTwiml('cs')); // Default language since no state
   }
   console.log(`✅ Using existing conversation state for: ${existingState.lesson?.title}`);
   console.log(`📊 Current state: ${existingState.currentState}, Questions: ${existingState.totalQuestions}`);
@@ -83,7 +83,7 @@ async function smartVoiceProcess(req, res) {
       const state = VoiceNavigationManager.getState(CallSid);
       if (!state) {
         console.log('❌ No conversation state found for redirect');
-        return res.send(getErrorTwiml());
+        return res.send(getErrorTwiml('cs')); // Default language since no state
       }
       
       const userLanguage = state?.lesson?.language || 'cs';
@@ -129,10 +129,11 @@ async function smartVoiceProcess(req, res) {
 
       // Fallback for other states without RecordingUrl
       console.log('⚠️ Unexpected state without RecordingUrl:', state.currentState);
-      return res.send(getContinueTwiml());
+      const unexpectedUserLanguage = state?.lesson?.language || 'cs';
+      return res.send(getContinueTwiml(unexpectedUserLanguage));
     } catch (err) {
       console.error('❌ Error handling redirect after lesson:', err.message);
-      return res.send(getErrorTwiml());
+      return res.send(getErrorTwiml('cs')); // Default language for error
     }
   }
   
@@ -169,7 +170,7 @@ async function smartVoiceProcess(req, res) {
     const state = VoiceNavigationManager.getState(CallSid);
     if (!state) {
       console.log('❌ No conversation state found in fallback');
-      return res.send(getErrorTwiml());
+      return res.send(getErrorTwiml('cs')); // Default language since no state
     }
     
     console.log('✅ Conversation state found in fallback, attempting Whisper transcription');
@@ -206,10 +207,6 @@ async function smartVoiceProcess(req, res) {
         transcribe="true"
         transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
         transcribeCallbackMethod="POST"
-        language="${getTwilioLanguage(userLanguage)}"
-        transcribeLanguage="${getTwilioLanguage(userLanguage)}"
-        speechTimeout="auto"
-        speechModel="phone_call"
         language="${getTwilioLanguage(repromptLanguage)}"
         transcribeLanguage="${getTwilioLanguage(repromptLanguage)}"
         speechTimeout="auto"
@@ -227,7 +224,7 @@ async function smartVoiceProcess(req, res) {
     if (response.questionType === 'session_complete') {
       twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         ${response.feedback}
     </Say>
     <Hangup/>
@@ -235,13 +232,13 @@ async function smartVoiceProcess(req, res) {
     } else if (response.nextQuestion) {
       twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         ${response.feedback}
     </Say>
-    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         ${response.nextQuestion}
     </Say>
-    <Say language="cs-CZ" rate="0.7" voice="Google.cs-CZ-Standard-A">
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.7" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         Řekněte svoji odpověď.
     </Say>
     <Record 
@@ -258,15 +255,11 @@ async function smartVoiceProcess(req, res) {
         transcribeLanguage="${getTwilioLanguage(userLanguage)}"
         speechTimeout="auto"
         speechModel="phone_call"
-        language="cs-CZ"
-        transcribeLanguage="cs-CZ"
-        speechTimeout="auto"
-        speechModel="phone_call"
         trim="trim-silence"
     />
 </Response>`;
     } else {
-      twimlResponse = getErrorTwiml();
+      twimlResponse = getErrorTwiml(userLanguage);
     }
     
     console.log('📤 Sending fallback TwiML response...');
@@ -278,7 +271,7 @@ async function smartVoiceProcess(req, res) {
   } catch (error) {
     console.error('❌ Error in fallback processing:', error.message);
     res.set('Content-Type', 'application/xml');
-    res.send(getErrorTwiml());
+    res.send(getErrorTwiml('cs')); // Default language for error
     return; // ← PŘIDÁM RETURN ABY SE NEPOKRAČOVALO!
   }
   
@@ -286,10 +279,14 @@ async function smartVoiceProcess(req, res) {
   console.log('⚠️ Fallback did not work, using default processing');
   console.log(`🎵 RecordingUrl: ${RecordingUrl}`);
   
+  // Get user language from state or default to cs
+  const fallbackState = VoiceNavigationManager.getState(CallSid);
+  const fallbackUserLanguage = (fallbackState && fallbackState.lesson && fallbackState.lesson.language) ? fallbackState.lesson.language : 'cs';
+  
   // Send basic continuation TwiML (transcription will handle the logic)
   const processTwiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">
+    <Say language="${getTwilioLanguage(fallbackUserLanguage)}" rate="0.9" voice="Google.${getTwilioLanguage(fallbackUserLanguage)}-Standard-A">
         Děkuji za odpověď. Zpracovávám...
     </Say>
     <Record 
@@ -302,12 +299,8 @@ async function smartVoiceProcess(req, res) {
         transcribe="true"
         transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
         transcribeCallbackMethod="POST"
-        language="${getTwilioLanguage(userLanguage)}"
-        transcribeLanguage="${getTwilioLanguage(userLanguage)}"
-        speechTimeout="auto"
-        speechModel="phone_call"
-        language="cs-CZ"
-        transcribeLanguage="cs-CZ"
+        language="${getTwilioLanguage(fallbackUserLanguage)}"
+        transcribeLanguage="${getTwilioLanguage(fallbackUserLanguage)}"
         speechTimeout="auto"
         speechModel="phone_call"
         trim="trim-silence"
@@ -569,9 +562,13 @@ async function smartTranscribeProcess(req, res) {
       console.error('❌ Fallback processing also failed:', fallbackError.message);
       
       // Final fallback - end call gracefully
+      // Try to get user language from state, fallback to cs
+      const errorState = VoiceNavigationManager.getState(CallSid);
+      const errorUserLanguage = (errorState && errorState.lesson && errorState.lesson.language) ? errorState.lesson.language : 'cs';
+      
       const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+    <Say language="${getTwilioLanguage(errorUserLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(errorUserLanguage)}-Standard-A">
         Omlouvám se, nerozpoznal jsem vaši odpověď. Zkuste to prosím znovu později.
     </Say>
     <Hangup/>
@@ -592,9 +589,13 @@ async function smartTranscribeProcess(req, res) {
     console.log('🔍 DEBUG: This should not happen - transcription callback without text');
     
     // END CONVERSATION GRACEFULLY FOR UNDEFINED TRANSCRIPTION
+    // Try to get user language from state, fallback to cs
+    const noTextState = VoiceNavigationManager.getState(CallSid);
+    const noTextUserLanguage = (noTextState && noTextState.lesson && noTextState.lesson.language) ? noTextState.lesson.language : 'cs';
+    
     const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+    <Say language="${getTwilioLanguage(noTextUserLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(noTextUserLanguage)}-Standard-A">
         Omlouvám se, nerozpoznal jsem vaši odpověď. Zkuste to prosím znovu později.
     </Say>
     <Hangup/>
@@ -760,20 +761,22 @@ async function recordingStatusCallback(req, res) {
 }
 
 // Helper TwiML functions
-function getErrorTwiml() {
+function getErrorTwiml(userLanguage = 'cs') {
+  const lang = getTwilioLanguage(userLanguage);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">
+    <Say language="${lang}" rate="0.9" voice="Google.${lang}-Standard-A">
         Omlouvám se, došlo k chybě při načítání lekce. Zkuste to prosím později.
     </Say>
     <Hangup/>
 </Response>`;
 }
 
-function getContinueTwiml() {
+function getContinueTwiml(userLanguage = 'cs') {
+  const lang = getTwilioLanguage(userLanguage);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Say language="cs-CZ" rate="0.9" voice="Google.cs-CZ-Standard-A">
+    <Say language="${lang}" rate="0.9" voice="Google.${lang}-Standard-A">
         Omlouvám se, došlo k technické chybě. Zkuste to prosím později.
     </Say>
     <Hangup/>
