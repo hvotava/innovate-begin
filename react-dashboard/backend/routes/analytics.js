@@ -11,7 +11,8 @@ router.get('/users/progress', async (req, res) => {
   try {
     const { companyId, userId, limit = 50 } = req.query;
     
-    console.log('🔍 DEBUG: User progress analytics request:', { companyId, userId, limit });
+    console.log('🔥 FORCE LOG: User progress analytics request:', { companyId, userId, limit });
+    console.error('🔥 FORCE ERROR LOG: User progress analytics request:', { companyId, userId, limit });
     
     let whereCondition = {};
     if (companyId) whereCondition.companyId = parseInt(companyId);
@@ -175,8 +176,13 @@ router.get('/users/progress', async (req, res) => {
       lessonCount: up.lessonProgress.length,
       sessionCount: up.recentSessions.length
     })));
+    console.error(`🔥 FORCE: Returning ${userProgress.length} records at ${new Date().toISOString()}`);
     
-    res.json({ success: true, users: userProgress });
+    // Disable caching
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.json({ success: true, users: userProgress, timestamp: new Date().toISOString() });
   } catch (error) {
     console.error('User progress analytics error:', error);
     res.status(500).json({ success: false, error: error.message });
