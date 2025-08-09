@@ -34,6 +34,7 @@ import {
   CloudUpload as CloudUploadIcon,
   Psychology as PsychologyIcon,
   Insights as InsightsIcon,
+  PersonSearch as PersonSearchIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
@@ -105,7 +106,8 @@ const getMenuItems = (user: any) => {
   if (user.role === 'admin') {
     items.push(
       { text: 'Analytika', icon: <AnalyticsIcon />, path: '/analytics', show: true },
-      { text: 'Progress Analytics', icon: <InsightsIcon />, path: '/progress-analytics', show: true }
+      { text: 'Progress Analytics', icon: <InsightsIcon />, path: '/progress-analytics', show: true },
+      { text: 'User Progress', icon: <PersonSearchIcon />, path: '/user-progress', show: true }
     );
   }
 

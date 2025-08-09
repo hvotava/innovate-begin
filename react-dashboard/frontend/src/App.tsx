@@ -23,6 +23,7 @@ import Analytics from './pages/Analytics';
 import PlacementTest from './pages/PlacementTest';
 import ContentManagement from './pages/ContentManagement';
 import ProgressAnalytics from './pages/ProgressAnalytics';
+import UserProgressAnalytics from './pages/UserProgressAnalytics';
 import QuestionManager from './pages/QuestionManager';
 import ReviewDashboard from './pages/ReviewDashboard';
 import TestResults from './pages/TestResults';
@@ -272,6 +273,17 @@ function App() {
                 <ProtectedRoute adminOnly>
                   <ResponsiveSidebar>
                     <ProgressAnalytics />
+                  </ResponsiveSidebar>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/user-progress"
+              element={
+                <ProtectedRoute adminOnly>
+                  <ResponsiveSidebar>
+                    <UserProgressAnalytics />
                   </ResponsiveSidebar>
                 </ProtectedRoute>
               }

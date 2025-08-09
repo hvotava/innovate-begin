@@ -504,7 +504,14 @@ class VoiceNavigationManager {
         userAnswer: userInput,
         recordingUrl: state.recordingUrl || null,
         recordingDuration: state.recordingDuration || null,
-        sessionId: state.callSid || null
+        sessionId: state.callSid || null,
+        aiEvaluation: {
+          isCorrect: isCorrect,
+          question: currentQuestion.question,
+          userAnswer: userInput,
+          correctAnswer: currentQuestion.options[currentQuestion.correctAnswer],
+          timestamp: new Date().toISOString()
+        }
       });
       state.savedIndividually = true;
       console.log(`💾 Answer saved to database: ${isCorrect ? 'CORRECT' : 'WRONG'}`);
