@@ -70,6 +70,25 @@ router.post('/generate', async (req, res) => {
 
   } catch (error) {
     console.error('❌ AI Test Generator API error:', error.message);
+    
+    // If OpenAI is not available, return fallback questions as success
+    if (error.message.includes('OpenAI') || error.message.includes('openai')) {
+      const fallbackQuestions = AIQuestionGenerator.getFallbackQuestions(req.body.language || 'cs');
+      return res.json({
+        success: true,
+        questions: fallbackQuestions,
+        fallbackMode: true,
+        message: 'AI služba není dostupná. Použity náhradní otázky.',
+        metadata: {
+          mainQuestion,
+          requestedTypes,
+          language,
+          generatedAt: new Date().toISOString(),
+          count: fallbackQuestions.length
+        }
+      });
+    }
+    
     res.status(500).json({
       success: false,
       error: error.message,

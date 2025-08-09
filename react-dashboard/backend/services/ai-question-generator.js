@@ -1,8 +1,15 @@
-const OpenAI = require('openai');
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+// Safe OpenAI import with fallback
+let OpenAI, openai;
+try {
+  OpenAI = require('openai');
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  });
+  console.log('✅ OpenAI client initialized successfully');
+} catch (error) {
+  console.warn('⚠️ OpenAI package not available:', error.message);
+  console.warn('⚠️ AI Test Generator will use fallback mode');
+}
 
 // Question types
 const QUESTION_TYPES = {
@@ -26,6 +33,12 @@ class AIQuestionGenerator {
     try {
       console.log('🤖 AI Question Generator: Generating questions for:', mainQuestion);
       console.log('📝 Requested types:', requestedTypes);
+      
+      // Check if OpenAI is available
+      if (!openai) {
+        console.warn('⚠️ OpenAI not available, using fallback questions');
+        return this.getFallbackQuestions(language);
+      }
       
       const prompt = this.buildPrompt(mainQuestion, context, requestedTypes, language);
       
