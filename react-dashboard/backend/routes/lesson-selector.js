@@ -211,6 +211,16 @@ async function loadTestQuestionsFromDB(lessonId) {
     }
     
     console.log(`✅ Loaded ${questions.length} questions from database:`, questions.map(q => q.question || q.text));
+    console.log(`🔍 DEBUG: Full question structures:`, questions.map((q, i) => ({
+      index: i,
+      question: q.question,
+      options: q.options,
+      correctAnswer: q.correctAnswer,
+      correctAnswerType: typeof q.correctAnswer,
+      type: q.type,
+      hasOptions: !!q.options,
+      optionsLength: q.options?.length
+    })));
     
     return questions;
     

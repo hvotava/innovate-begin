@@ -553,7 +553,17 @@ class VoiceNavigationManager {
 
   // Enhanced test answer checking with fuzzy matching - supports multiple question types
   static checkTestAnswer(userInput, question) {
-    if (!question || !question.correctAnswer) return false;
+    if (!question) {
+      console.log('❌ No question provided');
+      return false;
+    }
+    
+    // Check if question has valid structure for different types
+    const hasValidCorrectAnswer = question.correctAnswer !== undefined && question.correctAnswer !== null;
+    if (!hasValidCorrectAnswer) {
+      console.log('❌ Question missing correctAnswer:', question);
+      return false;
+    }
     
     const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
     const cleanInput = normalize(userInput);
@@ -578,10 +588,19 @@ class VoiceNavigationManager {
 
   // Check multiple choice answer
   static checkMultipleChoiceAnswer(cleanInput, question) {
-    const correctAnswer = question.options[question.correctAnswer];
+    console.log(`🔍 DEBUG: Question structure:`, {
+      hasOptions: !!question.options,
+      optionsLength: question.options?.length,
+      correctAnswerIndex: question.correctAnswer,
+      correctAnswerType: typeof question.correctAnswer,
+      options: question.options
+    });
+    
+    const correctAnswer = question.options?.[question.correctAnswer];
     
     console.log(`🔍 DEBUG: Normalized input: "${cleanInput}"`);
     console.log(`🔍 DEBUG: Expected answer: "${correctAnswer}"`);
+    console.log(`🔍 DEBUG: CorrectAnswer index: ${question.correctAnswer}, Options: [${question.options?.join(', ')}]`);
     
     if (!correctAnswer) return false;
     
