@@ -30,7 +30,7 @@ router.get('/users/progress', async (req, res) => {
       // Get all test results for this user
       const testResults = await TestResult.findAll({
         where: { userId: user.id },
-        order: [['created_at', 'DESC']]
+        order: [['createdAt', 'DESC']]
       });
       
       console.log(`🔍 DEBUG: User ${user.id} has ${testResults.length} test results`);
@@ -41,7 +41,7 @@ router.get('/users/progress', async (req, res) => {
           sessionId: testResults[0].sessionId,
           questionText: testResults[0].questionText?.substring(0, 50) + '...',
           hasAiEvaluation: !!testResults[0].aiEvaluation,
-          createdAt: testResults[0].created_at
+          createdAt: testResults[0].createdAt
         });
       }
       
@@ -59,7 +59,7 @@ router.get('/users/progress', async (req, res) => {
             sessionId,
             lessonTitle,
             trainingType: result.trainingType,
-            startTime: result.created_at,
+            startTime: result.createdAt,
             questions: [],
             totalQuestions: 0,
             correctAnswers: 0,
@@ -74,7 +74,7 @@ router.get('/users/progress', async (req, res) => {
             question: result.questionText,
             userAnswer: result.userAnswer,
             isCorrect: result.aiEvaluation?.isCorrect || false,
-            timestamp: result.created_at
+            timestamp: result.createdAt
           });
           sessionStats[sessionId].totalQuestions++;
           if (result.aiEvaluation?.isCorrect) {
@@ -96,7 +96,7 @@ router.get('/users/progress', async (req, res) => {
         }
         
         lessonProgress[lessonTitle].attempts++;
-        lessonProgress[lessonTitle].lastAttempt = result.created_at;
+        lessonProgress[lessonTitle].lastAttempt = result.createdAt;
       });
       
       // Calculate scores for each session
@@ -196,10 +196,10 @@ router.get('/company/:companyId/users', async (req, res) => {
     const users = await User.findAll({ where: { companyId } });
     const userIds = users.map(u => u.id);
 
-    const results = await TestResult.findAll({
-      where: { userId: { [Op.in]: userIds } },
-      order: [['created_at', 'DESC']]
-    });
+          const results = await TestResult.findAll({
+        where: { userId: { [Op.in]: userIds } },
+        order: [['createdAt', 'DESC']]
+      });
 
     const byUser = {};
     for (const u of users) {
@@ -212,7 +212,7 @@ router.get('/company/:companyId/users', async (req, res) => {
         question: r.question,
         correct: r.isCorrect,
         score: r.scorePercentage,
-        at: r.created_at
+        at: r.createdAt
       });
     }
     for (const u of Object.values(byUser)) {
