@@ -107,10 +107,13 @@ async function smartVoiceProcess(req, res) {
     finishOnKey="#"
     action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
     method="POST"
-    transcribe="true"
+    transcribe="true" transcribeCallbackMethod="POST" transcribeLanguage="cs-CZ" speechTimeout="auto" speechModel="phone_call"
     transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
     transcribeCallbackMethod="POST"
     language="${getTwilioLanguage(userLanguage)}"
+    transcribeLanguage="${getTwilioLanguage(userLanguage)}"
+    speechTimeout="auto"
+    speechModel="phone_call"
     trim="trim-silence"
   />
 </Response>`;
@@ -196,7 +199,7 @@ async function smartVoiceProcess(req, res) {
         finishOnKey="#"
         action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
         method="POST"
-        transcribe="true"
+        transcribe="true" transcribeCallbackMethod="POST" transcribeLanguage="cs-CZ" speechTimeout="auto" speechModel="phone_call"
         transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
         transcribeCallbackMethod="POST"
         language="${getTwilioLanguage(repromptLanguage)}"
@@ -237,7 +240,7 @@ async function smartVoiceProcess(req, res) {
         finishOnKey="#"
         action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
         method="POST"
-        transcribe="true"
+        transcribe="true" transcribeCallbackMethod="POST" transcribeLanguage="cs-CZ" speechTimeout="auto" speechModel="phone_call"
         transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
     />
 </Response>`;
@@ -275,7 +278,7 @@ async function smartVoiceProcess(req, res) {
         finishOnKey="#"
         action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
         method="POST"
-        transcribe="true"
+        transcribe="true" transcribeCallbackMethod="POST" transcribeLanguage="cs-CZ" speechTimeout="auto" speechModel="phone_call"
         transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
     />
 </Response>`;
@@ -373,7 +376,7 @@ async function smartTranscribeProcess(req, res) {
         finishOnKey="#"
         action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
         method="POST"
-        transcribe="true"
+        transcribe="true" transcribeCallbackMethod="POST" transcribeLanguage="cs-CZ" speechTimeout="auto" speechModel="phone_call"
         transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
     />
 </Response>`;
@@ -486,7 +489,7 @@ async function smartTranscribeProcess(req, res) {
         finishOnKey="#"
         action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
         method="POST"
-        transcribe="true"
+        transcribe="true" transcribeCallbackMethod="POST" transcribeLanguage="cs-CZ" speechTimeout="auto" speechModel="phone_call"
         transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
         transcribeCallbackMethod="POST"
         language="${getTwilioLanguage(userLanguage)}"
@@ -588,7 +591,7 @@ async function smartTranscribeProcess(req, res) {
         finishOnKey="#"
         action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
         method="POST"
-        transcribe="true"
+        transcribe="true" transcribeCallbackMethod="POST" transcribeLanguage="cs-CZ" speechTimeout="auto" speechModel="phone_call"
         transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
         transcribeCallbackMethod="POST"
         language="${getTwilioLanguage(userLanguage)}"
