@@ -186,7 +186,7 @@ class VoiceNavigationManager {
     console.log('🎓 Test completed, ending session...');
     console.log(`📊 Final score: ${state.score}/${state.totalQuestions} (${Math.round((state.score / state.totalQuestions) * 100)}%)`);
     
-    // Save results
+    // Save results (aggregate)
     try {
       await this.saveTestResults(state);
     } catch (e) {
@@ -200,7 +200,8 @@ class VoiceNavigationManager {
     
     return {
       questionType: 'session_complete',
-      feedback: feedback
+      feedback: `${feedback} Výsledek: ${state.score}/${state.totalQuestions} (${percentage}%).`,
+      testResults: { score: state.score, total: state.totalQuestions, percentage }
     };
   }
 
@@ -208,21 +209,23 @@ class VoiceNavigationManager {
     try {
       const TestResult = require('../models/TestResult');
       const userId = state.lesson?.user_id || null;
-      const lessonId = state.lesson?.lesson_id || null;
+      const lessonTitle = state.lesson?.title || null;
+      const trainingType = state.lesson?.trainingType || 'lesson_test';
+      const sessionId = state.callSid || null;
       const percentage = Math.round((state.score / state.totalQuestions) * 100);
-      
-      for (const ans of state.userAnswers) {
-        await TestResult.create({
-          userId,
-          lessonId,
-          question: ans.question,
-          userAnswer: ans.userAnswer,
-          isCorrect: ans.correct,
-          correctAnswer: ans.correctAnswer,
-          scorePercentage: percentage
-        });
-      }
-      console.log('✅ Test results saved');
+
+      // Save aggregate summary row
+      await TestResult.create({
+        userId,
+        trainingType,
+        lessonTitle,
+        questionText: 'TEST SUMMARY',
+        userAnswer: `${state.score}/${state.totalQuestions}`,
+        aiEvaluation: { percentage },
+        sessionId
+      });
+
+      console.log('✅ Test results saved (summary)');
     } catch (error) {
       console.error('❌ Error creating TestResult records:', error.message);
     }
@@ -479,22 +482,24 @@ class VoiceNavigationManager {
       correctAnswer: currentQuestion.options[currentQuestion.correctAnswer]
     });
     
-    // Save each answer immediately to database
+    // Save each answer immediately to database (aligned with TestResult schema)
     try {
       const TestResult = require('../models/TestResult');
       const userId = state.lesson?.user_id || null;
-      const lessonId = state.lesson?.lesson_id || null;
-      
+      const lessonTitle = state.lesson?.title || null;
+      const trainingType = state.lesson?.trainingType || 'lesson_test';
+
       await TestResult.create({
         userId,
-        lessonId,
-        question: currentQuestion.question,
+        trainingType,
+        lessonTitle,
+        questionText: currentQuestion.question,
         userAnswer: userInput,
-        isCorrect: isCorrect,
-        correctAnswer: currentQuestion.options[currentQuestion.correctAnswer],
-        scorePercentage: null // Will be calculated at the end
+        recordingUrl: state.recordingUrl || null,
+        recordingDuration: state.recordingDuration || null,
+        sessionId: state.callSid || null
       });
-      
+      state.savedIndividually = true;
       console.log(`💾 Answer saved to database: ${isCorrect ? 'CORRECT' : 'WRONG'}`);
     } catch (error) {
       console.error('❌ Error saving answer to database:', error.message);
@@ -522,7 +527,8 @@ class VoiceNavigationManager {
   static checkTestAnswer(userInput, question) {
     if (!question || !question.correctAnswer) return false;
     
-    const cleanInput = userInput.toLowerCase().trim();
+    const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const cleanInput = normalize(userInput);
     const correctAnswer = question.options[question.correctAnswer];
     
     if (!correctAnswer) return false;
@@ -531,8 +537,8 @@ class VoiceNavigationManager {
     console.log(`🔍 Question options: ${question.options.join(', ')}`);
     console.log(`🔍 Correct answer index: ${question.correctAnswer}`);
     
-    // Check exact match
-    if (cleanInput.includes(correctAnswer.toLowerCase())) {
+    // Check exact match (diacritics-insensitive)
+    if (cleanInput.includes(normalize(correctAnswer))) {
       console.log('✅ Exact match found');
       return true;
     }
@@ -551,8 +557,8 @@ class VoiceNavigationManager {
       return true;
     }
     
-    // Check Czech number words
-    const czechNumbers = ['jedna', 'dva', 'tři', 'čtyři'];
+    // Check Czech number words + variants without diacritics
+    const czechNumbers = ['jedna', 'dva', 'tri', 'ctyri'];
     if (cleanInput.includes(czechNumbers[question.correctAnswer])) {
       console.log('✅ Czech number match found');
       return true;
@@ -560,7 +566,7 @@ class VoiceNavigationManager {
     
     // Check partial word match (50% threshold)
     const words = cleanInput.split(' ');
-    const correctWords = correctAnswer.toLowerCase().split(' ');
+    const correctWords = normalize(correctAnswer).split(' ');
     
     let matchCount = 0;
     for (const word of words) {

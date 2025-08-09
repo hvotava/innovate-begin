@@ -282,12 +282,14 @@ async function smartTranscribeProcess(req, res) {
       let twimlResponse = '';
       
       if (response.questionType === 'session_complete') {
-        // Test completed - end call
+        // Test completed - speak score explicitly, then end call
+        const scoreLine = response.testResults ? `Získali jste ${response.testResults.score} z ${response.testResults.total} bodů, což je ${response.testResults.percentage} procent.` : '';
         twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Say language="cs-CZ" rate="0.8" voice="Google.cs-CZ-Standard-A">
+    <Say language="cs-CZ" rate="0.85" voice="Google.cs-CZ-Standard-A">
         ${response.feedback}
     </Say>
+    ${scoreLine ? `<Say language="cs-CZ" rate="0.85" voice="Google.cs-CZ-Standard-A">${scoreLine}</Say>` : ''}
     <Hangup/>
 </Response>`;
       } else if (response.nextQuestion) {
