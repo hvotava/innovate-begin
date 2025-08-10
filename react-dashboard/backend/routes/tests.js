@@ -186,8 +186,8 @@ router.post('/', [
     
     console.log('✅ Test validation passed, creating test:', { title, lessonId, orderNumber, questionsCount: questions?.length });
 
-    // Zkontroluj, jestli lekce existuje a přístup k ní
-    const lesson = await Lesson.findByPk(lessonId, {
+    // Zkontroluj, jestli lekce existuje a přístup k ní, nebo ji vytvoř
+    let lesson = await Lesson.findByPk(lessonId, {
       include: [
         {
           model: Training,
@@ -197,7 +197,61 @@ router.post('/', [
     });
 
     if (!lesson) {
-      return res.status(400).json({ error: 'Lesson not found' });
+      console.log(`⚠️ Lesson ${lessonId} not found, attempting to create it automatically...`);
+      
+      // Pokus o automatické vytvoření lekce na základě názvu testu
+      try {
+        // Najdi první dostupný training pro uživatele
+        let targetTraining;
+        if (req.user.role === 'contact_person') {
+          targetTraining = await Training.findOne({
+            where: { companyId: req.user.companyId },
+            order: [['id', 'ASC']]
+          });
+        } else {
+          // Pro admin/superuser vezmi první training
+          targetTraining = await Training.findOne({
+            order: [['id', 'ASC']]
+          });
+        }
+
+        if (!targetTraining) {
+          return res.status(400).json({ 
+            error: 'Lesson not found and cannot create - no training available' 
+          });
+        }
+
+        // Vytvoř novou lekci automaticky
+        const generatedLesson = await Lesson.create({
+          title: `Lekce pro ${title}`, // Název lekce podle názvu testu
+          description: `Automaticky generovaná lekce pro test "${title}"`,
+          content: `Tato lekce byla automaticky vytvořena pro test "${title}". Obsah můžete upravit v administraci.`,
+          trainingId: targetTraining.id,
+          orderNumber: 0,
+          duration: 300 // 5 minut default
+        });
+
+        console.log(`✅ Auto-created lesson ${generatedLesson.id}: "${generatedLesson.title}"`);
+
+        // Aktualizuj lessonId v požadavku
+        req.body.lessonId = generatedLesson.id;
+        
+        // Načti nově vytvořenou lekci s includes
+        lesson = await Lesson.findByPk(generatedLesson.id, {
+          include: [
+            {
+              model: Training,
+              include: [{ model: Company, attributes: ['id', 'name'] }]
+            }
+          ]
+        });
+
+      } catch (createError) {
+        console.error('❌ Failed to auto-create lesson:', createError.message);
+        return res.status(400).json({ 
+          error: 'Lesson not found and failed to create automatically' 
+        });
+      }
     }
 
     // Contact person může vytvářet pouze pro svou firmu
@@ -211,7 +265,7 @@ router.post('/', [
     let finalOrderNumber = orderNumber;
     if (finalOrderNumber === undefined || finalOrderNumber === null) {
       const maxOrderTest = await Test.findOne({
-        where: { lessonId },
+        where: { lessonId: req.body.lessonId }, // Use potentially updated lessonId
         order: [['orderNumber', 'DESC']]
       });
       finalOrderNumber = maxOrderTest ? maxOrderTest.orderNumber + 1 : 0;
@@ -248,7 +302,7 @@ router.post('/', [
 
     const test = await Test.create({
       title,
-      lessonId,
+      lessonId: req.body.lessonId, // Use potentially updated lessonId
       orderNumber: finalOrderNumber,
       questions: normalizedQuestions, // Save as normalized array
       trainingId: lesson.trainingId

@@ -565,7 +565,7 @@ class VoiceNavigationManager {
       return false;
     }
     
-    const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const normalize = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
     const cleanInput = normalize(userInput);
     
     console.log(`🔍 DEBUG: Question type: ${question.type || 'multiple_choice'}`);
@@ -596,8 +596,8 @@ class VoiceNavigationManager {
       options: question.options
     });
     
-    // Define normalize function locally
-    const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    // Define normalize function locally (handles strings and numbers)
+    const normalize = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
     
     const correctAnswer = question.options?.[question.correctAnswer];
     
@@ -729,7 +729,7 @@ class VoiceNavigationManager {
     console.log(`🔍 DEBUG: Free text - Expected: "${correctAnswer}"`);
     console.log(`🔍 DEBUG: Free text - Key words: [${keyWords.join(', ')}]`);
     
-    const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const normalize = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
     const normalizedCorrect = normalize(correctAnswer);
     
     // Levenshtein distance for similarity
@@ -789,7 +789,7 @@ class VoiceNavigationManager {
     console.log(`🔍 DEBUG: Fill-in-blank - Expected: "${correctAnswer}"`);
     console.log(`🔍 DEBUG: Fill-in-blank - Alternatives: [${alternatives.join(', ')}]`);
     
-    const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const normalize = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
     const normalizedCorrect = normalize(correctAnswer);
     
     // Check exact match with correct answer
@@ -844,7 +844,7 @@ class VoiceNavigationManager {
     
     console.log(`🔍 DEBUG: Matching - Pairs: ${pairs.length}`);
     
-    const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const normalize = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
     
     // For voice input, we check if user mentioned any term or definition
     for (const pair of pairs) {
