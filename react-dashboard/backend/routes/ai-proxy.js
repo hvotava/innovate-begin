@@ -134,8 +134,16 @@ router.get('/content/company/:companyId', async (req, res) => {
 
 // Enhanced Content Upload with AI Lesson Generation
 router.post('/content/upload', async (req, res) => {
+  // Immediately respond to client to avoid timeouts
+  res.status(202).json({ 
+    success: true, 
+    message: 'Content upload received. Processing will continue in the background. Check the content list for updates.',
+    status: 'processing'
+  });
+
+  // --- Process upload in the background after responding ---
   try {
-    console.log('📤 Enhanced Content upload request received');
+    console.log('📤 BACKGROUND JOB: Starting enhanced content upload processing');
     console.log('📋 Request body:', req.body);
     console.log('📁 Files:', req.files ? Object.keys(req.files) : 'No files');
     console.log('🏢 Company ID:', req.body.company_id);
@@ -152,20 +160,20 @@ router.post('/content/upload', async (req, res) => {
       
       for (const file of files) {
         fileName = file.name;
-        console.log(`📄 Processing file: ${fileName}, type: ${file.mimetype}, size: ${file.size}`);
+        console.log(`📄 BACKGROUND JOB: Processing file: ${fileName}, type: ${file.mimetype}, size: ${file.size}`);
         
         if (file.mimetype === 'text/plain') {
           textContent += file.data.toString('utf8') + '\n';
-          console.log('✅ Text file processed');
+          console.log('✅ BACKGROUND JOB: Text file processed');
           
         } else if (file.mimetype === 'application/pdf') {
-          console.log('📄 Processing PDF file...');
+          console.log('📄 BACKGROUND JOB: Processing PDF file...');
           
           try {
             // Validate PDF
             const validation = PDFExtractor.validatePDF(file.data);
             if (!validation.valid) {
-              console.error('❌ PDF validation failed:', validation.error);
+              console.error('❌ BACKGROUND JOB: PDF validation failed:', validation.error);
               textContent += `[PDF Error: ${validation.error}]\n`;
               continue;
             }
@@ -176,23 +184,23 @@ router.post('/content/upload', async (req, res) => {
             if (extraction.success) {
               textContent += extraction.text + '\n';
               extractionMetadata = extraction.metadata;
-              console.log('✅ PDF text extraction successful:', {
+              console.log('✅ BACKGROUND JOB: PDF text extraction successful:', {
                 pages: extraction.metadata.pages,
                 textLength: extraction.text.length,
                 sectionsCount: extraction.sections?.length || 0
               });
             } else {
               textContent += extraction.text + '\n';
-              console.warn('⚠️ PDF extraction used fallback:', extraction.warning);
+              console.warn('⚠️ BACKGROUND JOB: PDF extraction used fallback:', extraction.warning);
             }
             
           } catch (pdfError) {
-            console.error('❌ PDF processing failed:', pdfError.message);
+            console.error('❌ BACKGROUND JOB: PDF processing failed:', pdfError.message);
             textContent += `[PDF Content from ${file.name} - extraction failed: ${pdfError.message}]\n`;
           }
           
         } else {
-          console.warn('⚠️ Unsupported file type:', file.mimetype);
+          console.warn('⚠️ BACKGROUND JOB: Unsupported file type:', file.mimetype);
           textContent += `[Unsupported file type: ${file.name}]\n`;
         }
       }
@@ -202,7 +210,7 @@ router.post('/content/upload', async (req, res) => {
     if (req.body.textContent && req.body.textContent.trim()) {
       textContent += req.body.textContent + '\n';
       fileName = 'Direct Text Input';
-      console.log('📝 Direct text content added');
+      console.log('📝 BACKGROUND JOB: Direct text content added');
     }
     
     // Get lesson assignment parameters
@@ -214,7 +222,7 @@ router.post('/content/upload', async (req, res) => {
     const generateAILesson = req.body.generateAILesson === 'true'; // NEW: AI lesson generation option
     const language = req.body.language || 'cs';
     
-    console.log('📚 Lesson assignment:', {
+    console.log('📚 BACKGROUND JOB: Lesson assignment:', {
       lessonId,
       createNewLesson,
       newLessonTitle,
@@ -229,7 +237,7 @@ router.post('/content/upload', async (req, res) => {
     
     // Create new lesson if requested
     if (createNewLesson && newLessonTitle && textContent.trim().length > 10) {
-      console.log(`📚 Creating new lesson: ${newLessonTitle}`);
+      console.log(`📚 BACKGROUND JOB: Creating new lesson: ${newLessonTitle}`);
       
       // Find or create a default training for this content
       let training = await Training.findOne({ 
@@ -246,7 +254,7 @@ router.post('/content/upload', async (req, res) => {
           category: lessonCategory,
           companyId: req.body.company_id || 1
         });
-        console.log('✅ Created new training for AI content');
+        console.log('✅ BACKGROUND JOB: Created new training for AI content');
       }
 
       // Generate AI lesson if requested
@@ -254,7 +262,7 @@ router.post('/content/upload', async (req, res) => {
       let lessonDescription = `Generated from uploaded file: ${fileName}`;
       
       if (generateAILesson && textContent.trim().length > 50) {
-        console.log('🤖 Generating AI lesson from content...');
+        console.log('🤖 BACKGROUND JOB: Generating AI lesson from content...');
         
         try {
           generatedLesson = await AILessonGenerator.generateLesson(
@@ -270,15 +278,15 @@ router.post('/content/upload', async (req, res) => {
           lessonContent = generatedLesson.content;
           lessonDescription = `AI-generated lesson from ${fileName}. ${generatedLesson.metadata?.estimatedReadingTime || ''}`;
           
-          console.log('✅ AI lesson generation successful:', {
+          console.log('✅ BACKGROUND JOB: AI lesson generation successful:', {
             type: generatedLesson.type,
             sectionsCount: generatedLesson.sections?.length || 0,
             contentLength: generatedLesson.content.length
           });
           
         } catch (aiError) {
-          console.error('❌ AI lesson generation failed:', aiError.message);
-          console.log('📝 Using original content as fallback');
+          console.error('❌ BACKGROUND JOB: AI lesson generation failed:', aiError.message);
+          console.log('📝 BACKGROUND JOB: Using original content as fallback');
           // Continue with original content
         }
       }
@@ -304,14 +312,14 @@ router.post('/content/upload', async (req, res) => {
       });
       
       targetLessonId = newLesson.id;
-      console.log(`✅ New lesson created with ID: ${targetLessonId}`, {
+      console.log(`✅ BACKGROUND JOB: New lesson created with ID: ${targetLessonId}`, {
         aiGenerated: !!generatedLesson,
         sectionsCount: generatedLesson?.sections?.length || 0
       });
       
     } else if (lessonId) {
       // Update existing lesson with new content
-      console.log(`📝 Updating existing lesson ID: ${lessonId}`);
+      console.log(`📝 BACKGROUND JOB: Updating existing lesson ID: ${lessonId}`);
       
       const lesson = await Lesson.findByPk(lessonId);
       if (lesson) {
@@ -319,7 +327,7 @@ router.post('/content/upload', async (req, res) => {
         
         // Generate AI lesson for updated content if requested
         if (generateAILesson && textContent.trim().length > 50) {
-          console.log('🤖 Generating AI lesson for updated content...');
+          console.log('🤖 BACKGROUND JOB: Generating AI lesson for updated content...');
           
           try {
             generatedLesson = await AILessonGenerator.generateLesson(
@@ -330,10 +338,10 @@ router.post('/content/upload', async (req, res) => {
             
             updatedContent = generatedLesson.content;
             
-            console.log('✅ AI lesson update successful');
+            console.log('✅ BACKGROUND JOB: AI lesson update successful');
             
           } catch (aiError) {
-            console.error('❌ AI lesson update failed:', aiError.message);
+            console.error('❌ BACKGROUND JOB: AI lesson update failed:', aiError.message);
             // Continue with original content
           }
         }
@@ -348,14 +356,14 @@ router.post('/content/upload', async (req, res) => {
             aiGenerated: !!generatedLesson
           })
         });
-        console.log(`✅ Lesson ${lessonId} updated with new content`);
+        console.log(`✅ BACKGROUND JOB: Lesson ${lessonId} updated with new content`);
       }
     }
 
     // Generate tests if requested
     let generatedTests = [];
     if (generateTests && textContent && textContent.trim().length > 50) {
-      console.log('🤖 Generating automatic tests from content...');
+      console.log('🤖 BACKGROUND JOB: Generating automatic tests from content...');
       
       try {
         const questions = await generateQuestionsFromContent(textContent, newLessonTitle || 'Generated Test');
@@ -375,10 +383,10 @@ router.post('/content/upload', async (req, res) => {
             questionCount: questions.length,
             type: 'multiple_choice'
           });
-          console.log(`✅ Generated test with ${questions.length} questions`);
+          console.log(`✅ BACKGROUND JOB: Generated test with ${questions.length} questions`);
         }
       } catch (testGenError) {
-        console.error('❌ Test generation failed:', testGenError.message);
+        console.error('❌ BACKGROUND JOB: Test generation failed:', testGenError.message);
       }
     }
 
@@ -400,7 +408,7 @@ router.post('/content/upload', async (req, res) => {
     // Save to in-memory store for listing
     uploadedMemory.push(uploadedSources[0]);
 
-    console.log('✅ Enhanced content upload successful:', {
+    console.log('✅ BACKGROUND JOB: Enhanced content upload successful:', {
       ...uploadedSources[0],
       aiGenerated: !!generatedLesson,
       pdfExtracted: !!extractionMetadata
@@ -418,136 +426,15 @@ router.post('/content/upload', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Enhanced content upload error:', error.message);
+    console.error('❌ BACKGROUND JOB ERROR: Enhanced content upload error:', error.message);
     console.error('Stack trace:', error.stack);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// NEW: Generate AI Lesson from text content
-router.post('/lesson/generate', async (req, res) => {
-  try {
-    console.log('🤖 AI Lesson Generation API called');
-    
-    const { 
-      content, 
-      title, 
-      language = 'cs',
-      trainingId,
-      companyId 
-    } = req.body;
-
-    // Validation
-    if (!content || content.trim().length < 50) {
-      return res.status(400).json({
-        success: false,
-        error: 'Content must be at least 50 characters long'
-      });
-    }
-
-    if (!title || title.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Title is required'
-      });
-    }
-
-    console.log('📝 Generating AI lesson:', {
-      title,
-      contentLength: content.length,
-      language,
-      trainingId,
-      companyId
-    });
-
-    // Generate AI lesson
-    const generatedLesson = await AILessonGenerator.generateLesson(
-      content,
-      title,
-      language,
-      {
-        includeMetadata: true,
-        structureContent: true
-      }
-    );
-
-    console.log('✅ AI lesson generated successfully:', {
-      type: generatedLesson.type,
-      sectionsCount: generatedLesson.sections?.length || 0,
-      contentLength: generatedLesson.content.length
-    });
-
-    // Find or create training if trainingId provided
-    let targetTrainingId = trainingId;
-    if (!targetTrainingId) {
-      // Create default training for AI content
-      const training = await Training.findOrCreate({
-        where: {
-          title: 'AI Generated Lessons',
-          companyId: companyId || 1
-        },
-        defaults: {
-          title: 'AI Generated Lessons',
-          description: 'Training containing AI-generated lessons',
-          category: 'AI Generated',
-          companyId: companyId || 1
-        }
-      });
-      targetTrainingId = training[0].id;
-    }
-
-    // Save lesson to database
-    const lesson = await Lesson.create({
-      title: generatedLesson.title,
-      description: `AI-generated lesson. ${generatedLesson.metadata?.estimatedReadingTime || ''}`,
-      content: generatedLesson.content,
-      lesson_type: 'lesson',
-      level: 1,
-      trainingId: targetTrainingId,
-      duration: generatedLesson.metadata?.estimatedReadingTime ? 
-        parseInt(generatedLesson.metadata.estimatedReadingTime) * 60 : 300,
-      metadata: JSON.stringify({
-        generatedBy: 'AI',
-        aiGenerated: true,
-        generationType: generatedLesson.type,
-        sections: generatedLesson.sections || [],
-        language: language,
-        generatedAt: generatedLesson.generatedAt
-      })
-    });
-
-    console.log('✅ AI lesson saved to database:', lesson.id);
-
-    res.json({
-      success: true,
-      lesson: {
-        id: lesson.id,
-        title: lesson.title,
-        description: lesson.description,
-        content: lesson.content,
-        trainingId: lesson.trainingId,
-        metadata: generatedLesson.metadata,
-        sections: generatedLesson.sections,
-        type: generatedLesson.type
-      },
-      message: 'AI lesson generated and saved successfully'
-    });
-
-  } catch (error) {
-    console.error('❌ AI lesson generation error:', error.message);
-    console.error('Stack trace:', error.stack);
-    
-    res.status(500).json({
-      success: false,
-      error: 'Failed to generate AI lesson: ' + error.message
-    });
   }
 });
 
 // NEW: Function to generate questions from content using OpenAI
 async function generateQuestionsFromContent(content, lessonTitle) {
   try {
-    console.log('🤖 Generating questions using OpenAI...');
+    console.log('🤖 BACKGROUND JOB: Generating questions using OpenAI...');
     
     // Prepare prompt for OpenAI
     const prompt = `Based on the following educational content, generate 5 multiple choice questions. 
@@ -594,7 +481,7 @@ async function generateQuestionsFromContent(content, lessonTitle) {
     });
     
     const generatedText = response.data.choices[0].message.content;
-    console.log('🤖 OpenAI response:', generatedText);
+    console.log('🤖 BACKGROUND JOB: OpenAI response:', generatedText);
     
     // Parse JSON response
     const questions = JSON.parse(generatedText);
@@ -607,14 +494,14 @@ async function generateQuestionsFromContent(content, lessonTitle) {
         correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0
       }));
       
-      console.log(`✅ Generated ${validatedQuestions.length} validated questions`);
+      console.log(`✅ BACKGROUND JOB: Generated ${validatedQuestions.length} validated questions`);
       return validatedQuestions;
     }
     
     throw new Error('Invalid question format from OpenAI');
     
   } catch (error) {
-    console.error('❌ Question generation error:', error.message);
+    console.error('❌ BACKGROUND JOB: Question generation error:', error.message);
     return [];
   }
 }

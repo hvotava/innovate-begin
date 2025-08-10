@@ -238,19 +238,28 @@ const ContentManagement: React.FC = () => {
       console.log('🚀 Making API call to /ai-proxy/content/upload');
       const response = await api.post('/ai-proxy/content/upload', formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        timeout: 60000, // 60 seconds timeout
+          'Content-Type': 'multipart/form-data'
+        }
       });
-      console.log('✅ Upload response:', response.data);
 
-      if (response.data.success) {
-        setSuccess(`Successfully uploaded ${acceptedFiles.length} file(s)`);
-        setUploadTitle('');
-        await loadContentSources();
+      // Handle the new 202 Accepted response
+      if (response.status === 202) {
+        setSuccess(response.data.message || 'Upload received and is being processed in the background.');
+        // Optionally, start polling for status or just let the user know to refresh
+        setTimeout(() => {
+          loadContentSources();
+        }, 5000); // Refresh after 5 seconds
+      } else if (response.data.success) {
+        setSuccess('Content uploaded and processed successfully!');
+        const newSources = Array.isArray(response.data.uploadedSources)
+          ? response.data.uploadedSources
+          : [response.data.uploadedSources];
+        setContentSources(prev => [...newSources, ...prev]);
+        console.log('✅ Upload successful, new sources:', newSources);
       } else {
         setError(response.data.error || 'Upload failed');
       }
+
     } catch (err: any) {
       console.error('❌ Upload error:', err);
       console.error('📋 Error details:', err.response?.data);
