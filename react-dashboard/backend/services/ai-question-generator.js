@@ -47,7 +47,7 @@ class AIQuestionGenerator {
         messages: [
           {
             role: "system",
-            content: this.getSystemPrompt(language)
+            content: this.getDynamicSystemPrompt(language, requestedTypes.length > 0 ? requestedTypes : Object.values(QUESTION_TYPES))
           },
           {
             role: "user", 
@@ -93,10 +93,12 @@ Hlavní otázka/téma: "${mainQuestion}"
 
 ${context ? `Kontext: ${context}` : ''}
 
-Vygeneruj testové otázky v následujících typech:
+Vygeneruj testové otázky POUZE v následujících typech:
 ${selectedTypes.map(type => `- ${typeDescriptions[type]}`).join('\n')}
 
-Pro každý typ otázky vygeneruj 1-2 kvalitní varianty.
+DŮLEŽITÉ: Generuj POUZE typy otázek uvedené výše. Negeneruj žádné jiné typy.
+
+Pro každý požadovaný typ otázky vygeneruj 1-2 kvalitní varianty.
 
 Požadavky:
 - Otázky musí být relevantní k hlavnímu tématu
@@ -105,12 +107,72 @@ Požadavky:
 - Free text otázky musí mít jasná hodnotící kritéria
 - Matching otázky musí mít logické páry
 
-Vrať odpověď ve formátu JSON podle následující struktury pro každý typ otázky.
+Vrať odpověď ve formátu JSON podle struktury v system promptu, ale POUZE pro vybrané typy otázek.
     `.trim();
   }
 
   /**
-   * Get system prompt based on language
+   * Get dynamic system prompt with only selected question types
+   */
+  static getDynamicSystemPrompt(language, selectedTypes) {
+    console.log('🎯 Creating dynamic system prompt for types:', selectedTypes);
+    
+    const typeExamples = {
+      [QUESTION_TYPES.MULTIPLE_CHOICE]: `  {
+    "type": "multiple_choice",
+    "question": "Otázka zde",
+    "options": ["Možnost A", "Možnost B", "Možnost C", "Možnost D"],
+    "correctAnswer": "Možnost A",
+    "explanation": "Vysvětlení správné odpovědi",
+    "difficulty": "easy|medium|hard",
+    "keyWords": ["klíčové", "slovo"]
+  }`,
+      [QUESTION_TYPES.FREE_TEXT]: `  {
+    "type": "free_text",
+    "question": "Otázka zde",
+    "correctAnswer": "Vzorová správná odpověď",
+    "keyWords": ["důležité", "pojmy", "pro", "hodnocení"],
+    "explanation": "Co by měla odpověď obsahovat",
+    "difficulty": "easy|medium|hard"
+  }`,
+      [QUESTION_TYPES.FILL_IN_BLANK]: `  {
+    "type": "fill_in_blank",
+    "question": "Věta s _____ mezerou pro doplnění",
+    "correctAnswer": "správné slovo",
+    "alternatives": ["alternativní", "odpovědi"],
+    "explanation": "Vysvětlení",
+    "difficulty": "easy|medium|hard",
+    "keyWords": ["kontext", "slova"]
+  }`,
+      [QUESTION_TYPES.MATCHING]: `  {
+    "type": "matching",
+    "question": "Přiřaďte pojmy k definicím",
+    "pairs": [
+      {"term": "Pojem 1", "definition": "Definice 1"},
+      {"term": "Pojem 2", "definition": "Definice 2"}
+    ],
+    "explanation": "Vysvětlení párování",
+    "difficulty": "easy|medium|hard",
+    "keyWords": ["související", "pojmy"]
+  }`
+    };
+
+    const selectedExamples = selectedTypes.map(type => typeExamples[type]).filter(Boolean);
+    
+    return `Jsi expert na tvorbu vzdělávacích testů. Tvým úkolem je vytvářet kvalitní, relevantní a pedagogicky správné testové otázky v češtině. 
+
+DŮLEŽITÉ: Generuj POUZE typy otázek, které jsou uvedené v příkladech níže. Negeneruj žádné jiné typy.
+
+Vrať odpověď POUZE jako validní JSON array s touto strukturou:
+[
+${selectedExamples.join(',\n')}
+]
+
+Nepiš žádný další text, pouze validní JSON.`;
+  }
+
+  /**
+   * Get system prompt based on language (legacy method)
    */
   static getSystemPrompt(language) {
     const prompts = {
