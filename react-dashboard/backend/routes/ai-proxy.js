@@ -533,10 +533,34 @@ router.post('/lesson/generate-structured', async (req, res) => {
       contentLength: generatedLesson.content?.length || 0
     });
 
+    // Find or create a default training for AI-generated lessons
+    console.log('🔍 Finding or creating default training for AI lessons...');
+    let defaultTraining = await Training.findOne({
+      where: { 
+        company_id: companyId,
+        title: 'AI Generated Lessons'
+      }
+    });
+
+    if (!defaultTraining) {
+      console.log('📝 Creating default AI training...');
+      defaultTraining = await Training.create({
+        title: 'AI Generated Lessons',
+        description: 'Automatically generated lessons using AI',
+        company_id: companyId,
+        is_active: true,
+        created_at: new Date()
+      });
+      console.log('✅ Default AI training created:', defaultTraining.id);
+    } else {
+      console.log('✅ Found existing AI training:', defaultTraining.id);
+    }
+
     // Create lesson in database
     const lessonData = {
       title: generatedLesson.title || title,
       content: generatedLesson.content || content,
+      trainingId: defaultTraining.id, // Add required trainingId
       difficulty: generatedLesson.difficulty || 'medium',
       estimated_duration: generatedLesson.estimatedDuration || 10,
       company_id: companyId,
