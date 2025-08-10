@@ -189,6 +189,7 @@ class VoiceNavigationManager {
     // Save results (aggregate)
     try {
       await this.saveTestResults(state);
+      console.log('✅ Test results saved successfully');
     } catch (e) {
       console.error('❌ Saving test results failed:', e.message);
     }
@@ -198,11 +199,15 @@ class VoiceNavigationManager {
     
     console.log(`📋 Test feedback: ${feedback}`);
     
-    return {
+    const completionResponse = {
       questionType: 'session_complete',
-      feedback: `${feedback} Výsledek: ${state.score}/${state.totalQuestions} (${percentage}%).`,
+      feedback: `${feedback} Výsledek: ${state.score}/${state.totalQuestions} (${percentage}%). Děkuji za absolvování testu.`,
       testResults: { score: state.score, total: state.totalQuestions, percentage }
     };
+    
+    console.log('🔚 Returning session_complete response:', completionResponse);
+    
+    return completionResponse;
   }
 
   static async saveTestResults(state) {
@@ -461,15 +466,14 @@ class VoiceNavigationManager {
 
   // Handle test phase with improved answer checking
   static async handleTestPhase(userInput, state, userPhone) {
+    // Ensure totalQuestions is set (for robustness)
+    if (!state.totalQuestions && state.lesson?.questions) {
+      state.totalQuestions = state.lesson.questions.length;
+      console.log(`🔍 Setting totalQuestions to ${state.totalQuestions}`);
+    }
+    
     console.log(`🧪 Test phase - Question ${state.currentQuestionIndex + 1}/${state.totalQuestions}`);
     console.log(`🔍 Debug: currentQuestionIndex=${state.currentQuestionIndex}, totalQuestions=${state.totalQuestions}`);
-    
-    // Check if test is completed
-    if (state.currentQuestionIndex >= state.totalQuestions) {
-      console.log('🎓 Test completed, transitioning to TEST_COMPLETED state');
-      state.currentState = CONVERSATION_STATES.TEST_COMPLETED;
-      return this.handleTestCompleted(userInput, state, userPhone);
-    }
     
     // Process test question
     const currentQuestion = state.lesson.questions[state.currentQuestionIndex];

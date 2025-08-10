@@ -242,6 +242,8 @@ async function smartVoiceProcess(req, res) {
     // Generate TwiML response
     let twimlResponse = '';
     if (response.questionType === 'session_complete') {
+      console.log('🔚 Generating session_complete TwiML response');
+      console.log('📋 Final feedback:', response.feedback);
       twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
