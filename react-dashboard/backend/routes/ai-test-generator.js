@@ -20,6 +20,8 @@ router.post('/generate', async (req, res) => {
     console.log('🤖 AI Test Generator API called with:', {
       mainQuestion,
       requestedTypes,
+      requestedTypesArray: Array.isArray(requestedTypes),
+      requestedTypesLength: requestedTypes.length,
       language,
       lessonId
     });

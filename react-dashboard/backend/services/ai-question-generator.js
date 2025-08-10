@@ -77,8 +77,16 @@ class AIQuestionGenerator {
    * Build the prompt for AI question generation
    */
   static buildPrompt(mainQuestion, context, requestedTypes, language) {
+    console.log('🔧 BuildPrompt DEBUG:', {
+      requestedTypes,
+      requestedTypesLength: requestedTypes.length,
+      allTypes: Object.values(QUESTION_TYPES)
+    });
+    
     const typeDescriptions = this.getTypeDescriptions(language);
     const selectedTypes = requestedTypes.length > 0 ? requestedTypes : Object.values(QUESTION_TYPES);
+    
+    console.log('✅ Final selectedTypes for AI prompt:', selectedTypes);
     
     return `
 Hlavní otázka/téma: "${mainQuestion}"
