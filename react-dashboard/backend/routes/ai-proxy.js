@@ -414,17 +414,6 @@ router.post('/content/upload', async (req, res) => {
       pdfExtracted: !!extractionMetadata
     });
 
-    res.json({
-      success: true,
-      uploadedSources,
-      aiGenerated: !!generatedLesson,
-      lessonMetadata: generatedLesson ? {
-        type: generatedLesson.type,
-        sections: generatedLesson.sections,
-        estimatedReadingTime: generatedLesson.metadata?.estimatedReadingTime
-      } : null
-    });
-
   } catch (error) {
     console.error('❌ BACKGROUND JOB ERROR: Enhanced content upload error:', error.message);
     console.error('Stack trace:', error.stack);
