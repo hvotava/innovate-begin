@@ -537,7 +537,7 @@ router.post('/lesson/generate-structured', async (req, res) => {
     console.log('🔍 Finding or creating default training for AI lessons...');
     let defaultTraining = await Training.findOne({
       where: { 
-        company_id: companyId,
+        companyId: companyId,  // Fixed: use camelCase
         title: 'AI Generated Lessons'
       }
     });
@@ -547,8 +547,8 @@ router.post('/lesson/generate-structured', async (req, res) => {
       defaultTraining = await Training.create({
         title: 'AI Generated Lessons',
         description: 'Automatically generated lessons using AI',
-        company_id: companyId,
-        is_active: true,
+        companyId: companyId,  // Fixed: use camelCase
+        category: 'AI Generated',
         created_at: new Date()
       });
       console.log('✅ Default AI training created:', defaultTraining.id);
@@ -561,18 +561,21 @@ router.post('/lesson/generate-structured', async (req, res) => {
       title: generatedLesson.title || title,
       content: generatedLesson.content || content,
       trainingId: defaultTraining.id, // Add required trainingId
-      difficulty: generatedLesson.difficulty || 'medium',
-      estimated_duration: generatedLesson.estimatedDuration || 10,
-      company_id: companyId,
-      is_active: true,
-      metadata: JSON.stringify({
+      description: `AI Generated lesson: ${generatedLesson.title || title}`,
+      language: language,
+      level: generatedLesson.difficulty || 'beginner',
+      base_difficulty: generatedLesson.difficulty || 'medium',
+      lesson_type: 'ai_generated',
+      script: JSON.stringify({
         aiGenerated: true,
         originalTitle: title,
         language: language,
         sections: generatedLesson.sections || [],
         keyTopics: generatedLesson.keyTopics || [],
-        generatedAt: new Date().toISOString()
-      })
+        generatedAt: new Date().toISOString(),
+        estimatedDuration: generatedLesson.estimatedDuration || 10
+      }),
+      created_at: new Date()
     };
 
     console.log('💾 Creating lesson in database...');
