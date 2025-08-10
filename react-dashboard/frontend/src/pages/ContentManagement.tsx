@@ -406,7 +406,7 @@ const ContentManagement: React.FC = () => {
     try {
       console.log('🤖 Generating AI lesson...');
       
-      const response = await api.post('/ai-proxy/lesson/generate', {
+      const response = await api.post('/ai-proxy/lesson/generate-structured', {
         content: aiLessonContent,
         title: aiLessonTitle,
         language: 'cs',
