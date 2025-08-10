@@ -495,6 +495,94 @@ async function generateQuestionsFromContent(content, lessonTitle) {
   }
 }
 
+// AI Lesson Generation endpoint
+router.post('/lesson/generate-structured', async (req, res) => {
+  try {
+    console.log('🧠 AI Lesson Generation request:', {
+      title: req.body.title,
+      contentLength: req.body.content?.length || 0,
+      language: req.body.language || 'cs'
+    });
+
+    const { title, content, language = 'cs', companyId = 1 } = req.body;
+    
+    if (!title || !content) {
+      console.error('❌ Missing required fields: title or content');
+      return res.status(400).json({ 
+        error: 'Title and content are required',
+        received: { title: !!title, content: !!content }
+      });
+    }
+
+    // Generate lesson using AI service
+    console.log('🤖 Calling AILessonGenerator...');
+    const generatedLesson = await AILessonGenerator.generateLesson(
+      content, 
+      title, 
+      language,
+      {
+        includeQuestions: false,
+        maxSections: 8,
+        targetLength: 'medium'
+      }
+    );
+
+    console.log('✅ AI lesson generated successfully:', {
+      title: generatedLesson.title,
+      sectionsCount: generatedLesson.sections?.length || 0,
+      contentLength: generatedLesson.content?.length || 0
+    });
+
+    // Create lesson in database
+    const lessonData = {
+      title: generatedLesson.title || title,
+      content: generatedLesson.content || content,
+      difficulty: generatedLesson.difficulty || 'medium',
+      estimated_duration: generatedLesson.estimatedDuration || 10,
+      company_id: companyId,
+      is_active: true,
+      metadata: JSON.stringify({
+        aiGenerated: true,
+        originalTitle: title,
+        language: language,
+        sections: generatedLesson.sections || [],
+        keyTopics: generatedLesson.keyTopics || [],
+        generatedAt: new Date().toISOString()
+      })
+    };
+
+    console.log('💾 Creating lesson in database...');
+    const savedLesson = await Lesson.create(lessonData);
+    
+    console.log('✅ Lesson saved to database:', {
+      id: savedLesson.id,
+      title: savedLesson.title
+    });
+
+    res.json({
+      success: true,
+      lesson: {
+        id: savedLesson.id,
+        title: savedLesson.title,
+        content: savedLesson.content,
+        difficulty: savedLesson.difficulty,
+        estimated_duration: savedLesson.estimated_duration,
+        sections: generatedLesson.sections || [],
+        keyTopics: generatedLesson.keyTopics || []
+      },
+      message: 'AI lesson generated and saved successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ AI Lesson Generation error:', error);
+    res.status(500).json({ 
+      error: 'Failed to generate AI lesson',
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
 // Debug endpoint
 router.get('/debug/status', (req, res) => {
   res.json({
@@ -504,7 +592,8 @@ router.get('/debug/status', (req, res) => {
       'GET /placement-test/:companyId',
       'POST /placement-test/analyze', 
       'GET /content/company/:companyId',
-      'POST /content/upload'
+      'POST /content/upload',
+      'POST /lesson/generate-structured'
     ]
   });
 });
