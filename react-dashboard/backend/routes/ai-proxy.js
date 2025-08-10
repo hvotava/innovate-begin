@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios'); // Added for OpenAI API call
-const { Lesson, Test, Training } = require('../models');
+const { Training, Lesson, Test } = require('../models');
+const { AILessonGenerator } = require('../services/ai-lesson-generator');
+const { PDFExtractor } = require('../services/pdf-extractor');
 
 console.log('🤖 AI Proxy routes loading...');
 
@@ -130,24 +132,19 @@ router.get('/content/company/:companyId', async (req, res) => {
   }
 });
 
-// Enhanced Content Upload with Automatic Test Generation
+// Enhanced Content Upload with AI Lesson Generation
 router.post('/content/upload', async (req, res) => {
   try {
-    console.log('📤 Content upload request received');
+    console.log('📤 Enhanced Content upload request received');
     console.log('📋 Request body:', req.body);
     console.log('📁 Files:', req.files ? Object.keys(req.files) : 'No files');
     console.log('🏢 Company ID:', req.body.company_id);
     console.log('📝 Title:', req.body.title);
     console.log('🔧 Content type:', req.body.content_type);
-    console.log('📊 Form data keys:', Object.keys(req.body));
-    console.log('📁 Files object:', req.files);
-    if (req.files && req.files.files) {
-      console.log('📄 Files array length:', Array.isArray(req.files.files) ? req.files.files.length : 1);
-      console.log('📄 First file:', Array.isArray(req.files.files) ? req.files.files[0]?.name : req.files.files?.name);
-    }
 
     let textContent = '';
     let fileName = '';
+    let extractionMetadata = null;
 
     // Extract text content from uploaded files
     if (req.files && req.files.files && (Array.isArray(req.files.files) ? req.files.files.length > 0 : true)) {
@@ -155,16 +152,57 @@ router.post('/content/upload', async (req, res) => {
       
       for (const file of files) {
         fileName = file.name;
-        console.log(`📄 Processing file: ${fileName}, type: ${file.mimetype}`);
+        console.log(`📄 Processing file: ${fileName}, type: ${file.mimetype}, size: ${file.size}`);
         
         if (file.mimetype === 'text/plain') {
           textContent += file.data.toString('utf8') + '\n';
+          console.log('✅ Text file processed');
+          
         } else if (file.mimetype === 'application/pdf') {
-          // For now, just note that it's a PDF
-          textContent += `[PDF Content from ${file.name}]\n`;
-          console.log('📄 PDF upload detected, content extraction not yet implemented');
+          console.log('📄 Processing PDF file...');
+          
+          try {
+            // Validate PDF
+            const validation = PDFExtractor.validatePDF(file.data);
+            if (!validation.valid) {
+              console.error('❌ PDF validation failed:', validation.error);
+              textContent += `[PDF Error: ${validation.error}]\n`;
+              continue;
+            }
+
+            // Extract text from PDF
+            const extraction = await PDFExtractor.extractStructuredText(file.data);
+            
+            if (extraction.success) {
+              textContent += extraction.text + '\n';
+              extractionMetadata = extraction.metadata;
+              console.log('✅ PDF text extraction successful:', {
+                pages: extraction.metadata.pages,
+                textLength: extraction.text.length,
+                sectionsCount: extraction.sections?.length || 0
+              });
+            } else {
+              textContent += extraction.text + '\n';
+              console.warn('⚠️ PDF extraction used fallback:', extraction.warning);
+            }
+            
+          } catch (pdfError) {
+            console.error('❌ PDF processing failed:', pdfError.message);
+            textContent += `[PDF Content from ${file.name} - extraction failed: ${pdfError.message}]\n`;
+          }
+          
+        } else {
+          console.warn('⚠️ Unsupported file type:', file.mimetype);
+          textContent += `[Unsupported file type: ${file.name}]\n`;
         }
       }
+    }
+
+    // Handle direct text input
+    if (req.body.textContent && req.body.textContent.trim()) {
+      textContent += req.body.textContent + '\n';
+      fileName = 'Direct Text Input';
+      console.log('📝 Direct text content added');
     }
     
     // Get lesson assignment parameters
@@ -172,47 +210,104 @@ router.post('/content/upload', async (req, res) => {
     const createNewLesson = req.body.createNewLesson === 'true';
     const newLessonTitle = req.body.newLessonTitle;
     const lessonCategory = req.body.lessonCategory || 'General';
-    const generateTests = req.body.generateTests === 'true'; // NEW: Test generation flag
+    const generateTests = req.body.generateTests === 'true';
+    const generateAILesson = req.body.generateAILesson === 'true'; // NEW: AI lesson generation option
+    const language = req.body.language || 'cs';
     
     console.log('📚 Lesson assignment:', {
       lessonId,
       createNewLesson,
       newLessonTitle,
       lessonCategory,
-      generateTests
+      generateTests,
+      generateAILesson,
+      language
     });
     
     let targetLessonId = lessonId;
+    let generatedLesson = null;
     
     // Create new lesson if requested
-    if (createNewLesson && newLessonTitle) {
+    if (createNewLesson && newLessonTitle && textContent.trim().length > 10) {
       console.log(`📚 Creating new lesson: ${newLessonTitle}`);
       
       // Find or create a default training for this content
       let training = await Training.findOne({ 
-        where: { title: 'Uploaded Content Training' } 
+        where: { 
+          title: 'AI Generated Content',
+          companyId: req.body.company_id || 1
+        } 
       });
       
       if (!training) {
         training = await Training.create({
-          title: 'Uploaded Content Training',
-          description: 'Training created from uploaded content',
+          title: 'AI Generated Content',
+          description: 'Training created from AI-generated lessons',
           category: lessonCategory,
           companyId: req.body.company_id || 1
         });
+        console.log('✅ Created new training for AI content');
+      }
+
+      // Generate AI lesson if requested
+      let lessonContent = textContent;
+      let lessonDescription = `Generated from uploaded file: ${fileName}`;
+      
+      if (generateAILesson && textContent.trim().length > 50) {
+        console.log('🤖 Generating AI lesson from content...');
+        
+        try {
+          generatedLesson = await AILessonGenerator.generateLesson(
+            textContent,
+            newLessonTitle,
+            language,
+            {
+              includeMetadata: true,
+              structureContent: true
+            }
+          );
+          
+          lessonContent = generatedLesson.content;
+          lessonDescription = `AI-generated lesson from ${fileName}. ${generatedLesson.metadata?.estimatedReadingTime || ''}`;
+          
+          console.log('✅ AI lesson generation successful:', {
+            type: generatedLesson.type,
+            sectionsCount: generatedLesson.sections?.length || 0,
+            contentLength: generatedLesson.content.length
+          });
+          
+        } catch (aiError) {
+          console.error('❌ AI lesson generation failed:', aiError.message);
+          console.log('📝 Using original content as fallback');
+          // Continue with original content
+        }
       }
       
       const newLesson = await Lesson.create({
-        title: newLessonTitle,
-        description: `Generated from uploaded file: ${fileName}`,
-        content: textContent,
+        title: generatedLesson?.title || newLessonTitle,
+        description: lessonDescription,
+        content: lessonContent,
         lesson_type: 'lesson',
         level: 1,
-        trainingId: training.id
+        trainingId: training.id,
+        duration: generatedLesson?.metadata?.estimatedReadingTime ? 
+          parseInt(generatedLesson.metadata.estimatedReadingTime) * 60 : 300, // Convert minutes to seconds
+        metadata: JSON.stringify({
+          generatedBy: 'AI',
+          sourceFile: fileName,
+          extractionMetadata: extractionMetadata,
+          aiGenerated: !!generatedLesson,
+          generationType: generatedLesson?.type || 'manual',
+          sections: generatedLesson?.sections || [],
+          language: language
+        })
       });
       
       targetLessonId = newLesson.id;
-      console.log(`✅ New lesson created with ID: ${targetLessonId}`);
+      console.log(`✅ New lesson created with ID: ${targetLessonId}`, {
+        aiGenerated: !!generatedLesson,
+        sectionsCount: generatedLesson?.sections?.length || 0
+      });
       
     } else if (lessonId) {
       // Update existing lesson with new content
@@ -220,15 +315,44 @@ router.post('/content/upload', async (req, res) => {
       
       const lesson = await Lesson.findByPk(lessonId);
       if (lesson) {
+        let updatedContent = (lesson.content || '') + '\n\n' + textContent;
+        
+        // Generate AI lesson for updated content if requested
+        if (generateAILesson && textContent.trim().length > 50) {
+          console.log('🤖 Generating AI lesson for updated content...');
+          
+          try {
+            generatedLesson = await AILessonGenerator.generateLesson(
+              updatedContent,
+              lesson.title,
+              language
+            );
+            
+            updatedContent = generatedLesson.content;
+            
+            console.log('✅ AI lesson update successful');
+            
+          } catch (aiError) {
+            console.error('❌ AI lesson update failed:', aiError.message);
+            // Continue with original content
+          }
+        }
+        
         await lesson.update({
-          content: (lesson.content || '') + '\n\n' + textContent,
-          description: lesson.description + ` (Updated with ${fileName})`
+          content: updatedContent,
+          description: lesson.description + ` (Updated with ${fileName})`,
+          metadata: JSON.stringify({
+            ...JSON.parse(lesson.metadata || '{}'),
+            lastUpdated: new Date().toISOString(),
+            updatedWith: fileName,
+            aiGenerated: !!generatedLesson
+          })
         });
         console.log(`✅ Lesson ${lessonId} updated with new content`);
       }
     }
 
-    // NEW: Automatic Test Generation
+    // Generate tests if requested
     let generatedTests = [];
     if (generateTests && textContent && textContent.trim().length > 50) {
       console.log('🤖 Generating automatic tests from content...');
@@ -268,30 +392,155 @@ router.post('/content/upload', async (req, res) => {
       lesson_id: targetLessonId,
       content_preview: (textContent || '').substring(0, 200) + '...',
       generated_tests: generatedTests,
+      ai_generated: !!generatedLesson,
+      extraction_metadata: extractionMetadata,
       created_at: Date.now()
     }];
 
     // Save to in-memory store for listing
     uploadedMemory.push(uploadedSources[0]);
 
-    console.log('✅ Content upload successful:', uploadedSources[0]);
-    console.log('📊 Response data:', {
-      success: true,
-      uploadedSources,
-      message: `Successfully uploaded ${fileName || 'content'}`
+    console.log('✅ Enhanced content upload successful:', {
+      ...uploadedSources[0],
+      aiGenerated: !!generatedLesson,
+      pdfExtracted: !!extractionMetadata
     });
+
     res.json({
       success: true,
       uploadedSources,
-      lesson_assignment: {
-        lessonId: targetLessonId,
-        createdNew: createNewLesson && !!targetLessonId
-      },
-      message: 'Upload processed'
+      aiGenerated: !!generatedLesson,
+      lessonMetadata: generatedLesson ? {
+        type: generatedLesson.type,
+        sections: generatedLesson.sections,
+        estimatedReadingTime: generatedLesson.metadata?.estimatedReadingTime
+      } : null
     });
+
   } catch (error) {
-    console.error('❌ Content upload error:', error.message);
+    console.error('❌ Enhanced content upload error:', error.message);
+    console.error('Stack trace:', error.stack);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// NEW: Generate AI Lesson from text content
+router.post('/lesson/generate', async (req, res) => {
+  try {
+    console.log('🤖 AI Lesson Generation API called');
+    
+    const { 
+      content, 
+      title, 
+      language = 'cs',
+      trainingId,
+      companyId 
+    } = req.body;
+
+    // Validation
+    if (!content || content.trim().length < 50) {
+      return res.status(400).json({
+        success: false,
+        error: 'Content must be at least 50 characters long'
+      });
+    }
+
+    if (!title || title.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Title is required'
+      });
+    }
+
+    console.log('📝 Generating AI lesson:', {
+      title,
+      contentLength: content.length,
+      language,
+      trainingId,
+      companyId
+    });
+
+    // Generate AI lesson
+    const generatedLesson = await AILessonGenerator.generateLesson(
+      content,
+      title,
+      language,
+      {
+        includeMetadata: true,
+        structureContent: true
+      }
+    );
+
+    console.log('✅ AI lesson generated successfully:', {
+      type: generatedLesson.type,
+      sectionsCount: generatedLesson.sections?.length || 0,
+      contentLength: generatedLesson.content.length
+    });
+
+    // Find or create training if trainingId provided
+    let targetTrainingId = trainingId;
+    if (!targetTrainingId) {
+      // Create default training for AI content
+      const training = await Training.findOrCreate({
+        where: {
+          title: 'AI Generated Lessons',
+          companyId: companyId || 1
+        },
+        defaults: {
+          title: 'AI Generated Lessons',
+          description: 'Training containing AI-generated lessons',
+          category: 'AI Generated',
+          companyId: companyId || 1
+        }
+      });
+      targetTrainingId = training[0].id;
+    }
+
+    // Save lesson to database
+    const lesson = await Lesson.create({
+      title: generatedLesson.title,
+      description: `AI-generated lesson. ${generatedLesson.metadata?.estimatedReadingTime || ''}`,
+      content: generatedLesson.content,
+      lesson_type: 'lesson',
+      level: 1,
+      trainingId: targetTrainingId,
+      duration: generatedLesson.metadata?.estimatedReadingTime ? 
+        parseInt(generatedLesson.metadata.estimatedReadingTime) * 60 : 300,
+      metadata: JSON.stringify({
+        generatedBy: 'AI',
+        aiGenerated: true,
+        generationType: generatedLesson.type,
+        sections: generatedLesson.sections || [],
+        language: language,
+        generatedAt: generatedLesson.generatedAt
+      })
+    });
+
+    console.log('✅ AI lesson saved to database:', lesson.id);
+
+    res.json({
+      success: true,
+      lesson: {
+        id: lesson.id,
+        title: lesson.title,
+        description: lesson.description,
+        content: lesson.content,
+        trainingId: lesson.trainingId,
+        metadata: generatedLesson.metadata,
+        sections: generatedLesson.sections,
+        type: generatedLesson.type
+      },
+      message: 'AI lesson generated and saved successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ AI lesson generation error:', error.message);
+    console.error('Stack trace:', error.stack);
+    
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate AI lesson: ' + error.message
+    });
   }
 });
 

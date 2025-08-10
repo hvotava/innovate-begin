@@ -128,7 +128,14 @@ const ContentManagement: React.FC = () => {
 
   // NEW: Test generation options
   const [generateTests, setGenerateTests] = useState(true);
+  const [generateAILesson, setGenerateAILesson] = useState(true); // NEW: AI lesson generation option
   const [availableLessons, setAvailableLessons] = useState<any[]>([]);
+
+  // NEW: AI Lesson Generation state
+  const [showAILessonDialog, setShowAILessonDialog] = useState(false);
+  const [aiLessonContent, setAILessonContent] = useState('');
+  const [aiLessonTitle, setAILessonTitle] = useState('');
+  const [generatingAILesson, setGeneratingAILesson] = useState(false);
 
   // Load data
   const loadContentSources = useCallback(async () => {
@@ -223,6 +230,10 @@ const ContentManagement: React.FC = () => {
 
       // NEW: Add test generation option
       formData.append('generateTests', generateTests.toString());
+      
+      // NEW: Add AI lesson generation option
+      formData.append('generateAILesson', generateAILesson.toString());
+      formData.append('language', 'cs'); // Default language
 
       console.log('🚀 Making API call to /ai-proxy/content/upload');
       const response = await api.post('/ai-proxy/content/upload', formData, {
@@ -249,7 +260,7 @@ const ContentManagement: React.FC = () => {
       console.log('🏁 Upload process finished');
       setUploading(false);
     }
-  }, [user?.companyId, uploadTitle, loadContentSources, createNewLesson, newLessonTitle, lessonCategory, selectedLessonId, generateTests]);
+  }, [user?.companyId, uploadTitle, loadContentSources, createNewLesson, newLessonTitle, lessonCategory, selectedLessonId, generateTests, generateAILesson]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -370,6 +381,49 @@ const ContentManagement: React.FC = () => {
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // NEW: Handle AI Lesson Generation
+  const handleGenerateAILesson = async () => {
+    if (!aiLessonContent.trim() || !aiLessonTitle.trim()) {
+      setError('Please provide both title and content for AI lesson generation');
+      return;
+    }
+
+    setGeneratingAILesson(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      console.log('🤖 Generating AI lesson...');
+      
+      const response = await api.post('/ai-proxy/lesson/generate', {
+        content: aiLessonContent,
+        title: aiLessonTitle,
+        language: 'cs',
+        companyId: user?.companyId || 1
+      });
+
+      if (response.data.success) {
+        setSuccess(`AI lesson "${response.data.lesson.title}" generated successfully!`);
+        setShowAILessonDialog(false);
+        setAILessonContent('');
+        setAILessonTitle('');
+        
+        // Refresh content sources
+        loadContentSources();
+        
+        console.log('✅ AI lesson generated:', response.data.lesson);
+      } else {
+        setError(response.data.error || 'Failed to generate AI lesson');
+      }
+
+    } catch (error: any) {
+      console.error('❌ AI lesson generation error:', error);
+      setError(error.response?.data?.error || 'Failed to generate AI lesson');
+    } finally {
+      setGeneratingAILesson(false);
+    }
   };
 
   return (
@@ -744,6 +798,75 @@ const ContentManagement: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* NEW: AI Lesson Generation Dialog */}
+      <Dialog 
+        open={showAILessonDialog} 
+        onClose={() => setShowAILessonDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          🧠 Generate AI Lesson
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            label="Lesson Title"
+            value={aiLessonTitle}
+            onChange={(e) => setAILessonTitle(e.target.value)}
+            margin="normal"
+            placeholder="Enter the title for your AI-generated lesson"
+          />
+          
+          <TextField
+            fullWidth
+            multiline
+            rows={12}
+            label="Content for AI Processing"
+            value={aiLessonContent}
+            onChange={(e) => setAILessonContent(e.target.value)}
+            margin="normal"
+            placeholder="Paste or type the content you want AI to transform into a structured lesson. This could be raw text, notes, articles, or any educational material."
+          />
+          
+          <Typography variant="caption" color="text.secondary">
+            Characters: {aiLessonContent.length} | AI will create a structured lesson with sections, key points, and educational formatting.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowAILessonDialog(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="contained"
+            onClick={handleGenerateAILesson}
+            disabled={!aiLessonContent.trim() || !aiLessonTitle.trim() || generatingAILesson}
+            startIcon={generatingAILesson ? undefined : <AutoAwesomeIcon />}
+          >
+            {generatingAILesson ? 'Generating AI Lesson...' : 'Generate AI Lesson'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Floating Action Buttons */}
+      <Fab
+        color="primary"
+        aria-label="add-text"
+        sx={{ position: 'fixed', bottom: 16, right: 16 }}
+        onClick={() => setShowTextDialog(true)}
+      >
+        <AddIcon />
+      </Fab>
+      
+      <Fab
+        color="secondary"
+        aria-label="ai-lesson"
+        sx={{ position: 'fixed', bottom: 16, right: 88 }}
+        onClick={() => setShowAILessonDialog(true)}
+      >
+        <AutoAwesomeIcon />
+      </Fab>
     </Box>
   );
 };
