@@ -728,14 +728,14 @@ const Tests: React.FC = () => {
                 >
                   AI Generátor
                 </Button>
-                <Button 
-                  startIcon={<AddIcon />}
-                  onClick={() => handleOpenQuestionDialog()}
-                  variant="outlined"
-                  size="small"
-                >
-                  Přidat otázku
-                </Button>
+              <Button 
+                startIcon={<AddIcon />}
+                onClick={() => handleOpenQuestionDialog()}
+                variant="outlined"
+                size="small"
+              >
+                Přidat otázku
+              </Button>
               </Box>
             </Box>
             
@@ -750,14 +750,14 @@ const Tests: React.FC = () => {
                           {index + 1}. {question.question}
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 0.5 }}>
-                          <Chip 
+                        <Chip 
                             label={question.type === 'multiple_choice' ? `${question.options.length} možností` :
                                   question.type === 'free_text' ? 'Volná odpověď' :
                                   question.type === 'fill_in_blank' ? 'Doplňovačka' :
                                   question.type === 'matching' ? `${question.pairs?.length || 0} párů` :
                                   `${question.options.length} možností`}
-                            size="small" 
-                            color="primary"
+                          size="small" 
+                          color="primary"
                             variant="outlined"
                           />
                           {question.difficulty && (
@@ -775,20 +775,20 @@ const Tests: React.FC = () => {
                       <Box sx={{ mb: 2 }}>
                         {(question.type === 'multiple_choice' || !question.type) && (
                           <>
-                            <Typography variant="subtitle2" sx={{ mb: 1 }}>Možnosti:</Typography>
-                            {question.options.map((option, optIndex) => (
-                              <Typography 
-                                key={optIndex}
-                                variant="body2" 
-                                sx={{ 
-                                  ml: 2, 
-                                  color: optIndex === question.correctAnswer ? 'success.main' : 'text.secondary',
-                                  fontWeight: optIndex === question.correctAnswer ? 'bold' : 'normal'
-                                }}
-                              >
-                                {optIndex + 1}. {option} {optIndex === question.correctAnswer && '✓'}
-                              </Typography>
-                            ))}
+                        <Typography variant="subtitle2" sx={{ mb: 1 }}>Možnosti:</Typography>
+                        {question.options.map((option, optIndex) => (
+                          <Typography 
+                            key={optIndex}
+                            variant="body2" 
+                            sx={{ 
+                              ml: 2, 
+                              color: optIndex === question.correctAnswer ? 'success.main' : 'text.secondary',
+                              fontWeight: optIndex === question.correctAnswer ? 'bold' : 'normal'
+                            }}
+                          >
+                            {optIndex + 1}. {option} {optIndex === question.correctAnswer && '✓'}
+                          </Typography>
+                        ))}
                           </>
                         )}
                         
