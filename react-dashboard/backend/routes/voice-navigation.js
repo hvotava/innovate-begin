@@ -185,10 +185,28 @@ class VoiceNavigationManager {
   // Handle test completion
   static async handleTestCompleted(userInput, state, userPhone) {
     console.log('🎓 Test completed, checking for next lesson...');
-    console.log(`📊 Final score: ${state.score}/${state.totalQuestions} (${Math.round((state.score / state.totalQuestions) * 100)}%)`);
+    
+    // CRITICAL DEBUG: Check all possible sources of totalQuestions
+    const questionsFromLesson = state.lesson?.questions?.length || 0;
+    const questionsFromUserAnswers = state.userAnswers?.length || 0;
+    const questionsFromState = state.totalQuestions || 0;
+    
+    console.log(`🔍 CRITICAL DEBUG: totalQuestions sources:`, {
+      fromLesson: questionsFromLesson,
+      fromUserAnswers: questionsFromUserAnswers, 
+      fromState: questionsFromState,
+      score: state.score
+    });
+    
+    // Use the most reliable source (userAnswers length since it tracks actual completed questions)
+    const actualTotalQuestions = Math.max(questionsFromUserAnswers, questionsFromState, questionsFromLesson);
+    console.log(`🎯 Using actualTotalQuestions: ${actualTotalQuestions}`);
+    
+    console.log(`📊 Final score: ${state.score}/${actualTotalQuestions} (${Math.round((state.score / actualTotalQuestions) * 100)}%)`);
     console.log(`🔍 DEBUG: Test completion details:`, {
       score: state.score,
       totalQuestions: state.totalQuestions,
+      actualTotalQuestions: actualTotalQuestions,
       userAnswersLength: state.userAnswers ? state.userAnswers.length : 0,
       currentQuestionIndex: state.currentQuestionIndex,
       lessonTitle: state.lesson?.title,
@@ -209,11 +227,11 @@ class VoiceNavigationManager {
       console.error('❌ Saving test results failed:', e.message);
     }
     
-    const percentage = Math.round((state.score / state.totalQuestions) * 100);
+    const percentage = Math.round((state.score / actualTotalQuestions) * 100);
     const feedback = this.generateTestFeedback(percentage, state.userLanguage);
     
     console.log(`📋 Test feedback: ${feedback}`);
-    console.log(`🔍 DEBUG: Final calculated percentage: ${percentage}% (${state.score}/${state.totalQuestions})`);
+    console.log(`🔍 DEBUG: Final calculated percentage: ${percentage}% (${state.score}/${actualTotalQuestions})`);
     
     // Try to load next lesson in the same training
     try {
@@ -227,9 +245,9 @@ class VoiceNavigationManager {
         const continuingText = LanguageTranslator.translate('continuing_next_lesson', state.userLanguage);
         return {
           questionType: 'lesson',
-          feedback: `${feedback} Výsledek: ${state.score}/${state.totalQuestions} (${percentage}%). ${continuingText}`,
+          feedback: `${feedback} Výsledek: ${state.score}/${actualTotalQuestions} (${percentage}%). ${continuingText}`,
           nextQuestion: nextLessonResponse.nextQuestion,
-          testResults: { score: state.score, total: state.totalQuestions, percentage },
+          testResults: { score: state.score, total: actualTotalQuestions, percentage },
           navigationOptions: this.getNavigationOptions(state.userLanguage)
         };
       } else {
@@ -243,8 +261,8 @@ class VoiceNavigationManager {
     const trainingCompletedText = LanguageTranslator.translate('training_completed', state.userLanguage);
     const completionResponse = {
       questionType: 'session_complete',
-      feedback: `${feedback} Výsledek: ${state.score}/${state.totalQuestions} (${percentage}%). ${trainingCompletedText}`,
-      testResults: { score: state.score, total: state.totalQuestions, percentage }
+      feedback: `${feedback} Výsledek: ${state.score}/${actualTotalQuestions} (${percentage}%). ${trainingCompletedText}`,
+      testResults: { score: state.score, total: actualTotalQuestions, percentage }
     };
     
     console.log('🔚 Returning session_complete response (no more lessons):', {

@@ -307,6 +307,9 @@ async function getNextLesson(currentLessonId) {
         order: [['lesson_number', 'ASC']] 
       });
       console.log(`🔍 Search by lesson_number (${currentLesson.lesson_number + 1}+): ${next ? 'FOUND' : 'NOT FOUND'}`);
+      if (next) {
+        console.log(`   ✅ Found next lesson: ID=${next.id}, title="${next.title}", lesson_number=${next.lesson_number}`);
+      }
     }
     
     // If not found by lesson_number, try by order_in_course
@@ -319,6 +322,9 @@ async function getNextLesson(currentLessonId) {
         order: [['order_in_course', 'ASC']] 
       });
       console.log(`🔍 Search by order_in_course (${currentLesson.order_in_course + 1}+): ${next ? 'FOUND' : 'NOT FOUND'}`);
+      if (next) {
+        console.log(`   ✅ Found next lesson: ID=${next.id}, title="${next.title}", order_in_course=${next.order_in_course}`);
+      }
     }
     
     // If still not found, fallback to ID-based search within same training
@@ -331,6 +337,9 @@ async function getNextLesson(currentLessonId) {
         order: [['id', 'ASC']] 
       });
       console.log(`🔍 Search by ID (${currentLessonId + 1}+) within same training: ${next ? 'FOUND' : 'NOT FOUND'}`);
+      if (next) {
+        console.log(`   ✅ Found next lesson by ID: ID=${next.id}, title="${next.title}"`);
+      }
     }
     
     if (next) {
