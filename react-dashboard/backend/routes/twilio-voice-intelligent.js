@@ -75,9 +75,7 @@ async function intelligentVoiceCall(req, res) {
         ${lessonContent}
     </Say>
     <Pause length="2"/>
-    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
-        Nyní začínáme test.
-    </Say>
+    <!-- Removed duplicate "Začínáme test" - now handled by AUTO_START -->
     <Redirect method="POST">https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart</Redirect>
 </Response>`;
     } else {
