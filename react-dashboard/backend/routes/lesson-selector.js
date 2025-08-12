@@ -271,8 +271,68 @@ function getLocalizedInstructions(language) {
 }
 
 async function getNextLesson(currentLessonId) {
-  const next = await Lesson.findOne({ where: { id: { [require('sequelize').Op.gt]: currentLessonId } }, order: [['id', 'ASC']] });
-  return next;
+  try {
+    console.log(`🔍 Finding next lesson after lesson ID: ${currentLessonId}`);
+    
+    // First get the current lesson to know its trainingId and order
+    const currentLesson = await Lesson.findByPk(currentLessonId);
+    if (!currentLesson) {
+      console.log(`❌ Current lesson ${currentLessonId} not found`);
+      return null;
+    }
+    
+    console.log(`📚 Current lesson: ${currentLesson.title}, trainingId: ${currentLesson.trainingId}, lesson_number: ${currentLesson.lesson_number}`);
+    
+    // Find next lesson in the same training by lesson_number or order_in_course
+    let next = null;
+    
+    // Try to find by lesson_number first (if set)
+    if (currentLesson.lesson_number !== null && currentLesson.lesson_number !== undefined) {
+      next = await Lesson.findOne({ 
+        where: { 
+          trainingId: currentLesson.trainingId,
+          lesson_number: { [require('sequelize').Op.gt]: currentLesson.lesson_number }
+        }, 
+        order: [['lesson_number', 'ASC']] 
+      });
+      console.log(`🔍 Search by lesson_number (${currentLesson.lesson_number + 1}+): ${next ? 'FOUND' : 'NOT FOUND'}`);
+    }
+    
+    // If not found by lesson_number, try by order_in_course
+    if (!next && currentLesson.order_in_course !== null && currentLesson.order_in_course !== undefined) {
+      next = await Lesson.findOne({ 
+        where: { 
+          trainingId: currentLesson.trainingId,
+          order_in_course: { [require('sequelize').Op.gt]: currentLesson.order_in_course }
+        }, 
+        order: [['order_in_course', 'ASC']] 
+      });
+      console.log(`🔍 Search by order_in_course (${currentLesson.order_in_course + 1}+): ${next ? 'FOUND' : 'NOT FOUND'}`);
+    }
+    
+    // If still not found, fallback to ID-based search within same training
+    if (!next) {
+      next = await Lesson.findOne({ 
+        where: { 
+          trainingId: currentLesson.trainingId,
+          id: { [require('sequelize').Op.gt]: currentLessonId }
+        }, 
+        order: [['id', 'ASC']] 
+      });
+      console.log(`🔍 Search by ID (${currentLessonId + 1}+) within same training: ${next ? 'FOUND' : 'NOT FOUND'}`);
+    }
+    
+    if (next) {
+      console.log(`✅ Found next lesson: ${next.title} (ID: ${next.id})`);
+    } else {
+      console.log(`⚠️ No next lesson found in training ${currentLesson.trainingId}`);
+    }
+    
+    return next;
+  } catch (error) {
+    console.error('❌ Error in getNextLesson:', error);
+    return null;
+  }
 }
 
 async function getPreviousLesson(currentLessonId) {

@@ -183,7 +183,7 @@ class VoiceNavigationManager {
 
   // Handle test completion
   static async handleTestCompleted(userInput, state, userPhone) {
-    console.log('🎓 Test completed, ending session...');
+    console.log('🎓 Test completed, checking for next lesson...');
     console.log(`📊 Final score: ${state.score}/${state.totalQuestions} (${Math.round((state.score / state.totalQuestions) * 100)}%)`);
     
     // Save results (aggregate)
@@ -199,13 +199,37 @@ class VoiceNavigationManager {
     
     console.log(`📋 Test feedback: ${feedback}`);
     
+    // Try to load next lesson in the same training
+    try {
+      console.log('🔍 Looking for next lesson after current lesson:', state.lesson?.lesson_id);
+      const nextLessonResponse = await this.loadNextLesson(state, userPhone);
+      
+      if (nextLessonResponse && nextLessonResponse.questionType === 'lesson') {
+        console.log('✅ Found next lesson, continuing training sequence');
+        
+        // Return test results + next lesson
+        return {
+          questionType: 'lesson',
+          feedback: `${feedback} Výsledek: ${state.score}/${state.totalQuestions} (${percentage}%). Pokračujeme další lekcí.`,
+          nextQuestion: nextLessonResponse.nextQuestion,
+          testResults: { score: state.score, total: state.totalQuestions, percentage },
+          navigationOptions: this.getNavigationOptions(state.userLanguage)
+        };
+      } else {
+        console.log('⚠️ No next lesson found, ending training sequence');
+      }
+    } catch (error) {
+      console.error('❌ Error loading next lesson:', error);
+    }
+    
+    // No next lesson found or error occurred - end session
     const completionResponse = {
       questionType: 'session_complete',
-      feedback: `${feedback} Výsledek: ${state.score}/${state.totalQuestions} (${percentage}%). Děkuji za absolvování testu.`,
+      feedback: `${feedback} Výsledek: ${state.score}/${state.totalQuestions} (${percentage}%). Školení dokončeno. Děkuji!`,
       testResults: { score: state.score, total: state.totalQuestions, percentage }
     };
     
-    console.log('🔚 Returning session_complete response:', completionResponse);
+    console.log('🔚 Returning session_complete response (no more lessons):', completionResponse);
     
     return completionResponse;
   }

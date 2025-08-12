@@ -88,12 +88,17 @@ async function smartVoiceProcess(req, res) {
     const callDuration = parseInt(req.body.CallDuration) || 0;
     console.log('🔍 DEBUG: CallDuration:', callDuration, 'seconds');
     
-    // Only auto-transition if this seems like a legitimate lesson completion
-    // Calls shorter than 30 seconds are likely premature hangups, not lesson completions
+    // Only check duration for completed calls
+    // During active calls (in-progress), CallDuration is always 0, so we allow transition
     if (callStatus === 'completed' && callDuration < 30) {
       console.log('⚠️ Call completed prematurely (< 30s) - likely hangup, not lesson completion');
       console.log('🔄 Treating as error, not auto-transitioning to test');
       return res.send(getErrorTwiml('cs'));
+    }
+    
+    // For in-progress calls, allow transition (normal lesson-to-test flow)
+    if (callStatus === 'in-progress') {
+      console.log('✅ Call in-progress - allowing lesson-to-test transition');
     }
     
     if (callStatus === 'failed' || callStatus === 'busy' || callStatus === 'no-answer') {
@@ -112,9 +117,9 @@ async function smartVoiceProcess(req, res) {
       const userPhone = Called || Caller;
       
       // Check if we're in lesson state and need to transition to test
-      // Only do this for longer calls that seem like completed lessons
-      if (state.currentState === 'lesson_playing' && callDuration >= 30) {
-        console.log('🎯 Legitimate lesson completion detected - transitioning from lesson to test via AUTO_START');
+      // Allow transition for in-progress calls or completed calls with sufficient duration
+      if (state.currentState === 'lesson_playing' && (callStatus === 'in-progress' || callDuration >= 30)) {
+        console.log('🎯 Lesson-to-test transition - transitioning from lesson to test via AUTO_START');
         const response = await VoiceNavigationManager.processUserResponse('AUTO_START', CallSid, userPhone);
         
         console.log('🔍 DEBUG: AUTO_START response:', {
@@ -164,8 +169,8 @@ async function smartVoiceProcess(req, res) {
           res.send(errorTwiml);
           return;
         }
-      } else if (state.currentState === 'lesson_playing' && callDuration < 30) {
-        console.log('⚠️ State is lesson_playing but call too short for legitimate completion');
+      } else if (state.currentState === 'lesson_playing' && callStatus === 'completed' && callDuration < 30) {
+        console.log('⚠️ State is lesson_playing but call completed too short for legitimate completion');
         console.log('🔄 This appears to be a premature hangup during lesson');
         console.log('🔍 DEBUG: CallDuration:', callDuration, 'seconds (minimum 30s required)');
         return res.send(getErrorTwiml(userLanguage));
