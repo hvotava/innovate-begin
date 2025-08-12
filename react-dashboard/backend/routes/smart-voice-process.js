@@ -162,14 +162,24 @@ async function smartVoiceProcess(req, res) {
           res.send(errorTwiml);
           return;
         }
+      } else if (state.currentState === 'lesson_playing' && callStatus === 'in-progress') {
+        console.log('📚 Lesson is in progress - continuing with lesson content');
+        console.log('🔄 Call is still active, lesson should continue playing');
+        // Continue with lesson - don't try to transition to test yet
+        return res.send(getContinueTwiml(userLanguage));
       } else if (state.currentState === 'lesson_playing' && callStatus === 'completed' && callDuration < 30) {
         console.log('⚠️ State is lesson_playing but call completed too short for legitimate completion');
         console.log('🔄 This appears to be a premature hangup during lesson');
         console.log('🔍 DEBUG: CallDuration:', callDuration, 'seconds (minimum 30s required)');
         return res.send(getErrorTwiml(userLanguage));
+      } else if (state.currentState === 'lesson_playing' && callStatus === 'completed') {
+        console.log('📚 Lesson completed but no questions available for test');
+        console.log('🔄 Lesson finished but test cannot start - ending call');
+        return res.send(getErrorTwiml(userLanguage));
       } else {
-        console.log('❌ State is not lesson_playing, cannot transition to test');
+        console.log('❌ Unexpected state or call status combination');
         console.log('🔍 DEBUG: Current state:', state.currentState);
+        console.log('🔍 DEBUG: Call status:', callStatus);
         console.log('🔍 DEBUG: Available states:', Object.keys(state));
       }
 
