@@ -83,8 +83,7 @@ const getMenuItems = (user: any) => {
       { text: 'Školení', icon: <SchoolIcon />, path: '/trainings', show: true },
       { text: 'Lekce', icon: <SchoolIcon />, path: '/lessons', show: true },
       { text: 'Testy', icon: <QuizIcon />, path: '/tests', show: true },
-      { text: 'Správa obsahu', icon: <CloudUploadIcon />, path: '/content-management', show: true },
-      { text: 'Správa otázek', icon: <PsychologyIcon />, path: '/question-manager', show: true }
+      { text: 'Správa obsahu', icon: <CloudUploadIcon />, path: '/content-management', show: true }
     );
   }
 
@@ -105,8 +104,6 @@ const getMenuItems = (user: any) => {
   // Analytics jen pro admin
   if (user.role === 'admin') {
     items.push(
-      { text: 'Analytika', icon: <AnalyticsIcon />, path: '/analytics', show: true },
-      { text: 'Progress Analytics', icon: <InsightsIcon />, path: '/progress-analytics', show: true },
       { text: 'User Progress', icon: <PersonSearchIcon />, path: '/user-progress', show: true }
     );
   }

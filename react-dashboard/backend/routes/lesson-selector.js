@@ -53,9 +53,26 @@ async function getLessonForUser(phoneNumber) {
     let targetLesson = null;
     
     if (user.training_type && user.training_type !== '') {
-      // Try to find lesson by ID (training_type now contains lesson ID)
-      targetLesson = await Lesson.findByPk(parseInt(user.training_type));
-      console.log(`🔍 Looking for lesson ID: ${user.training_type}, found: ${targetLesson ? 'YES' : 'NO'}`);
+      // Check if training_type is a training ID or lesson ID
+      const trainingId = parseInt(user.training_type);
+      
+      // First try to find it as a training and get its first lesson
+      const { Training } = require('../models');
+      const training = await Training.findByPk(trainingId);
+      
+      if (training) {
+        console.log(`🎯 Found training: ${training.title} (ID: ${training.id})`);
+        // Get first lesson from this training
+        targetLesson = await Lesson.findOne({
+          where: { trainingId: training.id },
+          order: [['lesson_number', 'ASC'], ['order_in_course', 'ASC'], ['id', 'ASC']]
+        });
+        console.log(`📚 First lesson in training: ${targetLesson ? targetLesson.title : 'NONE'}`);
+      } else {
+        // Fallback: try as lesson ID (old behavior)
+        targetLesson = await Lesson.findByPk(trainingId);
+        console.log(`🔍 Looking for lesson ID: ${user.training_type}, found: ${targetLesson ? 'YES' : 'NO'}`);
+      }
     }
     
     // If no specific lesson or lesson not found, get first available lesson

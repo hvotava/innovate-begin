@@ -1,5 +1,6 @@
 // Voice Navigation System for AI Tutor
 const { User, Lesson, Test } = require('../models');
+const { LanguageTranslator } = require('../services/language-translator');
 
 // Navigation commands mapping
 const NAVIGATION_COMMANDS = {
@@ -223,9 +224,10 @@ class VoiceNavigationManager {
         console.log('✅ Found next lesson, continuing training sequence');
         
         // Return test results + next lesson
+        const continuingText = LanguageTranslator.translate('continuing_next_lesson', state.userLanguage);
         return {
           questionType: 'lesson',
-          feedback: `${feedback} Výsledek: ${state.score}/${state.totalQuestions} (${percentage}%). Pokračujeme další lekcí.`,
+          feedback: `${feedback} Výsledek: ${state.score}/${state.totalQuestions} (${percentage}%). ${continuingText}`,
           nextQuestion: nextLessonResponse.nextQuestion,
           testResults: { score: state.score, total: state.totalQuestions, percentage },
           navigationOptions: this.getNavigationOptions(state.userLanguage)
@@ -238,9 +240,10 @@ class VoiceNavigationManager {
     }
     
     // No next lesson found or error occurred - end session
+    const trainingCompletedText = LanguageTranslator.translate('training_completed', state.userLanguage);
     const completionResponse = {
       questionType: 'session_complete',
-      feedback: `${feedback} Výsledek: ${state.score}/${state.totalQuestions} (${percentage}%). Školení dokončeno. Děkuji!`,
+      feedback: `${feedback} Výsledek: ${state.score}/${state.totalQuestions} (${percentage}%). ${trainingCompletedText}`,
       testResults: { score: state.score, total: state.totalQuestions, percentage }
     };
     
@@ -676,6 +679,10 @@ class VoiceNavigationManager {
     
     const normalize = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
     const cleanInput = normalize(userInput);
+    
+    // Detect language from user input
+    const detectedLanguage = LanguageTranslator.detectLanguage(userInput);
+    console.log(`🌍 DEBUG: Detected language from input: ${detectedLanguage}`);
     
     console.log(`🔍 DEBUG: Question type: ${question.type || 'multiple_choice'}`);
     console.log(`🔍 DEBUG: Raw input: "${userInput}"`);

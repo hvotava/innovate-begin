@@ -1,4 +1,5 @@
 const { VoiceNavigationManager } = require('./voice-navigation');
+const { LanguageTranslator } = require('../services/language-translator');
 const axios = require('axios');
 
 // OpenAI Whisper configuration
@@ -9,18 +10,9 @@ const OPENAI_WHISPER_URL = 'https://api.openai.com/v1/audio/transcriptions';
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 
-// Language helper functions
+// Language helper functions (now using LanguageTranslator)
 function getTwilioLanguage(language) {
-  switch (language) {
-    case 'en':
-      return 'en-US';
-    case 'de':
-      return 'de-DE';
-    case 'sk':
-      return 'sk-SK';
-    default: // cs
-      return 'cs-CZ';
-  }
+  return LanguageTranslator.getTwilioLanguage(language);
 }
 
 function getLocalizedProcessingMessage(language) {
@@ -293,8 +285,8 @@ async function smartVoiceProcess(req, res) {
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         ${response.nextQuestion}
     </Say>
-    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.7" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
-        Řekněte svoji odpověď.
+    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.7" voice="${LanguageTranslator.getTwilioVoice(userLanguage)}">
+        ${LanguageTranslator.translate('say_your_answer', userLanguage)}
     </Say>
     <Record 
         timeout="10"
