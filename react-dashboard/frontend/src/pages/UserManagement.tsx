@@ -96,6 +96,7 @@ const UserManagement: React.FC = () => {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [tabValue, setTabValue] = useState(0);
+  const [componentError, setComponentError] = useState<string | null>(null);
   
   // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -128,19 +129,24 @@ const UserManagement: React.FC = () => {
   const canManage = user?.role === 'admin';
 
   useEffect(() => {
-    if (!canManage) {
-      setSnackbar({
-        open: true,
-        message: 'Nemáte oprávnění k správě uživatelů',
-        severity: 'error'
-      });
-      return;
+    try {
+      if (!canManage) {
+        setSnackbar({
+          open: true,
+          message: 'Nemáte oprávnění k správě uživatelů',
+          severity: 'error'
+        });
+        return;
+      }
+      
+      fetchUsers();
+      fetchCompanies();
+      fetchTrainings();
+      fetchStats();
+    } catch (error: any) {
+      console.error('❌ Error in main useEffect:', error);
+      setComponentError(`Failed to initialize page: ${error.message}`);
     }
-    
-    fetchUsers();
-    fetchCompanies();
-    fetchTrainings();
-    fetchStats();
   }, [canManage, searchTerm, roleFilter, companyFilter]);
 
   const fetchUsers = async () => {
@@ -151,9 +157,11 @@ const UserManagement: React.FC = () => {
         role: roleFilter,
         company: companyFilter
       });
-      setUsers(response.data.users);
-    } catch (error) {
-      console.error('Error fetching users:', error);
+      setUsers(response.data.users || []);
+    } catch (error: any) {
+      console.error('❌ Error fetching users:', error);
+      console.error('❌ Error details:', error.response?.data || error.message);
+      setUsers([]);
       showSnackbar('Nepodařilo se načíst uživatele', 'error');
     } finally {
       setLoading(false);
@@ -163,9 +171,11 @@ const UserManagement: React.FC = () => {
   const fetchCompanies = async () => {
     try {
       const response = await companiesAPI.getCompanies();
-      setCompanies(response.data.companies);
-    } catch (error) {
-      console.error('Error fetching companies:', error);
+      setCompanies(response.data.companies || []);
+    } catch (error: any) {
+      console.error('❌ Error fetching companies:', error);
+      console.error('❌ Error details:', error.response?.data || error.message);
+      setCompanies([]);
     }
   };
 
@@ -175,8 +185,10 @@ const UserManagement: React.FC = () => {
       const data = await response.json();
       console.log('🔍 Fetched trainings for training_type selector:', data);
       setTrainings(data || []);
-    } catch (error) {
-      console.error('Error fetching trainings:', error);
+    } catch (error: any) {
+      console.error('❌ Error fetching trainings:', error);
+      console.error('❌ Error details:', error.response?.data || error.message);
+      setTrainings([]);
       showSnackbar('Nepodařilo se načíst školení', 'error');
     }
   };
@@ -574,7 +586,7 @@ const UserManagement: React.FC = () => {
             <AnalyticsIcon sx={{ mr: 1 }} />
             Uživatelé podle rolí
           </Typography>
-          {stats?.roleStats.map((stat) => (
+          {stats?.roleStats && Array.isArray(stats.roleStats) ? stats.roleStats.map((stat) => (
             <Box key={stat.role} sx={{ mb: 2 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -594,7 +606,9 @@ const UserManagement: React.FC = () => {
                 color={getRoleColor(stat.role as UserRole)}
               />
             </Box>
-          ))}
+          )) : (
+            <Typography color="text.secondary">No role statistics available</Typography>
+          )}
         </Paper>
       </Grid>
 
@@ -605,7 +619,7 @@ const UserManagement: React.FC = () => {
             <BusinessIcon sx={{ mr: 1 }} />
             Uživatelé podle společností
           </Typography>
-          {stats?.companyStats.map((stat) => (
+          {stats?.companyStats && Array.isArray(stats.companyStats) ? stats.companyStats.map((stat) => (
             <Box key={stat.companyName} sx={{ mb: 2 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="body2" noWrap>
@@ -621,7 +635,9 @@ const UserManagement: React.FC = () => {
                 color="primary"
               />
             </Box>
-          ))}
+          )) : (
+            <Typography color="text.secondary">No company statistics available</Typography>
+          )}
         </Paper>
       </Grid>
     </Grid>
@@ -637,7 +653,30 @@ const UserManagement: React.FC = () => {
     );
   }
 
-  return (
+  // Error boundary fallback
+  if (componentError) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <Typography variant="h6">Component Error</Typography>
+          <Typography>{componentError}</Typography>
+          <Button 
+            variant="contained" 
+            onClick={() => {
+              setComponentError(null);
+              window.location.reload();
+            }}
+            sx={{ mt: 2 }}
+          >
+            Reload Page
+          </Button>
+        </Alert>
+      </Box>
+    );
+  }
+
+  try {
+    return (
     <Box sx={{ p: { xs: 2, sm: 3 } }}>
       {/* Header */}
       <Box sx={{ 
@@ -712,11 +751,11 @@ const UserManagement: React.FC = () => {
                   label="Společnost"
                 >
                   <MenuItem value="">Všechny společnosti</MenuItem>
-                  {companies.map((company) => (
+                  {companies && Array.isArray(companies) ? companies.map((company) => (
                     <MenuItem key={company.id} value={company.id.toString()}>
                       {company.name}
                     </MenuItem>
-                  ))}
+                  )) : null}
                 </Select>
               </FormControl>
             </Grid>
@@ -751,7 +790,7 @@ const UserManagement: React.FC = () => {
                 borderRadius: '4px'
               }
             }}>
-            {users.map((user) => (
+            {users && Array.isArray(users) ? users.map((user) => (
                 <Card key={user.id} sx={{ 
                   mb: 2,
                   '&:hover': {
@@ -915,7 +954,13 @@ const UserManagement: React.FC = () => {
                   </Grid>
                 </CardContent>
               </Card>
-            ))}
+            )) : (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Typography color="text.secondary" variant="h6">
+                  No users available
+                </Typography>
+              </Box>
+            )}
               </Box>
             
             {/* Mobile FAB */}
@@ -1072,14 +1117,18 @@ const UserManagement: React.FC = () => {
                   label="Společnost"
                   required
                 >
-                  {companies.map((company) => (
+                  {companies && Array.isArray(companies) ? companies.map((company) => (
                     <MenuItem key={company.id} value={company.id.toString()}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <BusinessIcon fontSize="small" />
                         <Typography>{company.name}</Typography>
                       </Box>
                     </MenuItem>
-                  ))}
+                  )) : (
+                    <MenuItem disabled>
+                      <Typography color="text.secondary">No companies available</Typography>
+                    </MenuItem>
+                  )}
                 </Select>
               </FormControl>
             </Grid>
@@ -1128,7 +1177,7 @@ const UserManagement: React.FC = () => {
                   </MenuItem>
                   
                   {/* Školení z databáze */}
-                  {trainings.map((training) => (
+                  {trainings && Array.isArray(trainings) ? trainings.map((training) => (
                     <MenuItem key={training.id} value={training.id.toString()}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <SchoolIcon fontSize="small" color="primary" />
@@ -1143,7 +1192,11 @@ const UserManagement: React.FC = () => {
                         )}
                       </Box>
                     </MenuItem>
-                  ))}
+                  )) : (
+                    <MenuItem disabled>
+                      <Typography color="text.secondary">No trainings available</Typography>
+                    </MenuItem>
+                  )}
                 </Select>
               </FormControl>
             </Grid>
@@ -1231,6 +1284,25 @@ const UserManagement: React.FC = () => {
       </Snackbar>
     </Box>
   );
+  } catch (error: any) {
+    console.error('❌ UserManagement component error:', error);
+    setComponentError(`Component crashed: ${error.message}`);
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">
+          <Typography variant="h6">Component Error</Typography>
+          <Typography>The user management page encountered an error. Please try refreshing the page.</Typography>
+          <Button 
+            variant="contained" 
+            onClick={() => window.location.reload()}
+            sx={{ mt: 2 }}
+          >
+            Refresh Page
+          </Button>
+        </Alert>
+      </Box>
+    );
+  }
 };
 
 export default UserManagement; 
