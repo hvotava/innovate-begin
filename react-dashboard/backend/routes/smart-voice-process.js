@@ -124,11 +124,13 @@ async function smartVoiceProcess(req, res) {
 
         if (response && response.nextQuestion) {
           console.log('✅ Response has nextQuestion, generating TwiML with Record tag');
+          const twilioLang = getTwilioLanguage(userLanguage);
+          console.log(`🌍 DEBUG: User language: ${userLanguage} -> Twilio: ${twilioLang}`);
           const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say language="${getTwilioLanguage(userLanguage)}" rate="0.85" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">${response.feedback}</Say>
-  <Say language="${getTwilioLanguage(userLanguage)}" rate="0.85" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">${response.nextQuestion}</Say>
-  <Say language="${getTwilioLanguage(userLanguage)}" rate="0.75" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">Po pípnutí řekněte svoji odpověď.</Say>
+  <Say language="${twilioLang}" rate="0.85" voice="Google.${twilioLang}-Standard-A">${response.feedback}</Say>
+  <Say language="${twilioLang}" rate="0.85" voice="Google.${twilioLang}-Standard-A">${response.nextQuestion}</Say>
+  <Say language="${twilioLang}" rate="0.75" voice="Google.${twilioLang}-Standard-A">Po pípnutí řekněte svoji odpověď.</Say>
   <Record 
     timeout="20"
     maxLength="90"
@@ -139,8 +141,8 @@ async function smartVoiceProcess(req, res) {
     transcribe="true"
     transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
     transcribeCallbackMethod="POST"
-    language="${getTwilioLanguage(userLanguage)}"
-    transcribeLanguage="${getTwilioLanguage(userLanguage)}"
+    language="${twilioLang}"
+    transcribeLanguage="${twilioLang}"
     speechTimeout="auto"
     speechModel="phone_call"
     trim="trim-silence"
@@ -394,6 +396,29 @@ async function smartTranscribeProcess(req, res) {
   
   if (req.body.TranscriptionStatus === 'completed' && transcribedText) {
     console.log(`💬 User said: "${transcribedText}"`);
+    
+    // Check if transcription looks nonsensical (likely wrong language detection)
+    const isNonsensical = transcribedText && (
+      transcribedText.length < 5 || // Very short
+      /^[a-z\s]{1,20}$/i.test(transcribedText.trim()) && // Only basic English letters
+      !transcribedText.toLowerCase().includes('a') && !transcribedText.toLowerCase().includes('b') && 
+      !transcribedText.toLowerCase().includes('c') && !transcribedText.toLowerCase().includes('d') && 
+      !['jedna', 'dva', 'tri', 'ctyri', '206', '100', '365', '52'].some(w => transcribedText.toLowerCase().includes(w))
+    );
+    
+    if (isNonsensical) {
+      console.log('⚠️ Nonsensical transcription detected, trying Whisper fallback');
+      try {
+        const whisperTranscription = await transcribeWithWhisper(req.body.RecordingUrl, userLanguage);
+        if (whisperTranscription && whisperTranscription !== transcribedText) {
+          console.log(`✅ WHISPER: Better transcription: "${whisperTranscription}" (vs Twilio: "${transcribedText}")`);
+          // Don't process here, let action callback handle it
+        }
+      } catch (whisperError) {
+        console.error('❌ WHISPER fallback failed:', whisperError.message);
+      }
+    }
+    
     console.log('✅ Transcription completed successfully, but processing is handled by action callback');
     console.log('📤 ACK transcription callback without processing (to avoid duplicate)');
     res.status(200).send('OK');
