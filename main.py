@@ -1952,11 +1952,40 @@ async def generate_course_from_content(content_source_id: int, target_lessons: i
         session.add(course)
         session.commit()  # Get course ID
         
+        # Find or create Training for Node.js compatibility
+        from sqlalchemy import text
+        training_result = session.execute(
+            text("SELECT id FROM trainings WHERE \"companyId\" = :company_id ORDER BY id ASC LIMIT 1"),
+            {"company_id": content_source.company_id}
+        ).fetchone()
+        
+        training_id = None
+        if training_result:
+            training_id = training_result[0]
+            logger.info(f"Found existing training {training_id} for company {content_source.company_id}")
+        else:
+            # Create default training for Node.js compatibility
+            session.execute(
+                text("INSERT INTO trainings (title, description, \"companyId\", created_at) VALUES (:title, :desc, :company_id, NOW()) RETURNING id"),
+                {
+                    "title": f"AI Generated Course - {course_data['course_title']}", 
+                    "desc": "Automatically generated training from uploaded content",
+                    "company_id": content_source.company_id
+                }
+            )
+            training_result = session.execute(
+                text("SELECT id FROM trainings WHERE \"companyId\" = :company_id ORDER BY id DESC LIMIT 1"),
+                {"company_id": content_source.company_id}
+            ).fetchone()
+            training_id = training_result[0] if training_result else None
+            logger.info(f"Created new training {training_id} for company {content_source.company_id}")
+
         # Create lessons
         created_lessons = []
         for lesson_data in course_data["lessons"]:
             lesson = Lesson(
                 course_id=course.id,
+                trainingId=training_id,  # Add for Node.js compatibility
                 title=lesson_data["title"],
                 content=lesson_data["content"],
                 learning_objectives=lesson_data.get("learning_objectives", []),

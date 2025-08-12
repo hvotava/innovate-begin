@@ -235,6 +235,7 @@ class Lesson(Base):
     __tablename__ = "lessons"
     id = mapped_column(Integer, primary_key=True)
     course_id = mapped_column(Integer, ForeignKey("courses.id"), nullable=True)  # Nullable pro existující lekce
+    trainingId = mapped_column(Integer, nullable=True)  # Kompatibilita s Node.js backend
     title = mapped_column(String(200), nullable=False)
     description = mapped_column(Text, nullable=True)  # Nový sloupec pro popis lekce
     content = mapped_column(Text, nullable=False, default="")  # Hlavní obsah lekce
