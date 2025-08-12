@@ -185,6 +185,20 @@ class VoiceNavigationManager {
   static async handleTestCompleted(userInput, state, userPhone) {
     console.log('🎓 Test completed, checking for next lesson...');
     console.log(`📊 Final score: ${state.score}/${state.totalQuestions} (${Math.round((state.score / state.totalQuestions) * 100)}%)`);
+    console.log(`🔍 DEBUG: Test completion details:`, {
+      score: state.score,
+      totalQuestions: state.totalQuestions,
+      userAnswersLength: state.userAnswers ? state.userAnswers.length : 0,
+      currentQuestionIndex: state.currentQuestionIndex,
+      lessonTitle: state.lesson?.title,
+      callSid: state.callSid
+    });
+    console.log(`🔍 DEBUG: User answers summary:`, state.userAnswers?.map((answer, index) => ({
+      question: index + 1,
+      correct: answer.correct,
+      userAnswer: answer.userAnswer?.substring(0, 50) + '...',
+      correctAnswer: answer.correctAnswer?.substring(0, 50) + '...'
+    })));
     
     // Save results (aggregate)
     try {
@@ -198,6 +212,7 @@ class VoiceNavigationManager {
     const feedback = this.generateTestFeedback(percentage, state.userLanguage);
     
     console.log(`📋 Test feedback: ${feedback}`);
+    console.log(`🔍 DEBUG: Final calculated percentage: ${percentage}% (${state.score}/${state.totalQuestions})`);
     
     // Try to load next lesson in the same training
     try {
@@ -229,7 +244,12 @@ class VoiceNavigationManager {
       testResults: { score: state.score, total: state.totalQuestions, percentage }
     };
     
-    console.log('🔚 Returning session_complete response (no more lessons):', completionResponse);
+    console.log('🔚 Returning session_complete response (no more lessons):', {
+      questionType: completionResponse.questionType,
+      score: state.score,
+      total: state.totalQuestions,
+      percentage: percentage
+    });
     
     return completionResponse;
   }
@@ -534,10 +554,28 @@ class VoiceNavigationManager {
     
     console.log(`🧪 Test phase - Question ${state.currentQuestionIndex + 1}/${state.totalQuestions}`);
     console.log(`🔍 Debug: currentQuestionIndex=${state.currentQuestionIndex}, totalQuestions=${state.totalQuestions}`);
+    console.log(`🔍 DEBUG: Current state before processing:`, {
+      score: state.score,
+      totalQuestions: state.totalQuestions,
+      userAnswersLength: state.userAnswers ? state.userAnswers.length : 0,
+      currentQuestionIndex: state.currentQuestionIndex
+    });
     
     // Process test question
     const currentQuestion = state.lesson.questions[state.currentQuestionIndex];
+    console.log(`🔍 DEBUG: Current question:`, {
+      question: currentQuestion.question?.substring(0, 100) + '...',
+      options: currentQuestion.options,
+      correctAnswer: currentQuestion.correctAnswer,
+      correctAnswerText: currentQuestion.options[currentQuestion.correctAnswer]
+    });
+    
     const isCorrect = this.checkTestAnswer(userInput, currentQuestion);
+    console.log(`🔍 DEBUG: Answer evaluation:`, {
+      userInput: userInput,
+      isCorrect: isCorrect,
+      expectedAnswer: currentQuestion.options[currentQuestion.correctAnswer]
+    });
     
     if (isCorrect) {
       state.score++;
@@ -551,6 +589,13 @@ class VoiceNavigationManager {
       userAnswer: userInput,
       correct: isCorrect,
       correctAnswer: currentQuestion.options[currentQuestion.correctAnswer]
+    });
+    
+    console.log(`🔍 DEBUG: After processing answer:`, {
+      score: state.score,
+      totalQuestions: state.totalQuestions,
+      userAnswersLength: state.userAnswers.length,
+      currentQuestionIndex: state.currentQuestionIndex
     });
     
     // Save each answer immediately to database (aligned with TestResult schema)
