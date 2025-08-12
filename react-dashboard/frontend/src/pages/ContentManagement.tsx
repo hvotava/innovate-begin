@@ -58,7 +58,8 @@ import {
   FilePresent as FilePresentIcon,
   TextFields as TextFieldsIcon,
   Quiz as QuizIcon,
-  AutoAwesome as AutoAwesomeIcon
+  AutoAwesome as AutoAwesomeIcon,
+  Storage as StorageIcon
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from '../contexts/AuthContext';
@@ -136,6 +137,9 @@ const ContentManagement: React.FC = () => {
   const [aiLessonContent, setAILessonContent] = useState('');
   const [aiLessonTitle, setAILessonTitle] = useState('');
   const [generatingAILesson, setGeneratingAILesson] = useState(false);
+
+  // NEW: Migration state
+  const [runningMigration, setRunningMigration] = useState(false);
 
   // Load data
   const loadContentSources = useCallback(async () => {
@@ -435,6 +439,32 @@ const ContentManagement: React.FC = () => {
     }
   };
 
+  // NEW: Handle Database Migration
+  const handleRunMigration = async () => {
+    setRunningMigration(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      console.log('🔄 Running database migration...');
+      
+      const response = await api.post('/admin/run-migration');
+
+      if (response.data.success) {
+        setSuccess(`Database migration completed successfully! ${response.data.migrations?.length || 0} operations performed.`);
+        console.log('✅ Migration completed:', response.data);
+      } else {
+        setError(response.data.error || 'Migration failed');
+      }
+
+    } catch (error: any) {
+      console.error('❌ Migration error:', error);
+      setError(error.response?.data?.error || 'Failed to run database migration');
+    } finally {
+      setRunningMigration(false);
+    }
+  };
+
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
       {/* Header */}
@@ -453,6 +483,20 @@ const ContentManagement: React.FC = () => {
           </Box>
           
           <Box sx={{ display: 'flex', gap: 1 }}>
+            <Tooltip title="Run Database Migration">
+              <Fab
+                color="warning"
+                onClick={handleRunMigration}
+                disabled={runningMigration}
+                size={isMobile ? "medium" : "large"}
+              >
+                {runningMigration ? (
+                  <LinearProgress sx={{ width: 30, height: 4, borderRadius: 2 }} />
+                ) : (
+                  <StorageIcon />
+                )}
+              </Fab>
+            </Tooltip>
             <Fab
               color="secondary"
               onClick={() => setShowTextDialog(true)}
