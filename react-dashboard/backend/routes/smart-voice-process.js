@@ -108,10 +108,10 @@ async function smartVoiceProcess(req, res) {
       const userPhone = Called || Caller;
       
       // Check if we're in lesson state and need to transition to test
-      // Allow transition for in-progress calls or completed calls with ANY duration
-      // Also check if lesson has questions (ready for test)
+      // CRITICAL: Only transition when lesson is COMPLETED, not during lesson!
+      // Lesson must be finished (completed status) AND have questions ready
       if (state.currentState === 'lesson_playing' && 
-          (callStatus === 'in-progress' || callStatus === 'completed') &&
+          callStatus === 'completed' &&
           state.lesson?.questions && state.lesson.questions.length > 0) {
         console.log('🎯 Lesson-to-test transition - transitioning from lesson to test via AUTO_START');
         const response = await VoiceNavigationManager.processUserResponse('AUTO_START', CallSid, userPhone);
@@ -259,7 +259,10 @@ async function smartVoiceProcess(req, res) {
 </Response>`;
     } else if (response.nextQuestion) {
       // CRITICAL: Check if this is lesson completion and should trigger AUTO_START
-      if (response.questionType === 'lesson' && state.currentState === 'lesson_playing') {
+      // Only trigger AUTO_START if lesson is actually completed (not just in progress)
+      if (response.questionType === 'lesson' && 
+          state.currentState === 'lesson_playing' && 
+          callStatus === 'completed') {
         console.log('🎯 Lesson completed in fallback path - triggering AUTO_START');
         // Send AUTO_START to transition to test
         try {
