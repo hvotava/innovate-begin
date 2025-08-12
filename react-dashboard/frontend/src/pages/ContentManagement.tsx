@@ -684,11 +684,11 @@ const ContentManagement: React.FC = () => {
                               disabled={uploading}
                             >
                               <MenuItem value="">Create new training</MenuItem>
-                              {trainings.map((training) => (
+                              {trainings && Array.isArray(trainings) ? trainings.map((training) => (
                                 <MenuItem key={training.id} value={training.id.toString()}>
                                   {training.title}
                                 </MenuItem>
-                              ))}
+                              )) : null}
                             </Select>
                           </FormControl>
                         </Grid>
@@ -703,11 +703,11 @@ const ContentManagement: React.FC = () => {
                             label="Existing Lesson"
                             disabled={uploading}
                           >
-                            {availableLessons.map((lesson) => (
+                            {availableLessons && Array.isArray(availableLessons) ? availableLessons.map((lesson) => (
                               <MenuItem key={lesson.id} value={lesson.id.toString()}>
                                 {lesson.title}
                               </MenuItem>
-                            ))}
+                            )) : null}
                           </Select>
                         </FormControl>
                       </Grid>
@@ -856,7 +856,7 @@ const ContentManagement: React.FC = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {contentSources.map((source) => (
+                    {contentSources && Array.isArray(contentSources) ? contentSources.map((source) => (
                       <TableRow key={source.id}>
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -910,7 +910,15 @@ const ContentManagement: React.FC = () => {
                           </Box>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )) : (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center">
+                          <Typography color="text.secondary">
+                            No content sources available
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -939,7 +947,7 @@ const ContentManagement: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {courses.map((course) => (
+                  {courses && Array.isArray(courses) ? courses.map((course) => (
                     <TableRow key={course.id}>
                       <TableCell>
                         <Box>
@@ -982,7 +990,15 @@ const ContentManagement: React.FC = () => {
                         )}
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )) : (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">
+                        <Typography color="text.secondary">
+                          No courses available
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>
