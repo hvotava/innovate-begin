@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const { auth, adminOnly } = require('../middleware/auth');
+const { fixLessonNumbering } = require('../scripts/fix-lesson-numbering');
 const router = express.Router();
 
 // Run database migration by calling Python backend
@@ -85,6 +86,35 @@ router.get('/health', auth, adminOnly, async (req, res) => {
       success: false,
       nodeBackend: 'healthy',
       pythonBackend: 'error',
+      error: error.message
+    });
+  }
+});
+
+// Fix lesson numbering (admin only)
+router.post('/fix-lesson-numbering', [auth, adminOnly], async (req, res) => {
+  try {
+    console.log('🔢 Admin triggered lesson renumbering migration');
+    
+    // Run the migration in background
+    fixLessonNumbering()
+      .then(() => {
+        console.log('✅ Lesson renumbering migration completed successfully');
+      })
+      .catch(error => {
+        console.error('❌ Lesson renumbering migration failed:', error);
+      });
+    
+    res.json({
+      success: true,
+      message: 'Lesson renumbering migration started. Check server logs for progress.',
+      details: 'This will renumber all lessons starting from 1 and create missing tests with matching IDs.'
+    });
+    
+  } catch (error) {
+    console.error('❌ Error starting lesson renumbering:', error);
+    res.status(500).json({
+      success: false,
       error: error.message
     });
   }

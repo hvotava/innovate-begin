@@ -357,7 +357,8 @@ router.post('/content/upload', async (req, res) => {
         where: { trainingId: training.id },
         order: [['lesson_number', 'DESC']]
       });
-      const nextLessonNumber = (maxLessonNumber?.lesson_number || 0) + 1;
+      // Start numbering from 1 (not 0)
+      const nextLessonNumber = Math.max((maxLessonNumber?.lesson_number || 0) + 1, 1);
       
       console.log(`🔢 BACKGROUND JOB: Creating lesson with lesson_number: ${nextLessonNumber} for training: ${training.id}`);
       

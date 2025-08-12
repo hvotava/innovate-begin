@@ -113,7 +113,8 @@ router.post('/', [
       where: { trainingId: trainingId },
       order: [['lesson_number', 'DESC']]
     });
-    const nextLessonNumber = (maxLessonNumber?.lesson_number || 0) + 1;
+    // Start numbering from 1 (not 0)
+    const nextLessonNumber = Math.max((maxLessonNumber?.lesson_number || 0) + 1, 1);
     
     console.log(`🔢 Creating lesson with lesson_number: ${nextLessonNumber} for training: ${trainingId}`);
 
