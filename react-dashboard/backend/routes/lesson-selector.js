@@ -184,21 +184,15 @@ async function loadTestQuestionsFromDB(lessonId) {
   try {
     console.log(`🔍 Loading test questions for lesson ID: ${lessonId}`);
     
-    // Find tests for this lesson
-    const tests = await Test.findAll({
-      where: { lessonId: lessonId }
-    });
+    // Find test with same ID as lesson (Varianta A: test.id = lesson.id)
+    const test = await Test.findByPk(lessonId);
     
-    console.log(`📋 Found ${tests.length} tests for lesson ${lessonId}`);
-    console.log(`📋 Test details:`, tests.map(t => ({ id: t.id, title: t.title, lessonId: t.lessonId })));
-    
-    if (tests.length === 0) {
-      console.log(`❌ No tests found for lesson ${lessonId}`);
+    if (!test) {
+      console.log(`❌ No test found with ID ${lessonId} (matching lesson ID)`);
       return [];
     }
     
-    // Get questions from the first test
-    const test = tests[0];
+    console.log(`📋 Found test with ID ${test.id} for lesson ${lessonId}`);
     console.log(`📝 Using test: ${test.title} (ID: ${test.id})`);
     console.log(`📝 Raw questions data:`, test.questions);
     

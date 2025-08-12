@@ -102,10 +102,7 @@ async function assignUserToFirstTrainingAndTest(userId, companyId) {
       if (firstTraining.Lessons && firstTraining.Lessons.length > 0) {
         const firstLesson = firstTraining.Lessons[0];
         
-        const firstTest = await Test.findOne({
-          where: { lessonId: firstLesson.id },
-          order: [['orderNumber', 'ASC'], ['id', 'ASC']]
-        });
+        const firstTest = await Test.findByPk(firstLesson.id);
 
         if (firstTest) {
           // Create TestSession for the test

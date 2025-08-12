@@ -108,6 +108,7 @@ router.get('/content/company/:companyId', async (req, res) => {
   try {
     const companyId = parseInt(req.params.companyId);
     console.log('📚 Content GET for company:', companyId);
+    console.log('📚 uploadedMemory length:', uploadedMemory.length);
 
     const items = uploadedMemory
       .filter(i => i.company_id === companyId)
@@ -122,7 +123,10 @@ router.get('/content/company/:companyId', async (req, res) => {
         content_preview: i.content_preview
       }));
 
+    console.log('📚 Returning', items.length, 'content sources for company', companyId);
+
     res.json({
+      success: true,
       company_id: companyId,
       content_sources: items
     });
@@ -234,6 +238,7 @@ router.post('/content/upload', async (req, res) => {
     
     let targetLessonId = lessonId;
     let generatedLesson = null;
+    let training = null; // Define training in outer scope for test generation
     
     // Create new lesson if requested OR if no lesson assignment is provided (fallback)
     if ((createNewLesson && newLessonTitle && textContent.trim().length > 10) || 
@@ -247,7 +252,7 @@ router.post('/content/upload', async (req, res) => {
       console.log(`📚 BACKGROUND JOB: Creating new lesson: ${actualLessonTitle} (auto-created: ${!createNewLesson})`);
       
       // Find or create a default training for this content
-      let training = await Training.findOne({ 
+      training = await Training.findOne({ 
         where: { 
           title: 'AI Generated Content',
           companyId: req.body.company_id || 1
@@ -357,8 +362,12 @@ router.post('/content/upload', async (req, res) => {
       // Update existing lesson with new content
       console.log(`📝 BACKGROUND JOB: Updating existing lesson ID: ${lessonId}`);
       
-      const lesson = await Lesson.findByPk(lessonId);
+      const lesson = await Lesson.findByPk(lessonId, {
+        include: [{ model: Training }]
+      });
       if (lesson) {
+        // Set training for test generation
+        training = lesson.Training || await Training.findByPk(lesson.trainingId);
         let updatedContent = (lesson.content || '') + '\n\n' + textContent;
         
         // Generate AI lesson for updated content if requested
@@ -401,27 +410,45 @@ router.post('/content/upload', async (req, res) => {
     if (generateTests && textContent && textContent.trim().length > 50) {
       console.log('🤖 BACKGROUND JOB: Generating automatic tests from content...');
       
+      // Ensure we have training for test generation
+      if (!training && targetLessonId) {
+        console.log('🔍 BACKGROUND JOB: Looking up training for lesson to generate tests...');
+        const lesson = await Lesson.findByPk(targetLessonId, {
+          include: [{ model: Training }]
+        });
+        training = lesson?.Training || await Training.findByPk(lesson?.trainingId);
+      }
+      
       try {
         const questions = await generateQuestionsFromContent(textContent, newLessonTitle || 'Generated Test');
         console.log(`✅ BACKGROUND JOB: Generated ${questions.length} validated questions`);
         
         if (questions && questions.length > 0 && targetLessonId && training) {
-          // Find the highest orderNumber for tests in this training
-          const maxOrderTest = await Test.findOne({
-            where: { trainingId: training.id },
-            order: [['orderNumber', 'DESC']]
-          });
-          const nextOrderNumber = (maxOrderTest?.orderNumber || 0) + 1;
+          console.log(`🔢 BACKGROUND JOB: Creating test with ID ${targetLessonId} (same as lesson ID) for training: ${training.id}`);
           
-          console.log(`🔢 BACKGROUND JOB: Creating test with orderNumber: ${nextOrderNumber} for training: ${training.id}, lesson: ${targetLessonId}`);
+          // Check if test with same ID as lesson already exists
+          const existingTest = await Test.findByPk(targetLessonId);
           
-          const test = await Test.create({
-            title: `${newLessonTitle || 'Generated'} Test`,
-            questions: questions, // Use array directly, not JSON.stringify
-            lessonId: targetLessonId,
-            trainingId: training.id, // Add required trainingId
-            orderNumber: nextOrderNumber
-          });
+          let test;
+          if (existingTest) {
+            console.log(`⚠️ BACKGROUND JOB: Test with ID ${targetLessonId} already exists, updating it`);
+            test = await existingTest.update({
+              title: `${newLessonTitle || 'Generated'} Test`,
+              questions: questions,
+              lessonId: targetLessonId,
+              trainingId: training.id
+            });
+          } else {
+            // Create test with specific ID (same as lesson ID)
+            test = await Test.create({
+              id: targetLessonId, // Set specific ID to match lesson
+              title: `${newLessonTitle || 'Generated'} Test`,
+              questions: questions,
+              lessonId: targetLessonId,
+              trainingId: training.id,
+              orderNumber: targetLessonId // Use lesson ID as order number too
+            });
+          }
           
           generatedTests.push({
             testId: test.id,
