@@ -281,18 +281,34 @@ class VoiceNavigationManager {
     const { getNextLesson, loadTestQuestionsFromDB } = require('./lesson-selector');
     try {
       const currentId = state.lesson?.lesson_id;
+      console.log(`🔍 loadNextLesson: Current lesson ID: ${currentId}`);
+      console.log(`🔍 loadNextLesson: Current lesson title: ${state.lesson?.title}`);
+      
       let nextLessonRecord = null;
       if (currentId) {
         nextLessonRecord = await getNextLesson(currentId);
+        console.log(`🔍 loadNextLesson: getNextLesson returned:`, nextLessonRecord ? {
+          id: nextLessonRecord.id,
+          title: nextLessonRecord.title,
+          trainingId: nextLessonRecord.trainingId,
+          lesson_number: nextLessonRecord.lesson_number,
+          order_in_course: nextLessonRecord.order_in_course
+        } : 'null');
       }
+      
       if (!nextLessonRecord) {
+        console.log('⚠️ No next lesson found - training sequence completed');
         return {
-          questionType: 'navigation_menu',
-          feedback: 'Žádná další lekce nenavazuje.',
-          nextQuestion: this.getNavigationMenu(state.userLanguage)
+          questionType: 'session_complete',
+          feedback: 'Školení bylo úspěšně dokončeno! Gratulujeme!',
+          nextQuestion: 'Hovor bude ukončen.'
         };
       }
+      
+      console.log(`✅ Loading next lesson: ${nextLessonRecord.title} (ID: ${nextLessonRecord.id})`);
       const questions = await loadTestQuestionsFromDB(nextLessonRecord.id);
+      console.log(`📝 Loaded ${questions.length} questions for next lesson`);
+      
       const nextLesson = {
         type: 'lesson',
         lesson_id: nextLessonRecord.id,
@@ -309,23 +325,28 @@ class VoiceNavigationManager {
         state.userAnswers = [];
         state.score = 0;
         
+        console.log(`🎯 State updated for next lesson: ${nextLesson.title}`);
+        
         return {
           questionType: 'lesson',
-          feedback: 'Načítám další lekci.',
+          feedback: `Pokračujeme další lekcí: ${nextLesson.title}`,
           nextQuestion: this.formatLessonContent(nextLesson),
           navigationOptions: this.getNavigationOptions(state.userLanguage)
         };
       } else {
+        console.log('❌ Failed to create next lesson object');
         return {
           questionType: 'session_complete',
-          feedback: 'Žádné další lekce nejsou k dispozici.'
+          feedback: 'Školení bylo dokončeno.',
+          nextQuestion: 'Hovor bude ukončen.'
         };
       }
     } catch (error) {
-      console.error('❌ Error loading next lesson:', error);
+      console.error('❌ Error in loadNextLesson:', error);
       return {
-        questionType: 'error',
-        feedback: 'Nepodařilo se načíst další lekci.'
+        questionType: 'session_complete',
+        feedback: 'Došlo k chybě při načítání další lekce. Školení bude ukončeno.',
+        nextQuestion: 'Hovor bude ukončen.'
       };
     }
   }
@@ -719,30 +740,33 @@ class VoiceNavigationManager {
       }
     }
     
-    // Check fuzzy match with Levenshtein distance (stricter 80% similarity)
+    // Check fuzzy match with Levenshtein distance (more forgiving 70% similarity)
     const normalizedCorrect = normalize(correctAnswer);
     const distance = levenshtein(cleanInput, normalizedCorrect);
     const similarity = 1 - (distance / Math.max(cleanInput.length, normalizedCorrect.length));
     
-    if (similarity >= 0.8) {
+    console.log(`🔍 Fuzzy matching: "${cleanInput}" vs "${normalizedCorrect}" = ${Math.round(similarity * 100)}% similarity`);
+    
+    if (similarity >= 0.7) { // Lowered from 0.8 to 0.7 for better voice recognition
       console.log(`✅ Fuzzy match found: ${Math.round(similarity * 100)}% similarity`);
       return true;
     }
     
-    // Check if any word in input is similar to correct answer (stricter threshold)
+    // Check if any word in input is similar to correct answer (more forgiving threshold)
     const words = cleanInput.split(' ');
     for (const word of words) {
-      if (word.length >= 4) { // Require longer words for word matching
+      if (word.length >= 3) { // Lowered from 4 to 3 characters
         const wordDistance = levenshtein(word, normalizedCorrect);
         const wordSimilarity = 1 - (wordDistance / Math.max(word.length, normalizedCorrect.length));
-        if (wordSimilarity >= 0.85) { // Stricter 85% threshold
+        console.log(`🔍 Word matching: "${word}" vs "${normalizedCorrect}" = ${Math.round(wordSimilarity * 100)}% similarity`);
+        if (wordSimilarity >= 0.75) { // Lowered from 0.85 to 0.75 for better voice recognition
           console.log(`✅ Word similarity match: "${word}" ~= "${normalizedCorrect}" (${Math.round(wordSimilarity * 100)}%)`);
           return true;
         }
       }
     }
     
-    // Check partial word match (stricter 70% threshold) - original logic as fallback
+    // Check partial word match (60% threshold) - more forgiving for voice recognition
     const correctWords = normalizedCorrect.split(' ');
     let matchCount = 0;
     for (const word of words) {
@@ -751,13 +775,15 @@ class VoiceNavigationManager {
         if (word.length >= 3 && correctWord.length >= 3) {
           if (word.includes(correctWord) || correctWord.includes(word)) {
             matchCount++;
+            console.log(`🔍 Partial word match: "${word}" contains/contained in "${correctWord}"`);
           }
         }
       }
     }
     
     const matchPercentage = (matchCount / Math.max(words.length, correctWords.length)) * 100;
-    if (matchPercentage >= 70) { // Stricter 70% threshold instead of 50%
+    console.log(`🔍 Partial match percentage: ${Math.round(matchPercentage)}%`);
+    if (matchPercentage >= 60) { // Lowered from 70% to 60% for better voice recognition
       console.log(`✅ Partial match found: ${matchPercentage}%`);
       return true;
     }

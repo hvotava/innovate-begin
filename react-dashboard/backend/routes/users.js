@@ -376,7 +376,7 @@ router.post('/:id/call', auth, adminOnly, async (req, res) => {
             return process.env.RAILWAY_STATIC_URL.startsWith('http') ? process.env.RAILWAY_STATIC_URL : `https://${process.env.RAILWAY_STATIC_URL}`;
           }
           // Fallback pro React dashboard
-          return 'https://lecture-final-production.up.railway.app';
+          return 'https://lecture-app-production.up.railway.app';
         };
 
         const voiceBackendUrl = getVoiceBackendUrl();
