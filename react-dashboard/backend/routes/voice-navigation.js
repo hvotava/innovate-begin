@@ -546,6 +546,45 @@ class VoiceNavigationManager {
   static async handleLessonPhase(userInput, state, userPhone) {
     console.log('📚 Lesson phase - processing');
     
+    // Check if user wants to end lesson and start test
+    const lessonEndKeywords = ['konec', 'hotovo', 'dokončeno', 'mám', 'jedna', 'dva', 'tři', 'a', 'b', 'c', 'd'];
+    const userWantsToEndLesson = lessonEndKeywords.some(keyword => 
+      userInput.toLowerCase().includes(keyword.toLowerCase())
+    );
+    
+    if (userWantsToEndLesson) {
+      console.log('🎯 User indicated lesson completion, transitioning to test');
+      console.log(`🔍 Detected keywords: ${lessonEndKeywords.filter(k => userInput.toLowerCase().includes(k.toLowerCase())).join(', ')}`);
+      
+      // Transition to test
+      state.currentState = CONVERSATION_STATES.TEST_ACTIVE;
+      state.currentQuestionIndex = 0;
+      state.totalQuestions = state.lesson.questions ? state.lesson.questions.length : 0;
+      state.score = 0;
+      state.userAnswers = [];
+      
+      console.log(`🔍 Debug: questions array length = ${state.lesson.questions ? state.lesson.questions.length : 'undefined'}`);
+      console.log(`🔍 Debug: totalQuestions = ${state.totalQuestions}`);
+      
+      if (state.totalQuestions === 0) {
+        console.log('⚠️ No questions found, ending session');
+        return {
+          questionType: 'session_complete',
+          feedback: 'Lekce dokončena. Test není k dispozici.'
+        };
+      }
+      
+      const firstQuestion = this.formatTestQuestion(state.lesson.questions[0], state.userLanguage);
+      console.log(`✅ Starting test with first question: ${firstQuestion.substring(0, 100)}...`);
+      console.log(`🔍 DEBUG: Full first question: "${firstQuestion}"`);
+      
+      return {
+        questionType: 'test',
+        feedback: 'Lekce dokončena. Začínáme test.',
+        nextQuestion: firstQuestion
+      };
+    }
+    
     // Only transition when explicitly triggered after lesson ends
     if (userInput !== 'AUTO_START') {
       return {
