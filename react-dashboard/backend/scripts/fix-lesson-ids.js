@@ -1,13 +1,13 @@
 const { sequelize, Lesson, Test, Training } = require('../models');
 
 async function fixLessonIds() {
-  console.log('🔢 Starting lesson ID fixing - ensuring lesson.id = lesson.lesson_number...');
+  console.log('�� Starting lesson ID fix - ensuring lesson.id = lesson.lesson_number...');
   
   try {
     await sequelize.authenticate();
-    console.log('🔗 Database connected');
+    console.log('🔢 Database connected');
     
-    // Get all lessons with their tests
+    // Get all lessons with their lesson_numbers
     const lessons = await Lesson.findAll({
       include: [{
         model: Training,
@@ -16,142 +16,116 @@ async function fixLessonIds() {
       order: [['trainingId', 'ASC'], ['lesson_number', 'ASC']]
     });
     
-    console.log(`📚 Found ${lessons.length} lessons to analyze`);
+    console.log(`📚 Found ${lessons.length} lessons to process`);
     
-    const problemLessons = [];
-    const correctLessons = [];
-    
-    // Analyze each lesson
     for (const lesson of lessons) {
       const lessonId = lesson.id;
       const lessonNumber = lesson.lesson_number;
       const trainingTitle = lesson.Training?.title || 'Unknown';
       
-      console.log(`\n🔍 Analyzing Lesson ${lessonId}: "${lesson.title}"`);
-      console.log(`   lesson_number: ${lessonNumber}, training: "${trainingTitle}"`);
+      console.log(`\n🔍 Processing Lesson "${lesson.title}"`);
+      console.log(`   lesson.id: ${lessonId}, lesson_number: ${lessonNumber}, training: "${trainingTitle}"`);
       
-      if (lessonId === lessonNumber) {
-        console.log(`   ✅ CORRECT: lesson.id (${lessonId}) = lesson.lesson_number (${lessonNumber})`);
-        correctLessons.push(lesson);
-      } else {
-        console.log(`   ❌ PROBLEM: lesson.id (${lessonId}) ≠ lesson.lesson_number (${lessonNumber})`);
-        problemLessons.push({ lesson, expectedId: lessonNumber });
+      if (!lessonNumber || lessonNumber <= 0) {
+        console.log(`   ⚠️ SKIPPING: Invalid lesson_number (${lessonNumber})`);
+        continue;
       }
-    }
-    
-    console.log(`\n📊 SUMMARY:`);
-    console.log(`✅ Correct lessons: ${correctLessons.length}`);
-    console.log(`❌ Problem lessons: ${problemLessons.length}`);
-    
-    if (problemLessons.length === 0) {
-      console.log('🎉 All lessons have correct IDs! No fixes needed.');
-      return;
-    }
-    
-    console.log(`\n⚠️ WARNING: Changing lesson IDs is DANGEROUS!`);
-    console.log(`This will affect foreign keys and relationships.`);
-    console.log(`Consider using the multi-strategy test lookup instead.`);
-    
-    console.log(`\n🔧 FIXING ${problemLessons.length} problem lessons...`);
-    
-    for (const { lesson, expectedId } of problemLessons) {
-      console.log(`\n🔄 Fixing Lesson "${lesson.title}"`);
-      console.log(`   Current ID: ${lesson.id} -> Target ID: ${expectedId}`);
       
-      try {
-        // Check if a lesson with the target ID already exists
-        const existingLesson = await Lesson.findByPk(expectedId);
+      // Check if lesson.id already matches lesson_number
+      if (lessonId === lessonNumber) {
+        console.log(`   ✅ CORRECT: lesson.id (${lessonId}) = lesson_number (${lessonNumber})`);
+        continue;
+      }
+      
+      console.log(`   ❌ MISMATCH: lesson.id (${lessonId}) ≠ lesson_number (${lessonNumber})`);
+      
+      // Check if a lesson with the target ID already exists
+      const conflictLesson = await Lesson.findByPk(lessonNumber);
+      
+      if (conflictLesson && conflictLesson.id !== lessonId) {
+        console.log(`   ⚠️ CONFLICT: Lesson with ID ${lessonNumber} already exists: "${conflictLesson.title}"`);
         
-        if (existingLesson && existingLesson.id !== lesson.id) {
-          console.log(`   ⚠️ CONFLICT: Lesson with ID ${expectedId} already exists: "${existingLesson.title}"`);
-          console.log(`   🚫 SKIPPING to avoid data corruption`);
-          continue;
-        }
+        // Merge the lessons - keep the one with correct ID, update its data
+        console.log(`   🔄 MERGING: Updating lesson ${lessonNumber} with data from lesson ${lessonId}`);
         
-        // Find all tests that reference this lesson
-        const referencingTests = await Test.findAll({
-          where: { lessonId: lesson.id }
+        await conflictLesson.update({
+          title: lesson.title || conflictLesson.title,
+          content: lesson.content || conflictLesson.content,
+          description: lesson.description || conflictLesson.description,
+          trainingId: lesson.trainingId,
+          lesson_number: lessonNumber,
+          order_in_course: lessonNumber,
+          language: lesson.language || conflictLesson.language,
+          level: lesson.level || conflictLesson.level,
+          base_difficulty: lesson.base_difficulty || conflictLesson.base_difficulty,
+          lesson_type: lesson.lesson_type || conflictLesson.lesson_type
         });
         
-        console.log(`   📝 Found ${referencingTests.length} tests referencing lesson ${lesson.id}`);
+        // Update all tests that reference the old lesson ID
+        const testsToUpdate = await Test.findAll({
+          where: { lessonId: lessonId }
+        });
         
-        // Create new lesson with correct ID
-        console.log(`   🔄 Creating new lesson with ID ${expectedId}`);
-        const newLesson = await Lesson.create({
-          id: expectedId,
+        for (const test of testsToUpdate) {
+          await test.update({ lessonId: lessonNumber });
+          console.log(`   🔄 Updated test ${test.id} to reference lesson ${lessonNumber}`);
+        }
+        
+        // Delete the old lesson
+        await lesson.destroy();
+        console.log(`   ✅ MERGED: Updated lesson ${lessonNumber} and deleted old lesson ${lessonId}`);
+        
+      } else {
+        // No conflict - recreate lesson with correct ID
+        console.log(`   🔄 RECREATING: Lesson with ID ${lessonNumber}`);
+        
+        const lessonData = {
+          id: lessonNumber, // Set correct ID
           title: lesson.title,
           content: lesson.content,
           description: lesson.description,
           trainingId: lesson.trainingId,
-          lesson_number: lesson.lesson_number,
-          order_in_course: lesson.order_in_course,
+          lesson_number: lessonNumber,
+          order_in_course: lessonNumber,
           language: lesson.language,
           level: lesson.level,
+          base_difficulty: lesson.base_difficulty,
           lesson_type: lesson.lesson_type,
-          required_score: lesson.required_score,
-          script: lesson.script,
-          metadata: lesson.metadata,
           createdAt: lesson.createdAt,
           updatedAt: new Date()
+        };
+        
+        // Update all tests that reference the old lesson ID
+        const testsToUpdate = await Test.findAll({
+          where: { lessonId: lessonId }
         });
         
-        // Update all referencing tests
-        for (const test of referencingTests) {
-          await test.update({ lessonId: expectedId });
-          console.log(`   📝 Updated test ${test.id} lessonId: ${lesson.id} -> ${expectedId}`);
+        for (const test of testsToUpdate) {
+          await test.update({ lessonId: lessonNumber });
+          console.log(`   🔄 Updated test ${test.id} to reference lesson ${lessonNumber}`);
         }
         
-        // Delete old lesson
+        // Delete old lesson first
         await lesson.destroy();
-        console.log(`   ✅ Created lesson with ID ${newLesson.id} and deleted old lesson ${lesson.id}`);
         
-      } catch (error) {
-        console.error(`   ❌ Error fixing lesson ${lesson.id}:`, error.message);
+        // Create new lesson with correct ID
+        const newLesson = await Lesson.create(lessonData);
+        console.log(`   ✅ RECREATED: Lesson ${newLesson.id} for "${lesson.title}"`);
       }
     }
     
-    // Final verification
-    console.log(`\n🔍 FINAL VERIFICATION:`);
-    const finalLessons = await Lesson.findAll({
-      include: [{ model: Training, attributes: ['title'] }],
-      order: [['trainingId', 'ASC'], ['lesson_number', 'ASC']]
-    });
-    
-    let finalCorrect = 0;
-    let finalProblems = 0;
-    
-    finalLessons.forEach(lesson => {
-      if (lesson.id === lesson.lesson_number) {
-        finalCorrect++;
-        console.log(`✅ Lesson ${lesson.id}: "${lesson.title}" (lesson_number: ${lesson.lesson_number})`);
-      } else {
-        finalProblems++;
-        console.log(`❌ Lesson ${lesson.id}: "${lesson.title}" (lesson_number: ${lesson.lesson_number})`);
-      }
-    });
-    
-    console.log(`\n🎉 FINAL RESULTS:`);
-    console.log(`✅ Correct lessons: ${finalCorrect}`);
-    console.log(`❌ Remaining problems: ${finalProblems}`);
-    
-    if (finalProblems === 0) {
-      console.log('🎉 All lessons now have correct IDs (lesson.id = lesson.lesson_number)!');
-      console.log('✅ Voice system will now find tests correctly!');
-    }
+    console.log('\n🎉 Lesson ID fix completed!');
     
   } catch (error) {
-    console.error('❌ Error during lesson ID fixing:', error);
+    console.error('❌ Error fixing lesson IDs:', error);
   } finally {
     await sequelize.close();
   }
 }
 
+// Run if called directly
 if (require.main === module) {
-  console.log('⚠️ WARNING: This script changes lesson primary keys!');
-  console.log('⚠️ This is DANGEROUS and may cause data corruption!');
-  console.log('⚠️ Consider using multi-strategy test lookup instead.');
-  console.log('⚠️ Uncomment the line below to proceed at your own risk:');
-  // fixLessonIds();
+  fixLessonIds();
 }
 
 module.exports = { fixLessonIds }; 

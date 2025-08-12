@@ -212,6 +212,38 @@ router.post('/fix-corrupted-questions', async (req, res) => {
   }
 });
 
+// Fix lesson IDs to match lesson_number (public endpoint - no auth required)
+router.post('/fix-lesson-ids', async (req, res) => {
+  try {
+    console.log('🔢 Public request to fix lesson IDs');
+    
+    // Import the fix function
+    const { fixLessonIds } = require('../scripts/fix-lesson-ids');
+    
+    // Run the fix in background
+    fixLessonIds()
+      .then(() => {
+        console.log('✅ Lesson IDs fix completed successfully');
+      })
+      .catch(error => {
+        console.error('❌ Lesson IDs fix failed:', error);
+      });
+    
+    res.json({
+      success: true,
+      message: 'Lesson IDs fix started. Check server logs for progress.',
+      details: 'This will fix lesson.id to match lesson.lesson_number (e.g., lesson_number: 2 → id: 2).'
+    });
+    
+  } catch (error) {
+    console.error('❌ Error starting lesson IDs fix:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Check test questions status (public endpoint - no auth required)
 router.get('/check-test-questions', async (req, res) => {
   try {
