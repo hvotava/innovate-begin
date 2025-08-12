@@ -168,6 +168,7 @@ router.post('/', [
   contactPersonOrHigher,
   body('title').notEmpty().withMessage('Test title is required'),
   body('lessonId').isInt().withMessage('Valid lesson ID is required'),
+  body('trainingId').isInt().withMessage('Valid training ID is required'),
   body('orderNumber').optional().isInt({ min: 0 }).withMessage('Order number must be non-negative integer'),
   body('questions').isArray({ min: 1 }).withMessage('At least one question is required'),
   body('questions.*.question').notEmpty().withMessage('Question text is required'),
@@ -182,9 +183,9 @@ router.post('/', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, lessonId, orderNumber, questions } = req.body;
+    const { title, lessonId, trainingId, orderNumber, questions } = req.body;
 
-    console.log('✅ Test validation passed, creating test:', { title, lessonId, orderNumber, questionsCount: questions?.length });
+    console.log('✅ Test validation passed, creating test:', { title, lessonId, trainingId, orderNumber, questionsCount: questions?.length });
 
     // Zkontroluj, jestli lekce existuje a přístup k ní, nebo ji vytvoř
     let lesson = await Lesson.findByPk(lessonId, {
@@ -300,12 +301,20 @@ router.post('/', [
       });
     }
 
+    // Verify that lesson belongs to the specified training
+    if (lesson.trainingId !== trainingId) {
+      console.log(`❌ Lesson ${lessonId} belongs to training ${lesson.trainingId}, but test is for training ${trainingId}`);
+      return res.status(400).json({ 
+        error: `Lekce nepatří do vybraného školení. Lekce je přiřazena ke školení ${lesson.Training?.title || lesson.trainingId}.`
+      });
+    }
+
     const test = await Test.create({
       title,
       lessonId: req.body.lessonId, // Use potentially updated lessonId
       orderNumber: finalOrderNumber,
       questions: normalizedQuestions, // Save as normalized array
-      trainingId: lesson.trainingId
+      trainingId: trainingId // Use the specified trainingId
     });
 
     const createdTest = await Test.findByPk(test.id, {

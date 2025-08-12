@@ -59,6 +59,7 @@ import AITestGenerator from '../components/AITestGenerator';
 interface TestFormData {
   title: string;
   lessonId: number | '';
+  trainingId: number | '';
   orderNumber: number;
   questions: Question[];
 }
@@ -89,6 +90,7 @@ const Tests: React.FC = () => {
   const [formData, setFormData] = useState<TestFormData>({
     title: '',
     lessonId: '',
+    trainingId: '',
     orderNumber: 0,
     questions: []
   });
@@ -206,6 +208,7 @@ const Tests: React.FC = () => {
     setFormData({
       title: '',
       lessonId: '',
+      trainingId: '',
       orderNumber: 0,
       questions: []
     });
@@ -216,6 +219,7 @@ const Tests: React.FC = () => {
       const submitData = {
         title: formData.title,
         lessonId: Number(formData.lessonId),
+        trainingId: Number(formData.trainingId),
         orderNumber: formData.orderNumber,
         questions: formData.questions
       };
@@ -673,7 +677,51 @@ const Tests: React.FC = () => {
                 required
               />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth margin="normal" required>
+                <InputLabel>Školení</InputLabel>
+                <Select
+                  value={formData.trainingId}
+                  onChange={(e) => {
+                    const trainingId = e.target.value as number;
+                    setFormData({ ...formData, trainingId, lessonId: '' }); // Reset lesson when training changes
+                  }}
+                  label="Školení"
+                >
+                  {trainings.map((training) => (
+                    <MenuItem key={training.id} value={training.id}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <SchoolIcon fontSize="small" />
+                        <Typography>{training.title}</Typography>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth margin="normal" required>
+                <InputLabel>Lekce</InputLabel>
+                <Select
+                  value={formData.lessonId}
+                  onChange={(e) => setFormData({ ...formData, lessonId: e.target.value as number })}
+                  label="Lekce"
+                  disabled={!formData.trainingId}
+                >
+                  {lessons
+                    .filter(lesson => !formData.trainingId || lesson.trainingId === formData.trainingId)
+                    .map((lesson) => (
+                    <MenuItem key={lesson.id} value={lesson.id}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <LessonIcon fontSize="small" />
+                        <Typography>{lesson.title}</Typography>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={2}>
               <TextField
                 fullWidth
                 label="Pořadí"
@@ -683,32 +731,6 @@ const Tests: React.FC = () => {
                 margin="normal"
                 inputProps={{ min: 0 }}
               />
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth margin="normal" required>
-                <InputLabel>Lekce</InputLabel>
-                <Select
-                  value={formData.lessonId}
-                  onChange={(e) => setFormData({ ...formData, lessonId: e.target.value as number })}
-                  label="Lekce"
-                >
-                  {lessons.map((lesson) => (
-                    <MenuItem key={lesson.id} value={lesson.id}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <LessonIcon fontSize="small" />
-                          <Typography>{lesson.title}</Typography>
-                        </Box>
-                        {lesson.Training && (
-                          <Typography variant="caption" color="text.secondary">
-                            {lesson.Training.title}
-                          </Typography>
-                        )}
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
             </Grid>
           </Grid>
           
