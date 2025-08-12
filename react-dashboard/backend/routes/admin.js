@@ -212,4 +212,69 @@ router.post('/fix-corrupted-questions', async (req, res) => {
   }
 });
 
+// Check test questions status (public endpoint - no auth required)
+router.get('/check-test-questions', async (req, res) => {
+  try {
+    console.log('🔍 Public request to check test questions status');
+    
+    const { Test, Lesson } = require('../models');
+    
+    // Get a few tests to check their questions
+    const tests = await Test.findAll({
+      include: [{
+        model: Lesson,
+        attributes: ['title', 'lesson_number']
+      }],
+      limit: 3,
+      order: [['id', 'ASC']]
+    });
+    
+    const testStatus = tests.map(test => {
+      let questions = [];
+      try {
+        if (typeof test.questions === 'string') {
+          questions = JSON.parse(test.questions);
+        } else {
+          questions = test.questions || [];
+        }
+      } catch (error) {
+        questions = [];
+      }
+      
+      return {
+        testId: test.id,
+        testTitle: test.title,
+        lessonTitle: test.Lesson?.title,
+        lessonNumber: test.Lesson?.lesson_number,
+        questionsCount: questions.length,
+        hasCorruption: questions.some(q => {
+          if (!q || !q.options || !Array.isArray(q.options)) return true;
+          if (q.question && q.question.includes('Kolik kostí') && q.question.includes('Co je hlavní funkcí srdce')) return true;
+          if (q.options && new Set(q.options).size !== q.options.length) return true;
+          return false;
+        }),
+        sampleQuestion: questions[0] ? {
+          question: questions[0].question?.substring(0, 50) + '...',
+          optionsCount: questions[0].options?.length || 0,
+          correctAnswer: questions[0].correctAnswer
+        } : null
+      };
+    });
+    
+    res.json({
+      success: true,
+      message: 'Test questions status check completed',
+      tests: testStatus,
+      totalTestsChecked: testStatus.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Error checking test questions status:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router; 
