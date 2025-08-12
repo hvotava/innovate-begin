@@ -117,10 +117,13 @@ const ContentManagement: React.FC = () => {
   
   // Lesson assignment state
   const [lessons, setLessons] = useState<any[]>([]);
+  const [trainings, setTrainings] = useState<any[]>([]);
   const [selectedLessonId, setSelectedLessonId] = useState<string>('');
-  const [createNewLesson, setCreateNewLesson] = useState(false);
+  const [selectedTrainingId, setSelectedTrainingId] = useState<string>('');
+  const [createNewLesson, setCreateNewLesson] = useState(true); // Default to creating new lesson
   const [newLessonTitle, setNewLessonTitle] = useState('');
   const [lessonCategory, setLessonCategory] = useState('General');
+  const [language, setLanguage] = useState('cs'); // Add language selection
   
   // Course generation state
   const [generatingCourse, setGeneratingCourse] = useState(false);
@@ -169,18 +172,23 @@ const ContentManagement: React.FC = () => {
     }
   }, [user?.companyId]);
 
-  // Load available lessons
+  // Load available lessons and trainings
   useEffect(() => {
-    const loadLessons = async () => {
+    const loadLessonsAndTrainings = async () => {
       try {
-        const response = await api.get('/lessons');
-        setAvailableLessons(response.data);
+        const [lessonsResponse, trainingsResponse] = await Promise.all([
+          api.get('/lessons'),
+          api.get('/trainings')
+        ]);
+        setAvailableLessons(lessonsResponse.data);
+        setTrainings(trainingsResponse.data);
+        console.log('✅ Loaded lessons and trainings for content management');
       } catch (err) {
-        console.error('❌ Error loading lessons:', err);
+        console.error('❌ Error loading lessons and trainings:', err);
       }
     };
 
-    loadLessons();
+    loadLessonsAndTrainings();
   }, []);
 
   useEffect(() => {
@@ -226,18 +234,21 @@ const ContentManagement: React.FC = () => {
       // Add lesson options
       formData.append('createNewLesson', createNewLesson.toString());
       if (createNewLesson) {
-        formData.append('newLessonTitle', newLessonTitle || 'Generated Lesson');
+        formData.append('newLessonTitle', newLessonTitle || acceptedFiles[0].name.replace(/\.[^/.]+$/, "")); // Use filename if no title
         formData.append('lessonCategory', lessonCategory);
       } else if (selectedLessonId) {
         formData.append('lessonId', selectedLessonId);
       }
 
-      // NEW: Add test generation option
+      // Add training selection if provided
+      if (selectedTrainingId) {
+        formData.append('trainingId', selectedTrainingId);
+      }
+
+      // Add generation options
       formData.append('generateTests', generateTests.toString());
-      
-      // NEW: Add AI lesson generation option
       formData.append('generateAILesson', generateAILesson.toString());
-      formData.append('language', 'cs'); // Default language
+      formData.append('language', language); // Use selected language
 
       console.log('🚀 Making API call to /ai-proxy/content/upload');
       const response = await api.post('/ai-proxy/content/upload', formData, {
@@ -273,7 +284,7 @@ const ContentManagement: React.FC = () => {
       console.log('🏁 Upload process finished');
       setUploading(false);
     }
-  }, [user?.companyId, uploadTitle, loadContentSources, createNewLesson, newLessonTitle, lessonCategory, selectedLessonId, generateTests, generateAILesson]);
+  }, [user?.companyId, uploadTitle, loadContentSources, createNewLesson, newLessonTitle, lessonCategory, selectedLessonId, selectedTrainingId, generateTests, generateAILesson, language]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -552,6 +563,138 @@ const ContentManagement: React.FC = () => {
                   sx={{ mb: 2 }}
                   disabled={uploading}
                 />
+
+                {/* Lesson Configuration */}
+                <Paper elevation={1} sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
+                  <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                    ⚙️ Lesson Configuration
+                  </Typography>
+                  
+                  <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={createNewLesson}
+                            onChange={(e) => setCreateNewLesson(e.target.checked)}
+                            disabled={uploading}
+                          />
+                        }
+                        label="Create new lesson"
+                      />
+                    </Grid>
+                    
+                    {createNewLesson ? (
+                      <>
+                        <Grid item xs={12} md={6}>
+                          <TextField
+                            fullWidth
+                            label="Lesson Title"
+                            value={newLessonTitle}
+                            onChange={(e) => setNewLessonTitle(e.target.value)}
+                            disabled={uploading}
+                            placeholder="Leave empty to use filename"
+                          />
+                        </Grid>
+                        <Grid item xs={12} md={3}>
+                          <FormControl fullWidth>
+                            <InputLabel>Category</InputLabel>
+                            <Select
+                              value={lessonCategory}
+                              onChange={(e) => setLessonCategory(e.target.value)}
+                              label="Category"
+                              disabled={uploading}
+                            >
+                              <MenuItem value="General">General</MenuItem>
+                              <MenuItem value="Technical">Technical</MenuItem>
+                              <MenuItem value="Business">Business</MenuItem>
+                              <MenuItem value="Safety">Safety</MenuItem>
+                              <MenuItem value="Medical">Medical</MenuItem>
+                              <MenuItem value="Legal">Legal</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        <Grid item xs={12} md={3}>
+                          <FormControl fullWidth>
+                            <InputLabel>Language</InputLabel>
+                            <Select
+                              value={language}
+                              onChange={(e) => setLanguage(e.target.value)}
+                              label="Language"
+                              disabled={uploading}
+                            >
+                              <MenuItem value="cs">Čeština</MenuItem>
+                              <MenuItem value="en">English</MenuItem>
+                              <MenuItem value="de">Deutsch</MenuItem>
+                              <MenuItem value="sk">Slovenčina</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                          <FormControl fullWidth>
+                            <InputLabel>Training</InputLabel>
+                            <Select
+                              value={selectedTrainingId}
+                              onChange={(e) => setSelectedTrainingId(e.target.value)}
+                              label="Training"
+                              disabled={uploading}
+                            >
+                              <MenuItem value="">Create new training</MenuItem>
+                              {trainings.map((training) => (
+                                <MenuItem key={training.id} value={training.id.toString()}>
+                                  {training.title}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                      </>
+                    ) : (
+                      <Grid item xs={12}>
+                        <FormControl fullWidth>
+                          <InputLabel>Existing Lesson</InputLabel>
+                          <Select
+                            value={selectedLessonId}
+                            onChange={(e) => setSelectedLessonId(e.target.value)}
+                            label="Existing Lesson"
+                            disabled={uploading}
+                          >
+                            {availableLessons.map((lesson) => (
+                              <MenuItem key={lesson.id} value={lesson.id.toString()}>
+                                {lesson.title}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                    )}
+                    
+                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', gap: 2 }}>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={generateAILesson}
+                              onChange={(e) => setGenerateAILesson(e.target.checked)}
+                              disabled={uploading}
+                            />
+                          }
+                          label="Generate AI-enhanced lesson content"
+                        />
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={generateTests}
+                              onChange={(e) => setGenerateTests(e.target.checked)}
+                              disabled={uploading}
+                            />
+                          }
+                          label="Generate test questions automatically"
+                        />
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Paper>
 
                 <Box
                   {...getRootProps()}
