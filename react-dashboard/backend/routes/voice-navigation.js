@@ -272,7 +272,7 @@ class VoiceNavigationManager {
         const continuingText = LanguageTranslator.translate('continuing_next_lesson', state.userLanguage);
         return {
           questionType: 'lesson',
-          feedback: `${feedback} Výsledek: ${state.score}/${actualTotalQuestions} (${percentage}%). ${continuingText}`,
+          feedback: `Výsledek testu: ${state.score}/${actualTotalQuestions} (${percentage}%). ${continuingText}`,
           nextQuestion: nextLessonResponse.nextQuestion,
           testResults: { score: state.score, total: actualTotalQuestions, percentage },
         };
@@ -395,8 +395,9 @@ class VoiceNavigationManager {
         state.lesson = nextLesson;
         state.currentState = CONVERSATION_STATES.LESSON_PLAYING;
         state.currentQuestionIndex = 0;
-        state.userAnswers = [];
-        state.score = 0;
+        // DON'T reset score and userAnswers - they should persist between tests
+        // state.userAnswers = []; // REMOVED - this was clearing test results!
+        // state.score = 0; // REMOVED - this was causing the 0/3 bug!
         
         console.log(`🎯 State updated for next lesson: ${nextLesson.title}`);
         
