@@ -284,22 +284,38 @@ router.post('/content/upload', async (req, res) => {
         
       console.log(`📚 BACKGROUND JOB: Creating new lesson: ${actualLessonTitle} (auto-created: ${!createNewLesson})`);
       
-      // Find or create a default training for this content
-      training = await Training.findOne({ 
-        where: { 
-          title: 'AI Generated Content',
-          companyId: req.body.company_id || 1
-        } 
-      });
+      // Find selected training or create a default one
+      if (req.body.trainingId && req.body.trainingId !== '') {
+        // Use selected training
+        training = await Training.findByPk(req.body.trainingId);
+        console.log(`🎯 BACKGROUND JOB: Using selected training: ${training?.title} (ID: ${req.body.trainingId})`);
+        
+        if (!training) {
+          console.error(`❌ BACKGROUND JOB: Selected training ${req.body.trainingId} not found!`);
+          // Fallback to default training creation
+        }
+      }
       
+      // If no training selected or not found, create/find default training
       if (!training) {
-        training = await Training.create({
-          title: 'AI Generated Content',
-          description: 'Training created from AI-generated lessons',
-          category: lessonCategory,
-          companyId: req.body.company_id || 1
+        training = await Training.findOne({ 
+          where: { 
+            title: 'AI Generated Content',
+            companyId: req.body.company_id || 1
+          } 
         });
-        console.log('✅ BACKGROUND JOB: Created new training for AI content');
+        
+        if (!training) {
+          training = await Training.create({
+            title: 'AI Generated Content',
+            description: 'Training created from AI-generated lessons',
+            category: lessonCategory,
+            companyId: req.body.company_id || 1
+          });
+          console.log('✅ BACKGROUND JOB: Created new default training for AI content');
+        } else {
+          console.log('✅ BACKGROUND JOB: Using existing default training');
+        }
       }
 
       // Generate AI lesson if requested or if no specific instructions

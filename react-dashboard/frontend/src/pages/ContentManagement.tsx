@@ -192,9 +192,17 @@ const ContentManagement: React.FC = () => {
         ]);
         console.log('✅ Lessons response:', lessonsResponse.data);
         console.log('✅ Trainings response:', trainingsResponse.data);
-        setAvailableLessons(lessonsResponse.data || []);
-        setTrainings(trainingsResponse.data || []);
-        console.log('✅ Loaded lessons and trainings for content management');
+        
+        // Extract lessons array from response
+        const lessons = lessonsResponse.data?.lessons || lessonsResponse.data || [];
+        const trainings = trainingsResponse.data || [];
+        
+        setAvailableLessons(lessons);
+        setTrainings(trainings);
+        console.log('✅ Loaded lessons and trainings for content management:', {
+          lessonsCount: lessons.length,
+          trainingsCount: trainings.length
+        });
       } catch (err: any) {
         console.error('❌ Error loading lessons and trainings:', err);
         console.error('❌ Error details:', err.response?.data || err.message);
@@ -694,23 +702,74 @@ const ContentManagement: React.FC = () => {
                         </Grid>
                       </>
                     ) : (
-                      <Grid item xs={12}>
-                        <FormControl fullWidth>
-                          <InputLabel>Existing Lesson</InputLabel>
-                          <Select
-                            value={selectedLessonId}
-                            onChange={(e) => setSelectedLessonId(e.target.value)}
-                            label="Existing Lesson"
-                            disabled={uploading}
-                          >
-                            {availableLessons && Array.isArray(availableLessons) ? availableLessons.map((lesson) => (
-                              <MenuItem key={lesson.id} value={lesson.id.toString()}>
-                                {lesson.title}
-                              </MenuItem>
-                            )) : null}
-                          </Select>
-                        </FormControl>
-                      </Grid>
+                      <>
+                        <Grid item xs={12} md={6}>
+                          <FormControl fullWidth>
+                            <InputLabel>Training</InputLabel>
+                            <Select
+                              value={selectedTrainingId}
+                              onChange={(e) => {
+                                setSelectedTrainingId(e.target.value);
+                                // Clear lesson selection when training changes
+                                setSelectedLessonId('');
+                              }}
+                              label="Training"
+                              disabled={uploading}
+                              required
+                            >
+                              <MenuItem value="">Select training first</MenuItem>
+                              {trainings && Array.isArray(trainings) ? trainings.map((training) => (
+                                <MenuItem key={training.id} value={training.id.toString()}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography>{training.title}</Typography>
+                                    {training.category && (
+                                      <Chip 
+                                        label={training.category} 
+                                        size="small" 
+                                        variant="outlined"
+                                        sx={{ ml: 1, fontSize: '0.7rem', height: 18 }}
+                                      />
+                                    )}
+                                  </Box>
+                                </MenuItem>
+                              )) : null}
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                          <FormControl fullWidth>
+                            <InputLabel>Existing Lesson</InputLabel>
+                            <Select
+                              value={selectedLessonId}
+                              onChange={(e) => setSelectedLessonId(e.target.value)}
+                              label="Existing Lesson"
+                              disabled={uploading || !selectedTrainingId}
+                            >
+                              {selectedTrainingId && availableLessons && Array.isArray(availableLessons) ? 
+                                availableLessons
+                                  .filter(lesson => lesson.trainingId?.toString() === selectedTrainingId)
+                                  .map((lesson) => (
+                                    <MenuItem key={lesson.id} value={lesson.id.toString()}>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Chip 
+                                          label={lesson.lesson_number || '?'} 
+                                          size="small" 
+                                          color="primary"
+                                          variant="outlined"
+                                        />
+                                        <Typography>{lesson.title}</Typography>
+                                      </Box>
+                                    </MenuItem>
+                                  )) : null}
+                            </Select>
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                              {!selectedTrainingId ? 'First select a training' : 
+                               !availableLessons?.some(l => l.trainingId?.toString() === selectedTrainingId) ? 
+                               'No lessons in this training' : ''}
+                            </Typography>
+                          </FormControl>
+                        </Grid>
+                      </>
                     )}
                     
                     <Grid item xs={12}>
