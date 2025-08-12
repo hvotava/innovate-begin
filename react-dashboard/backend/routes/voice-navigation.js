@@ -599,6 +599,16 @@ class VoiceNavigationManager {
     });
     
     const isCorrect = this.checkTestAnswer(userInput, currentQuestion);
+    if (isCorrect === 'ambiguous') {
+      console.log('⚠️ Ambiguous user input. Repeating the question.');
+      const nextQuestion = this.formatTestQuestion(currentQuestion, state.userLanguage);
+      return {
+        questionType: 'test',
+        feedback: 'Prosím zopakujte jen jednu volbu. Řekněte například A, B, C, D nebo samotnou správnou odpověď.',
+        nextQuestion: nextQuestion,
+        navigationOptions: this.getNavigationOptions(state.userLanguage)
+      };
+    }
     console.log(`🔍 DEBUG: Answer evaluation:`, {
       userInput: userInput,
       isCorrect: isCorrect,
@@ -704,6 +714,17 @@ class VoiceNavigationManager {
     
     const normalize = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
     const cleanInput = normalize(userInput);
+
+    // Ambiguity detection: if user lists many options/keywords, ask to repeat
+    const ambiguityKeywords = ['a','b','c','d','jedna','dva','tri','ctyri','mozek','plice','zaludek','jatra','srdce','sto','dveste','sest','206','365','52'];
+    const distinctHits = new Set();
+    for (const kw of ambiguityKeywords) {
+      if (cleanInput.includes(kw)) distinctHits.add(kw);
+    }
+    if (distinctHits.size >= 6 || cleanInput.split(' ').length > 20) {
+      console.log('⚠️ Ambiguous input detected (likely full vocabulary list). Will reprompt.');
+      return 'ambiguous';
+    }
     
     // Detect language from user input
     const detectedLanguage = LanguageTranslator.detectLanguage(userInput);
@@ -728,9 +749,17 @@ class VoiceNavigationManager {
           return this.checkMatchingAnswer(cleanInput, question);
         case 'multiple_choice':
         default:
-          return this.checkMultipleChoiceAnswer(cleanInput, question);
+          // If user enumerates many options, reprompt instead of marking wrong
+          const mcResult = this.checkMultipleChoiceAnswer(cleanInput, question);
+          if (mcResult === 'ambiguous') return 'ambiguous';
+          return mcResult;
       }
     })();
+    
+    if (result === 'ambiguous') {
+      console.log('⚠️ ANSWER EVALUATION RESULT: AMBIGUOUS');
+      return 'ambiguous';
+    }
     
     console.log(`🎯 ANSWER EVALUATION RESULT: ${result ? '✅ CORRECT' : '❌ WRONG'}`);
     console.log(`🎯 User said: "${userInput}" -> Expected: "${question.options?.[question.correctAnswer]}"`);
@@ -795,10 +824,17 @@ class VoiceNavigationManager {
       return true;
     }
     
-    // Check number match (1, 2, 3, 4)
+    // Check number match (1, 2, 3, 4) and numeric words
     const correctNumber = question.correctAnswer + 1;
-    if (cleanInput.includes(correctNumber.toString())) {
-      console.log('✅ Number match found');
+    const numericWords = {
+      1: ['1','jedna','prvni','a'],
+      2: ['2','dva','druha','b'],
+      3: ['3','tri','treti','c','tři'],
+      4: ['4','ctyri','ctvrta','d','čtyři']
+    };
+    const hits = (numericWords[correctNumber] || []).some(w => cleanInput.includes(normalize(w)));
+    if (cleanInput.includes(correctNumber.toString()) || hits) {
+      console.log('✅ Number/word match found');
       return true;
     }
     
@@ -816,7 +852,8 @@ class VoiceNavigationManager {
       'filtrace krve': ['filtrace krve', 'filtruje krev', 'cisteni krve', 'čištění krve'],
       'traveni potravy': ['trávení potravy', 'traveni', 'travi potravu', 'tráví potravu'],
       'dychani': ['dýchání', 'dychani', 'dych', 'dech'],
-      '206': ['dveste sest', 'dvěstě šest', 'dvesta sest', 'dvě stě šest', '206'],
+      // Numbers as phrases
+      '206': ['dveste sest', 'dvěstě šest', 'dvesta sest', 'dvě stě šest', '206', 'dvěsti šest'],
       '100': ['sto', 'jedna sta', '100'],
       '365': ['tri sta sedesatpet', 'tři sta šedesát pět', '365'],
       '52': ['padesatdva', 'padesát dva', '52']

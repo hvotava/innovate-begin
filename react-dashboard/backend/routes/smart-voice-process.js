@@ -478,14 +478,15 @@ async function smartTranscribeProcess(req, res) {
     </Say>
     <Hangup/>
 </Response>`;
-      } else if (response.nextQuestion) {
-        twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+              } else if (response.nextQuestion) {
+          const sayQuestion = response.nextQuestion && response.nextQuestion.trim().length > 0 ? response.nextQuestion : 'Otázka není k dispozici. Zopakujte prosím.';
+          twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
-        ${response.feedback}
+        ${response.feedback || ''}
     </Say>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
-        ${response.nextQuestion}
+        ${sayQuestion}
     </Say>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.7" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         Po pípnutí řekněte svoji odpověď nahlas a jasně. Stiskněte mřížku když dokončíte.
