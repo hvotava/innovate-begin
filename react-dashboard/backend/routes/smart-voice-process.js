@@ -131,7 +131,7 @@ async function smartVoiceProcess(req, res) {
   <Say language="${twilioLang}" rate="0.85" voice="Google.${twilioLang}-Standard-A">${response.nextQuestion}</Say>
   <Say language="${twilioLang}" rate="0.75" voice="Google.${twilioLang}-Standard-A">Po pípnutí řekněte svoji odpověď.</Say>
   <Record 
-    timeout="20"
+    timeout="5"
     maxLength="90"
     playBeep="true"
     finishOnKey="#"
@@ -221,7 +221,7 @@ async function smartVoiceProcess(req, res) {
         Omlouvám se, nerozpoznal jsem vaši odpověď. Zopakujte prosím odpověď.
     </Say>
     <Record 
-        timeout="20"
+        timeout="5"
         maxLength="90"
         playBeep="true"
         finishOnKey="#"
@@ -492,7 +492,7 @@ async function smartTranscribeProcess(req, res) {
         Po pípnutí řekněte svoji odpověď nahlas a jasně. Stiskněte mřížku když dokončíte.
     </Say>
     <Record 
-        timeout="20"
+        timeout="5"
         maxLength="90"
         playBeep="true"
         finishOnKey="#"
@@ -598,7 +598,7 @@ async function transcribeWithWhisper(audioUrl, language = 'cs') {
     
     // Wait a bit for Twilio to make recording available
     console.log('⏳ WHISPER: Waiting 2s for recording to be available...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     // Download audio from Twilio URL with proper authentication
     const audioResponse = await axios.get(audioUrl, {
