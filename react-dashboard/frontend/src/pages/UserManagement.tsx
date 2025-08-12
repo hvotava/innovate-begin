@@ -52,7 +52,7 @@ import {
   Engineering as EngineeringIcon,
   Security as SecurityIcon
 } from '@mui/icons-material';
-import { usersManagementAPI, companiesAPI, userService } from '../services/api';
+import { usersManagementAPI, companiesAPI, userService, trainingsAPI } from '../services/api';
 import { User, Company, UserStats, UserRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { canManageUsers } from '../utils/permissions';
@@ -181,10 +181,11 @@ const UserManagement: React.FC = () => {
 
   const fetchTrainings = async () => {
     try {
-      const response = await fetch('/api/trainings');
-      const data = await response.json();
-      console.log('🔍 Fetched trainings for training_type selector:', data);
-      setTrainings(data || []);
+      const response = await trainingsAPI.getTrainings();
+      console.log('🔍 Fetched trainings for training_type selector:', response.data);
+      // Extract trainings array from response
+      const trainings = response.data?.trainings || response.data || [];
+      setTrainings(Array.isArray(trainings) ? trainings : []);
     } catch (error: any) {
       console.error('❌ Error fetching trainings:', error);
       console.error('❌ Error details:', error.response?.data || error.message);
