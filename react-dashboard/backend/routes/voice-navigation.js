@@ -494,7 +494,11 @@ class VoiceNavigationManager {
     content = content.replace(/\s+/g, ' '); // Replace multiple spaces with single space
     content = content.trim();
     
-    return `${lesson.title}. ${content}`;
+    // Add automatic transition to test after lesson completion
+    const lessonText = `${lesson.title}. ${content}`;
+    
+    // Add a pause and transition instruction at the end
+    return `${lessonText}. [PAUSE] Lekce dokončena. Začínáme test.`;
   }
 
   // Format test question

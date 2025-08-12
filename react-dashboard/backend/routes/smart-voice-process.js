@@ -108,8 +108,8 @@ async function smartVoiceProcess(req, res) {
       const userPhone = Called || Caller;
       
       // Check if we're in lesson state and need to transition to test
-      // Allow transition for in-progress calls or completed calls with sufficient duration
-      if (state.currentState === 'lesson_playing' && (callStatus === 'in-progress' || callDuration >= 30)) {
+      // Allow transition for in-progress calls or completed calls with ANY duration
+      if (state.currentState === 'lesson_playing' && (callStatus === 'in-progress' || callStatus === 'completed')) {
         console.log('🎯 Lesson-to-test transition - transitioning from lesson to test via AUTO_START');
         const response = await VoiceNavigationManager.processUserResponse('AUTO_START', CallSid, userPhone);
         
