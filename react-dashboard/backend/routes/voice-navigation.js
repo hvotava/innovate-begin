@@ -680,42 +680,45 @@ class VoiceNavigationManager {
       }
     }
     
-    // Check fuzzy match with Levenshtein distance (75% similarity)
+    // Check fuzzy match with Levenshtein distance (stricter 80% similarity)
     const normalizedCorrect = normalize(correctAnswer);
     const distance = levenshtein(cleanInput, normalizedCorrect);
     const similarity = 1 - (distance / Math.max(cleanInput.length, normalizedCorrect.length));
     
-    if (similarity >= 0.6) {
+    if (similarity >= 0.8) {
       console.log(`✅ Fuzzy match found: ${Math.round(similarity * 100)}% similarity`);
       return true;
     }
     
-    // Check if any word in input is similar to correct answer
+    // Check if any word in input is similar to correct answer (stricter threshold)
     const words = cleanInput.split(' ');
     for (const word of words) {
-      if (word.length >= 3) {
+      if (word.length >= 4) { // Require longer words for word matching
         const wordDistance = levenshtein(word, normalizedCorrect);
         const wordSimilarity = 1 - (wordDistance / Math.max(word.length, normalizedCorrect.length));
-        if (wordSimilarity >= 0.7) {
+        if (wordSimilarity >= 0.85) { // Stricter 85% threshold
           console.log(`✅ Word similarity match: "${word}" ~= "${normalizedCorrect}" (${Math.round(wordSimilarity * 100)}%)`);
           return true;
         }
       }
     }
     
-    // Check partial word match (50% threshold) - original logic as fallback
+    // Check partial word match (stricter 70% threshold) - original logic as fallback
     const correctWords = normalizedCorrect.split(' ');
     let matchCount = 0;
     for (const word of words) {
       for (const correctWord of correctWords) {
-        if (word.includes(correctWord) || correctWord.includes(word)) {
-          matchCount++;
+        // Only count matches for words that are at least 3 characters and have significant overlap
+        if (word.length >= 3 && correctWord.length >= 3) {
+          if (word.includes(correctWord) || correctWord.includes(word)) {
+            matchCount++;
+          }
         }
       }
     }
     
     const matchPercentage = (matchCount / Math.max(words.length, correctWords.length)) * 100;
-    if (matchPercentage >= 50) {
+    if (matchPercentage >= 70) { // Stricter 70% threshold instead of 50%
       console.log(`✅ Partial match found: ${matchPercentage}%`);
       return true;
     }

@@ -78,7 +78,29 @@ async function smartVoiceProcess(req, res) {
   
   // Check if we have a recording URL (user response) or if this is a redirect after lesson
   if (!RecordingUrl) {
-    console.log('ℹ️ No recording URL - this is likely redirect after lesson, starting test');
+    console.log('ℹ️ No recording URL - checking if this is legitimate lesson transition or premature hangup');
+    
+    // Check CallStatus to distinguish between legitimate transitions and errors
+    const callStatus = req.body.CallStatus;
+    console.log('🔍 DEBUG: CallStatus:', callStatus);
+    
+    // If call was completed prematurely (duration too short) or failed, don't auto-transition
+    const callDuration = parseInt(req.body.CallDuration) || 0;
+    console.log('🔍 DEBUG: CallDuration:', callDuration, 'seconds');
+    
+    // Only auto-transition if this seems like a legitimate lesson completion
+    // Calls shorter than 30 seconds are likely premature hangups, not lesson completions
+    if (callStatus === 'completed' && callDuration < 30) {
+      console.log('⚠️ Call completed prematurely (< 30s) - likely hangup, not lesson completion');
+      console.log('🔄 Treating as error, not auto-transitioning to test');
+      return res.send(getErrorTwiml('cs'));
+    }
+    
+    if (callStatus === 'failed' || callStatus === 'busy' || callStatus === 'no-answer') {
+      console.log('❌ Call failed/busy/no-answer - not auto-transitioning to test');
+      return res.send(getErrorTwiml('cs'));
+    }
+    
     try {
       const state = VoiceNavigationManager.getState(CallSid);
       if (!state) {
@@ -90,8 +112,9 @@ async function smartVoiceProcess(req, res) {
       const userPhone = Called || Caller;
       
       // Check if we're in lesson state and need to transition to test
-      if (state.currentState === 'lesson_playing') {
-        console.log('🎯 Transitioning from lesson to test via AUTO_START');
+      // Only do this for longer calls that seem like completed lessons
+      if (state.currentState === 'lesson_playing' && callDuration >= 30) {
+        console.log('🎯 Legitimate lesson completion detected - transitioning from lesson to test via AUTO_START');
         const response = await VoiceNavigationManager.processUserResponse('AUTO_START', CallSid, userPhone);
         
         console.log('🔍 DEBUG: AUTO_START response:', {
@@ -141,6 +164,11 @@ async function smartVoiceProcess(req, res) {
           res.send(errorTwiml);
           return;
         }
+      } else if (state.currentState === 'lesson_playing' && callDuration < 30) {
+        console.log('⚠️ State is lesson_playing but call too short for legitimate completion');
+        console.log('🔄 This appears to be a premature hangup during lesson');
+        console.log('🔍 DEBUG: CallDuration:', callDuration, 'seconds (minimum 30s required)');
+        return res.send(getErrorTwiml(userLanguage));
       } else {
         console.log('❌ State is not lesson_playing, cannot transition to test');
         console.log('🔍 DEBUG: Current state:', state.currentState);
