@@ -329,8 +329,15 @@ class VoiceNavigationManager {
       }
       
       console.log(`✅ Loading next lesson: ${nextLessonRecord.title} (ID: ${nextLessonRecord.id})`);
+      console.log(`🔍 DEBUG: Looking for test with ID ${nextLessonRecord.id} (same as lesson ID)`);
       const questions = await loadTestQuestionsFromDB(nextLessonRecord.id);
       console.log(`📝 Loaded ${questions.length} questions for next lesson`);
+      
+      if (questions.length === 0) {
+        console.log(`❌ WARNING: No test questions found for lesson ${nextLessonRecord.id}`);
+        console.log(`❌ This means no test with ID=${nextLessonRecord.id} exists in database`);
+        console.log(`❌ User will repeat the lesson instead of taking a test`);
+      }
       
       const nextLesson = {
         type: 'lesson',
@@ -687,19 +694,30 @@ class VoiceNavigationManager {
     console.log(`🔍 DEBUG: Question type: ${question.type || 'multiple_choice'}`);
     console.log(`🔍 DEBUG: Raw input: "${userInput}"`);
     console.log(`🔍 DEBUG: Normalized input: "${cleanInput}"`);
+    console.log(`🔍 DEBUG: Question: "${question.question}"`);
+    console.log(`🔍 DEBUG: Options: [${question.options?.join(', ')}]`);
+    console.log(`🔍 DEBUG: Correct answer index: ${question.correctAnswer}`);
+    console.log(`🔍 DEBUG: Correct answer text: "${question.options?.[question.correctAnswer]}"`);
     
     // Handle different question types
-    switch (question.type) {
-      case 'free_text':
-        return this.checkFreeTextAnswer(cleanInput, question);
-      case 'fill_in_blank':
-        return this.checkFillInBlankAnswer(cleanInput, question);
-      case 'matching':
-        return this.checkMatchingAnswer(cleanInput, question);
-      case 'multiple_choice':
-      default:
-        return this.checkMultipleChoiceAnswer(cleanInput, question);
-    }
+    const result = (() => {
+      switch (question.type) {
+        case 'free_text':
+          return this.checkFreeTextAnswer(cleanInput, question);
+        case 'fill_in_blank':
+          return this.checkFillInBlankAnswer(cleanInput, question);
+        case 'matching':
+          return this.checkMatchingAnswer(cleanInput, question);
+        case 'multiple_choice':
+        default:
+          return this.checkMultipleChoiceAnswer(cleanInput, question);
+      }
+    })();
+    
+    console.log(`🎯 ANSWER EVALUATION RESULT: ${result ? '✅ CORRECT' : '❌ WRONG'}`);
+    console.log(`🎯 User said: "${userInput}" -> Expected: "${question.options?.[question.correctAnswer]}"`);
+    
+    return result;
   }
 
   // Check multiple choice answer
@@ -773,19 +791,39 @@ class VoiceNavigationManager {
       return true;
     }
     
-    // Check specific Czech number phrases (for common medical/scientific numbers)
-    const specificNumbers = {
+    // Check specific Czech phrases (for common medical/scientific terms)
+    const specificPhrases = {
+      'pumpovat krev': ['pumpovat krev', 'pumpuje krev', 'cerpa krev', 'čerpá krev', 'pumpovani krve', 'pumpování krve'],
+      'prenaseni kysliku': ['přenášení kyslíku', 'prenaseni kysliku', 'prenos kysliku', 'přenos kyslíku'],
+      'filtrace krve': ['filtrace krve', 'filtruje krev', 'cisteni krve', 'čištění krve'],
+      'traveni potravy': ['trávení potravy', 'traveni', 'travi potravu', 'tráví potravu'],
+      'dychani': ['dýchání', 'dychani', 'dych', 'dech'],
       '206': ['dveste sest', 'dvěstě šest', 'dvesta sest', 'dvě stě šest', '206'],
       '100': ['sto', 'jedna sta', '100'],
       '365': ['tri sta sedesatpet', 'tři sta šedesát pět', '365'],
       '52': ['padesatdva', 'padesát dva', '52']
     };
     
-    for (const [number, phrases] of Object.entries(specificNumbers)) {
-      if (correctAnswer === number) {
+    // Check if the correct answer matches any of our specific phrases
+    for (const [key, phrases] of Object.entries(specificPhrases)) {
+      const normalizedKey = normalize(key);
+      const normalizedCorrect = normalize(correctAnswer);
+      
+      // Check if correct answer contains the key phrase
+      if (normalizedCorrect.includes(normalizedKey) || normalizedKey.includes(normalizedCorrect)) {
         for (const phrase of phrases) {
           if (cleanInput.includes(normalize(phrase))) {
-            console.log(`✅ Specific Czech number match found: "${phrase}" for ${number}`);
+            console.log(`✅ Specific Czech phrase match found: "${phrase}" for "${correctAnswer}"`);
+            return true;
+          }
+        }
+      }
+      
+      // Also check direct match with key
+      if (correctAnswer === key) {
+        for (const phrase of phrases) {
+          if (cleanInput.includes(normalize(phrase))) {
+            console.log(`✅ Direct phrase match found: "${phrase}" for ${key}`);
             return true;
           }
         }
