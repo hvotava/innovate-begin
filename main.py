@@ -1280,6 +1280,19 @@ def admin_migrate_db():
                 results["migrations"].append(f"lesson columns: ❌ {str(e)}")
                 session.rollback()
         
+        # 2b. Přidej trainingId do lessons pro Node.js kompatibilitu
+        try:
+            session.execute(text('SELECT "trainingId" FROM lessons LIMIT 1'))
+            results["migrations"].append("trainingId: již existuje")
+        except Exception:
+            try:
+                session.execute(text('ALTER TABLE lessons ADD COLUMN "trainingId" INTEGER'))
+                session.commit()
+                results["migrations"].append("trainingId: ✅ přidán")
+            except Exception as e:
+                results["migrations"].append(f"trainingId: ❌ {str(e)}")
+                session.rollback()
+        
         # 3. Vytvoř user_progress tabulku
         try:
             session.execute(text("SELECT id FROM user_progress LIMIT 1"))
