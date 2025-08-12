@@ -235,9 +235,16 @@ router.post('/content/upload', async (req, res) => {
     let targetLessonId = lessonId;
     let generatedLesson = null;
     
-    // Create new lesson if requested
-    if (createNewLesson && newLessonTitle && textContent.trim().length > 10) {
-      console.log(`📚 BACKGROUND JOB: Creating new lesson: ${newLessonTitle}`);
+    // Create new lesson if requested OR if no lesson assignment is provided (fallback)
+    if ((createNewLesson && newLessonTitle && textContent.trim().length > 10) || 
+        (!lessonId && !createNewLesson && textContent.trim().length > 10)) {
+      
+      // Use provided title or generate one from filename
+      const actualLessonTitle = newLessonTitle || 
+        fileName.replace(/\.[^/.]+$/, "") || // Remove file extension
+        'Generated Lesson';
+        
+      console.log(`📚 BACKGROUND JOB: Creating new lesson: ${actualLessonTitle} (auto-created: ${!createNewLesson})`);
       
       // Find or create a default training for this content
       let training = await Training.findOne({ 
@@ -257,17 +264,17 @@ router.post('/content/upload', async (req, res) => {
         console.log('✅ BACKGROUND JOB: Created new training for AI content');
       }
 
-      // Generate AI lesson if requested
+      // Generate AI lesson if requested or if no specific instructions
       let lessonContent = textContent;
       let lessonDescription = `Generated from uploaded file: ${fileName}`;
       
-      if (generateAILesson && textContent.trim().length > 50) {
+      if ((generateAILesson || !createNewLesson) && textContent.trim().length > 50) {
         console.log('🤖 BACKGROUND JOB: Generating AI lesson from content...');
         
         try {
           generatedLesson = await AILessonGenerator.generateLesson(
             textContent,
-            newLessonTitle,
+            actualLessonTitle,
             language,
             {
               includeMetadata: true,
@@ -301,7 +308,7 @@ router.post('/content/upload', async (req, res) => {
       console.log(`🔢 BACKGROUND JOB: Creating lesson with lesson_number: ${nextLessonNumber} for training: ${training.id}`);
       
       const newLesson = await Lesson.create({
-        title: generatedLesson?.title || newLessonTitle,
+        title: generatedLesson?.title || actualLessonTitle,
         description: lessonDescription,
         content: lessonContent,
         lesson_type: 'lesson',
