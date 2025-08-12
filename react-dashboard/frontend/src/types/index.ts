@@ -46,6 +46,15 @@ export interface Lesson {
   title: string;
   content: string;
   trainingId: number;
+  lesson_number?: number;
+  order_in_course?: number;
+  language?: string;
+  level?: string;
+  description?: string;
+  script?: string;
+  lesson_type?: string;
+  required_score?: number;
+  base_difficulty?: string;
   created_at?: string;
   Training?: Training;
 }
