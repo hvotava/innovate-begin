@@ -109,7 +109,10 @@ async function smartVoiceProcess(req, res) {
       
       // Check if we're in lesson state and need to transition to test
       // Allow transition for in-progress calls or completed calls with ANY duration
-      if (state.currentState === 'lesson_playing' && (callStatus === 'in-progress' || callStatus === 'completed')) {
+      // Also check if lesson has questions (ready for test)
+      if (state.currentState === 'lesson_playing' && 
+          (callStatus === 'in-progress' || callStatus === 'completed') &&
+          state.lesson?.questions && state.lesson.questions.length > 0) {
         console.log('🎯 Lesson-to-test transition - transitioning from lesson to test via AUTO_START');
         const response = await VoiceNavigationManager.processUserResponse('AUTO_START', CallSid, userPhone);
         
@@ -476,11 +479,11 @@ async function smartTranscribeProcess(req, res) {
     </Say>
     <Hangup/>
 </Response>`;
-              } else if (response.nextQuestion) {
+      } else if (response.nextQuestion) {
           console.log(`🔍 DEBUG: transcribe nextQuestion content: "${response.nextQuestion}"`);
           const sayQuestion = response.nextQuestion && response.nextQuestion.trim().length > 0 ? response.nextQuestion : 'Otázka není k dispozici. Zopakujte prosím.';
           console.log(`🔍 DEBUG: Using sayQuestion: "${sayQuestion}"`);
-          twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+        twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         ${response.feedback || ''}
