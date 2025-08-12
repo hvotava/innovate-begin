@@ -258,19 +258,70 @@ async function loadTestQuestionsFromDB(lessonId) {
       questions = test.questions || [];
     }
     
-    console.log(`✅ Loaded ${questions.length} questions from database:`, questions.map(q => q.question || q.text));
-    console.log(`🔍 DEBUG: Full question structures:`, questions.map((q, i) => ({
+    // Normalize questions to ensure structure correctness
+    const normalize = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+    const normalizedQuestions = Array.isArray(questions) ? questions.map((q, idx) => {
+      const questionText = q?.question || q?.text || '';
+      const options = Array.isArray(q?.options) ? [...q.options] : [];
+      let correctAnswer = q?.correctAnswer;
+
+      // If correctAnswer is text, map it to index
+      if (typeof correctAnswer === 'string' && options.length > 0) {
+        const normalizedCorrect = normalize(correctAnswer);
+        const foundIndex = options.findIndex(opt => normalize(opt) === normalizedCorrect);
+        if (foundIndex >= 0) correctAnswer = foundIndex;
+      }
+
+      // If correctAnswer is not a number, try to parse
+      if (typeof correctAnswer !== 'number') {
+        correctAnswer = parseInt(correctAnswer);
+      }
+
+      // If still invalid or out of range, try to guess from known numeric phrases
+      if (!Number.isInteger(correctAnswer) || correctAnswer < 0 || correctAnswer >= options.length) {
+        // Try to recover when the correct answer text exists as separate field
+        if (q.correct_answer && options.length > 0) {
+          const idxByText = options.findIndex(opt => normalize(opt) === normalize(q.correct_answer));
+          if (idxByText >= 0) correctAnswer = idxByText;
+        }
+      }
+
+      // Final guard: clamp to 0 if invalid
+      if (!Number.isInteger(correctAnswer) || correctAnswer < 0 || correctAnswer >= options.length) {
+        console.warn(`⚠️ Normalization: Question ${idx + 1} has invalid correctAnswer (${q?.correctAnswer}). Clamping to 0.`);
+        correctAnswer = 0;
+      }
+
+      const normalized = {
+        question: questionText,
+        options: options,
+        correctAnswer: correctAnswer,
+        type: q?.type || 'multiple_choice'
+      };
+
+      console.log(`🔧 NORMALIZED Q${idx + 1}:`, {
+        question: normalized.question,
+        options: normalized.options,
+        correctAnswer: normalized.correctAnswer,
+        correctAnswerText: normalized.options[normalized.correctAnswer]
+      });
+
+      return normalized;
+    }) : [];
+
+    console.log(`✅ Loaded ${normalizedQuestions.length} questions from database:`, normalizedQuestions.map(q => q.question || q.text));
+    console.log(`🔍 DEBUG: Full normalized question structures:`, normalizedQuestions.map((q, i) => ({
       index: i,
       question: q.question,
       options: q.options,
       correctAnswer: q.correctAnswer,
-      correctAnswerType: typeof q.correctAnswer,
+      correctAnswerText: q.options?.[q.correctAnswer],
       type: q.type,
       hasOptions: !!q.options,
       optionsLength: q.options?.length
     })));
     
-    return questions;
+    return normalizedQuestions;
     
   } catch (error) {
     console.error(`❌ Error loading test questions from DB:`, error.message);
