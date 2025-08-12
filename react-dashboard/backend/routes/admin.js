@@ -2,6 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const { auth, adminOnly } = require('../middleware/auth');
 const { fixLessonNumbering } = require('../scripts/fix-lesson-numbering');
+const { fixTestIds } = require('../scripts/fix-test-ids');
 const router = express.Router();
 
 // Run database migration by calling Python backend
@@ -113,6 +114,35 @@ router.post('/fix-lesson-numbering', [auth, adminOnly], async (req, res) => {
     
   } catch (error) {
     console.error('❌ Error starting lesson renumbering:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Fix test IDs (admin only)
+router.post('/fix-test-ids', [auth, adminOnly], async (req, res) => {
+  try {
+    console.log('🔧 Admin triggered test ID fixing migration');
+    
+    // Run the migration in background
+    fixTestIds()
+      .then(() => {
+        console.log('✅ Test ID fixing migration completed successfully');
+      })
+      .catch(error => {
+        console.error('❌ Test ID fixing migration failed:', error);
+      });
+    
+    res.json({
+      success: true,
+      message: 'Test ID fixing migration started. Check server logs for progress.',
+      details: 'This will ensure all tests have test.id = lesson.id for consistent lookup.'
+    });
+    
+  } catch (error) {
+    console.error('❌ Error starting test ID fixing:', error);
     res.status(500).json({
       success: false,
       error: error.message

@@ -496,7 +496,7 @@ router.post('/content/upload', async (req, res) => {
               questions: questions,
               lessonId: targetLessonId,
               trainingId: training.id,
-              orderNumber: targetLessonId // Use lesson ID as order number too
+              orderNumber: nextLessonNumber // Use lesson_number as order number (not ID)
             });
           }
           

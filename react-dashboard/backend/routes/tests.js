@@ -309,13 +309,17 @@ router.post('/', [
       });
     }
 
+    // CRITICAL: Set test.id = lesson.id for consistent lookup
     const test = await Test.create({
+      id: req.body.lessonId, // Set test ID to match lesson ID
       title,
       lessonId: req.body.lessonId, // Use potentially updated lessonId
       orderNumber: finalOrderNumber,
       questions: normalizedQuestions, // Save as normalized array
       trainingId: trainingId // Use the specified trainingId
     });
+    
+    console.log(`✅ Created test with ID ${test.id} (same as lesson ID ${req.body.lessonId})`);
 
     const createdTest = await Test.findByPk(test.id, {
       include: [
