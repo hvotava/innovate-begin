@@ -47,6 +47,9 @@ interface LessonFormData {
   title: string;
   content: string;
   trainingId: number | '';
+  lesson_number?: number;
+  language?: string;
+  level?: string;
 }
 
 const Lessons: React.FC = () => {
@@ -129,14 +132,20 @@ const Lessons: React.FC = () => {
       setFormData({
         title: lesson.title,
         content: lesson.content,
-        trainingId: lesson.trainingId
+        trainingId: lesson.trainingId,
+        lesson_number: lesson.lesson_number,
+        language: lesson.language || 'cs',
+        level: lesson.level || 'beginner'
       });
     } else {
       setEditingLesson(null);
       setFormData({
         title: '',
         content: '',
-        trainingId: ''
+        trainingId: '',
+        lesson_number: undefined,
+        language: 'cs',
+        level: 'beginner'
       });
     }
     setDialogOpen(true);
@@ -148,7 +157,10 @@ const Lessons: React.FC = () => {
     setFormData({
       title: '',
       content: '',
-      trainingId: ''
+      trainingId: '',
+      lesson_number: undefined,
+      language: 'cs',
+      level: 'beginner'
     });
   };
 
@@ -157,7 +169,10 @@ const Lessons: React.FC = () => {
       const submitData = {
         title: formData.title,
         content: formData.content,
-        trainingId: Number(formData.trainingId)
+        trainingId: Number(formData.trainingId),
+        lesson_number: formData.lesson_number,
+        language: formData.language,
+        level: formData.level
       };
 
       if (editingLesson) {
@@ -211,6 +226,19 @@ const Lessons: React.FC = () => {
 
   // Desktop DataGrid columns
   const columns: GridColDef[] = [
+    {
+      field: 'lesson_number',
+      headerName: '#',
+      width: 60,
+      renderCell: (params) => (
+        <Chip 
+          label={params.value || '—'} 
+          size="small" 
+          color="primary"
+          variant="outlined"
+        />
+      )
+    },
     {
       field: 'title',
       headerName: 'Název lekce',
@@ -558,6 +586,53 @@ const Lessons: React.FC = () => {
               ))}
             </Select>
           </FormControl>
+
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                fullWidth
+                label="Pořadí lekce"
+                type="number"
+                value={formData.lesson_number || ''}
+                onChange={(e) => setFormData({ ...formData, lesson_number: e.target.value ? parseInt(e.target.value) : undefined })}
+                placeholder="Auto (další číslo)"
+                helperText="Nechte prázdné pro automatické pořadí"
+                InputProps={{ inputProps: { min: 1 } }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControl fullWidth>
+                <InputLabel>Jazyk</InputLabel>
+                <Select
+                  value={formData.language || 'cs'}
+                  onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                  label="Jazyk"
+                >
+                  <MenuItem value="cs">Čeština</MenuItem>
+                  <MenuItem value="en">English</MenuItem>
+                  <MenuItem value="de">Deutsch</MenuItem>
+                  <MenuItem value="es">Español</MenuItem>
+                  <MenuItem value="fr">Français</MenuItem>
+                  <MenuItem value="zh">中文</MenuItem>
+                  <MenuItem value="sk">Slovenčina</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControl fullWidth>
+                <InputLabel>Úroveň</InputLabel>
+                <Select
+                  value={formData.level || 'beginner'}
+                  onChange={(e) => setFormData({ ...formData, level: e.target.value })}
+                  label="Úroveň"
+                >
+                  <MenuItem value="beginner">Začátečník</MenuItem>
+                  <MenuItem value="intermediate">Pokročilý</MenuItem>
+                  <MenuItem value="advanced">Expert</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
           
           <TextField
             fullWidth

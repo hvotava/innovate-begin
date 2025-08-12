@@ -179,6 +179,10 @@ const Lesson = sequelize.define('Lesson', {
     type: DataTypes.INTEGER,
     defaultValue: 0
   },
+  order_in_course: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
   required_score: {
     type: DataTypes.FLOAT,
     defaultValue: 90.0

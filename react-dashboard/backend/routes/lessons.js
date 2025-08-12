@@ -47,7 +47,7 @@ router.get('/', auth, async (req, res) => {
       include: includeClause,
       limit,
       offset,
-      order: [['id', 'DESC']]
+      order: [['lesson_number', 'ASC'], ['id', 'ASC']]
     });
 
     res.json({
@@ -108,17 +108,27 @@ router.post('/', [
       });
     }
 
+    // Find the highest lesson_number in this training for proper sequencing
+    const maxLessonNumber = await Lesson.findOne({
+      where: { trainingId: trainingId },
+      order: [['lesson_number', 'DESC']]
+    });
+    const nextLessonNumber = (maxLessonNumber?.lesson_number || 0) + 1;
+    
+    console.log(`🔢 Creating lesson with lesson_number: ${nextLessonNumber} for training: ${trainingId}`);
+
     const lesson = await Lesson.create({
       title,
       content,
       trainingId,
       // Zachová původní pole pro kompatibilitu
       description: content,
-      language: 'cs',
-      level: 'beginner',
-      lesson_number: 0,
-      required_score: 90.0,
-      lesson_type: 'standard'
+      language: req.body.language || 'cs',
+      level: req.body.level || 'beginner',
+      lesson_number: nextLessonNumber, // Auto-assign proper sequence number
+      order_in_course: nextLessonNumber, // Also set order_in_course for consistency
+      required_score: req.body.required_score || 90.0,
+      lesson_type: req.body.lesson_type || 'standard'
     });
 
     const createdLesson = await Lesson.findByPk(lesson.id, {
@@ -142,18 +152,92 @@ router.post('/', [
 });
 
 // Update lesson
-router.put('/:id', async (req, res) => {
+router.put('/:id', [auth, contactPersonOrHigher], async (req, res) => {
   try {
-    const lesson = await Lesson.findByPk(req.params.id);
+    const lesson = await Lesson.findByPk(req.params.id, {
+      include: [{ model: Training, include: [{ model: Company }] }]
+    });
+    
     if (!lesson) {
       return res.status(404).json({ error: 'Lesson not found' });
     }
 
+    // Check permissions
+    if (req.user.role === 'contact_person' && req.user.companyId !== lesson.Training.companyId) {
+      return res.status(403).json({ 
+        error: 'You can only update lessons in your own company' 
+      });
+    }
+
     await lesson.update(req.body);
-    res.json(lesson);
+    
+    const updatedLesson = await Lesson.findByPk(lesson.id, {
+      include: [
+        {
+          model: Training,
+          attributes: ['id', 'title', 'category'],
+          include: [{ model: Company, attributes: ['name'] }]
+        }
+      ]
+    });
+    
+    res.json(updatedLesson);
   } catch (error) {
     console.error('Update lesson error:', error);
     res.status(500).json({ error: 'Failed to update lesson' });
+  }
+});
+
+// Reorder lessons in training
+router.put('/training/:trainingId/reorder', [auth, contactPersonOrHigher], async (req, res) => {
+  try {
+    const { trainingId } = req.params;
+    const { lessonIds } = req.body; // Array of lesson IDs in new order
+
+    if (!Array.isArray(lessonIds)) {
+      return res.status(400).json({ error: 'lessonIds must be an array' });
+    }
+
+    // Check if training exists and user has permission
+    const training = await Training.findByPk(trainingId, {
+      include: [{ model: Company }]
+    });
+    
+    if (!training) {
+      return res.status(404).json({ error: 'Training not found' });
+    }
+
+    if (req.user.role === 'contact_person' && req.user.companyId !== training.companyId) {
+      return res.status(403).json({ 
+        error: 'You can only reorder lessons in your own company trainings' 
+      });
+    }
+
+    // Update lesson_number for each lesson
+    for (let i = 0; i < lessonIds.length; i++) {
+      await Lesson.update(
+        { 
+          lesson_number: i + 1,
+          order_in_course: i + 1
+        },
+        { 
+          where: { 
+            id: lessonIds[i],
+            trainingId: trainingId
+          }
+        }
+      );
+    }
+
+    console.log(`✅ Reordered ${lessonIds.length} lessons in training ${trainingId}`);
+    
+    res.json({ 
+      message: 'Lessons reordered successfully',
+      reorderedCount: lessonIds.length
+    });
+  } catch (error) {
+    console.error('Reorder lessons error:', error);
+    res.status(500).json({ error: 'Failed to reorder lessons' });
   }
 });
 

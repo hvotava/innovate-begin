@@ -52,7 +52,7 @@ import {
   Engineering as EngineeringIcon,
   Security as SecurityIcon
 } from '@mui/icons-material';
-import { usersManagementAPI, companiesAPI, userService, lessonsAPI } from '../services/api';
+import { usersManagementAPI, companiesAPI, userService } from '../services/api';
 import { User, Company, UserStats, UserRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { canManageUsers } from '../utils/permissions';
@@ -92,7 +92,7 @@ const UserManagement: React.FC = () => {
   
   const [users, setUsers] = useState<User[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [lessons, setLessons] = useState<any[]>([]);
+  const [trainings, setTrainings] = useState<any[]>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [tabValue, setTabValue] = useState(0);
@@ -139,7 +139,7 @@ const UserManagement: React.FC = () => {
     
     fetchUsers();
     fetchCompanies();
-    fetchLessons();
+    fetchTrainings();
     fetchStats();
   }, [canManage, searchTerm, roleFilter, companyFilter]);
 
@@ -169,14 +169,15 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const fetchLessons = async () => {
+  const fetchTrainings = async () => {
     try {
-      const response = await lessonsAPI.getLessons();
-      console.log('🔍 Fetched lessons for training_type selector:', response.data);
-      setLessons(response.data.lessons || []);
+      const response = await fetch('/api/trainings');
+      const data = await response.json();
+      console.log('🔍 Fetched trainings for training_type selector:', data);
+      setTrainings(data || []);
     } catch (error) {
-      console.error('Error fetching lessons:', error);
-      showSnackbar('Nepodařilo se načíst lekce', 'error');
+      console.error('Error fetching trainings:', error);
+      showSnackbar('Nepodařilo se načíst školení', 'error');
     }
   };
 
@@ -459,18 +460,23 @@ const UserManagement: React.FC = () => {
       headerName: 'Školení',
       width: isMobile ? 120 : 160,
       renderCell: (params) => {
-        const getTrainingDisplay = (lessonId: string) => {
-          if (!lessonId) {
-            return { name: 'Nezařazen', icon: <SchoolIcon />, color: 'disabled' };
+        const getTrainingDisplay = (trainingId: string) => {
+          if (!trainingId) {
+            return { name: 'Nezařazen', icon: <SchoolIcon />, color: 'disabled', category: null };
           }
           
-          // Najdi lekci podle ID z databáze
-          const lesson = lessons.find(l => l.id.toString() === lessonId);
-          if (lesson) {
-            return { name: lesson.title, icon: <SchoolIcon />, color: 'primary' };
+          // Najdi školení podle ID z databáze
+          const training = trainings.find(t => t.id.toString() === trainingId);
+          if (training) {
+            return { 
+              name: training.title, 
+              icon: <SchoolIcon />, 
+              color: 'primary',
+              category: training.category
+            };
           }
           
-          return { name: 'Nezařazen', icon: <SchoolIcon />, color: 'disabled' };
+          return { name: 'Nezařazen', icon: <SchoolIcon />, color: 'disabled', category: null };
         };
         const display = getTrainingDisplay(params.value);
         return (
@@ -478,9 +484,19 @@ const UserManagement: React.FC = () => {
             <Box sx={{ color: `${display.color}.main` }}>
               {React.cloneElement(display.icon, { fontSize: 'small' })}
             </Box>
-            <Typography variant="body2" color={display.color}>
-              {display.name}
-          </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <Typography variant="body2" color={display.color}>
+                {display.name}
+              </Typography>
+              {display.category && (
+                <Chip 
+                  label={display.category} 
+                  size="small" 
+                  variant="outlined"
+                  sx={{ fontSize: '0.6rem', height: 16, mt: 0.5 }}
+                />
+              )}
+            </Box>
         </Box>
         );
       }
@@ -790,7 +806,10 @@ const UserManagement: React.FC = () => {
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <SchoolIcon fontSize="small" color="primary" />
                             <Typography variant="caption" color="primary">
-                              Úroveň: {user.training_type}
+                              {(() => {
+                                const training = trainings.find(t => t.id.toString() === user.training_type);
+                                return training ? training.title : `Školení ${user.training_type}`;
+                              })()}
                             </Typography>
                           </Box>
                         )}
@@ -1108,12 +1127,20 @@ const UserManagement: React.FC = () => {
                     </Box>
                   </MenuItem>
                   
-                  {/* Vaše lekce z databáze */}
-                  {lessons.map((lesson) => (
-                    <MenuItem key={lesson.id} value={lesson.id.toString()}>
+                  {/* Školení z databáze */}
+                  {trainings.map((training) => (
+                    <MenuItem key={training.id} value={training.id.toString()}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <SchoolIcon fontSize="small" color="primary" />
-                        {lesson.title}
+                        <Typography>{training.title}</Typography>
+                        {training.category && (
+                          <Chip 
+                            label={training.category} 
+                            size="small" 
+                            variant="outlined"
+                            sx={{ ml: 1, fontSize: '0.7rem', height: 18 }}
+                          />
+                        )}
                       </Box>
                     </MenuItem>
                   ))}
