@@ -180,4 +180,36 @@ router.post('/fix-test-lesson-mapping', [auth, adminOnly], async (req, res) => {
   }
 });
 
+// Fix corrupted test questions (public endpoint - no auth required)
+router.post('/fix-corrupted-questions', async (req, res) => {
+  try {
+    console.log('🔧 Public request to fix corrupted questions');
+    
+    // Import the fix function
+    const { fixCorruptedQuestions } = require('../scripts/fix-corrupted-questions');
+    
+    // Run the fix in background
+    fixCorruptedQuestions()
+      .then(() => {
+        console.log('✅ Corrupted questions fix completed successfully');
+      })
+      .catch(error => {
+        console.error('❌ Corrupted questions fix failed:', error);
+      });
+    
+    res.json({
+      success: true,
+      message: 'Corrupted questions fix started. Check server logs for progress.',
+      details: 'This will fix corrupted test questions with mixed content and duplicate options.'
+    });
+    
+  } catch (error) {
+    console.error('❌ Error starting corrupted questions fix:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router; 
