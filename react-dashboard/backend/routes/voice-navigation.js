@@ -129,7 +129,6 @@ class VoiceNavigationManager {
           questionType: 'lesson',
           feedback: 'Zopakujeme lekci.',
           nextQuestion: this.formatLessonContent(state.lesson),
-          navigationOptions: this.getNavigationOptions(state.userLanguage)
         };
       
       case 'next_lesson':
@@ -177,8 +176,7 @@ class VoiceNavigationManager {
     return {
       questionType: 'test',
       feedback: 'Lekce dokončena. Začínáme test.',
-      nextQuestion: firstQuestion,
-      navigationOptions: this.getNavigationOptions(state.userLanguage)
+      nextQuestion: firstQuestion
     };
   }
 
@@ -199,10 +197,24 @@ class VoiceNavigationManager {
     });
     
     // Use the most reliable source (userAnswers length since it tracks actual completed questions)
-    const actualTotalQuestions = Math.max(questionsFromUserAnswers, questionsFromState, questionsFromLesson);
+    let actualTotalQuestions = Math.max(questionsFromUserAnswers, questionsFromState, questionsFromLesson);
+    
+    // CRITICAL FIX: If actualTotalQuestions is 0, something is wrong - use fallback
+    if (actualTotalQuestions === 0) {
+      console.log('🚨 CRITICAL ERROR: actualTotalQuestions is 0! Using fallback value of 3');
+      actualTotalQuestions = 3; // Fallback to prevent division by zero
+    }
+    
     console.log(`🎯 Using actualTotalQuestions: ${actualTotalQuestions}`);
     
-    console.log(`📊 Final score: ${state.score}/${actualTotalQuestions} (${Math.round((state.score / actualTotalQuestions) * 100)}%)`);
+    // CRITICAL DEBUG: Verify score calculation
+    const calculatedPercentage = actualTotalQuestions > 0 ? Math.round((state.score / actualTotalQuestions) * 100) : 0;
+    console.log(`📊 Final score: ${state.score}/${actualTotalQuestions} (${calculatedPercentage}%)`);
+    
+    // Count actual correct answers from userAnswers for verification
+    const correctAnswersFromUserAnswers = state.userAnswers?.filter(answer => answer.correct).length || 0;
+    console.log(`🔍 VERIFICATION: Correct answers from userAnswers: ${correctAnswersFromUserAnswers}/${questionsFromUserAnswers}`);
+    
     console.log(`🔍 DEBUG: Test completion details:`, {
       score: state.score,
       totalQuestions: state.totalQuestions,
@@ -210,7 +222,8 @@ class VoiceNavigationManager {
       userAnswersLength: state.userAnswers ? state.userAnswers.length : 0,
       currentQuestionIndex: state.currentQuestionIndex,
       lessonTitle: state.lesson?.title,
-      callSid: state.callSid
+      callSid: state.callSid,
+      correctAnswersFromUserAnswers: correctAnswersFromUserAnswers
     });
     console.log(`🔍 DEBUG: User answers summary:`, state.userAnswers?.map((answer, index) => ({
       question: index + 1,
@@ -227,8 +240,22 @@ class VoiceNavigationManager {
       console.error('❌ Saving test results failed:', e.message);
     }
     
-    const percentage = Math.round((state.score / actualTotalQuestions) * 100);
+    // CRITICAL FIX: Use correct score - if state.score doesn't match userAnswers, use userAnswers
+    const finalScore = (state.score !== correctAnswersFromUserAnswers && correctAnswersFromUserAnswers > 0) 
+      ? correctAnswersFromUserAnswers 
+      : state.score;
+    
+    if (finalScore !== state.score) {
+      console.log(`🔧 SCORE CORRECTION: Using ${finalScore} instead of ${state.score} based on userAnswers`);
+    }
+    
+    const percentage = Math.round((finalScore / actualTotalQuestions) * 100);
     const feedback = this.generateTestFeedback(percentage, state.userLanguage);
+    
+    console.log(`🎯 FINAL CORRECTED SCORE: ${finalScore}/${actualTotalQuestions} (${percentage}%)`);
+    
+    // Update state.score with corrected value
+    state.score = finalScore;
     
     console.log(`📋 Test feedback: ${feedback}`);
     console.log(`🔍 DEBUG: Final calculated percentage: ${percentage}% (${state.score}/${actualTotalQuestions})`);
@@ -248,7 +275,6 @@ class VoiceNavigationManager {
           feedback: `${feedback} Výsledek: ${state.score}/${actualTotalQuestions} (${percentage}%). ${continuingText}`,
           nextQuestion: nextLessonResponse.nextQuestion,
           testResults: { score: state.score, total: actualTotalQuestions, percentage },
-          navigationOptions: this.getNavigationOptions(state.userLanguage)
         };
       } else {
         console.log('⚠️ No next lesson found, ending training sequence');
@@ -313,7 +339,6 @@ class VoiceNavigationManager {
       questionType: 'navigation_menu',
       feedback: 'Prosím, vyberte možnost.',
       nextQuestion: this.getNavigationMenu(state.userLanguage),
-      navigationOptions: this.getNavigationOptions(state.userLanguage)
     };
   }
 
@@ -379,7 +404,6 @@ class VoiceNavigationManager {
           questionType: 'lesson',
           feedback: `Pokračujeme další lekcí: ${nextLesson.title}`,
           nextQuestion: this.formatLessonContent(nextLesson),
-          navigationOptions: this.getNavigationOptions(state.userLanguage)
         };
       } else {
         console.log('❌ Failed to create next lesson object');
@@ -436,7 +460,6 @@ class VoiceNavigationManager {
           questionType: 'lesson',
           feedback: 'Načítám předchozí lekci.',
           nextQuestion: this.formatLessonContent(prevLesson),
-          navigationOptions: this.getNavigationOptions(state.userLanguage)
         };
       } else {
         return {
@@ -490,19 +513,7 @@ class VoiceNavigationManager {
     return formattedQuestion;
   }
 
-  // Get navigation options
-  static getNavigationOptions(language) {
-    switch (language) {
-      case 'en':
-        return 'Say 1 to repeat, 2 for next, 3 for previous, 4 to end.';
-      case 'de':
-        return 'Sagen Sie 1 zum Wiederholen, 2 für nächste, 3 für vorherige, 4 zum Beenden.';
-      case 'sk':
-        return 'Povedzte 1 na zopakovanie, 2 na ďalšiu, 3 na predchádzajúcu, 4 na ukončenie.';
-      default: // cs
-        return 'Řekněte 1 pro zopakování, 2 pro další, 3 pro předchozí, 4 pro ukončení.';
-    }
-  }
+
 
   // Get navigation menu
   static getNavigationMenu(language) {
@@ -567,8 +578,7 @@ class VoiceNavigationManager {
     return {
       questionType: 'test',
       feedback: 'Lekce dokončena. Začínáme test.',
-      nextQuestion: firstQuestion,
-      navigationOptions: this.getNavigationOptions(state.userLanguage)
+      nextQuestion: firstQuestion
     };
   }
 
@@ -602,12 +612,11 @@ class VoiceNavigationManager {
     if (isCorrect === 'ambiguous') {
       console.log('⚠️ Ambiguous user input. Repeating the question.');
       const nextQuestion = this.formatTestQuestion(currentQuestion, state.userLanguage);
-      return {
-        questionType: 'test',
-        feedback: 'Prosím zopakujte jen jednu volbu. Řekněte například A, B, C, D nebo samotnou správnou odpověď.',
-        nextQuestion: nextQuestion,
-        navigationOptions: this.getNavigationOptions(state.userLanguage)
-      };
+              return {
+          questionType: 'test',
+          feedback: 'Prosím zopakujte jen jednu volbu. Řekněte například A, B, C, D nebo samotnou správnou odpověď.',
+          nextQuestion: nextQuestion
+        };
     }
     console.log(`🔍 DEBUG: Answer evaluation:`, {
       userInput: userInput,
@@ -688,8 +697,7 @@ class VoiceNavigationManager {
       return {
         questionType: 'test',
         feedback: isCorrect ? 'Správně!' : 'Špatně.',
-        nextQuestion: nextQuestion,
-        navigationOptions: this.getNavigationOptions(state.userLanguage)
+        nextQuestion: nextQuestion
       };
     } else {
       console.log(`🎓 Test completed! Moving to handleTestCompleted`);
