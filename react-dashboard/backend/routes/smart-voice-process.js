@@ -51,7 +51,6 @@ const initializedCalls = new Set();
 // Smart voice processing with lesson->test conversation flow  
 async function smartVoiceProcess(req, res) {
   console.log('🎙️ Voice processing called');
-  console.log('📝 Request body:', JSON.stringify(req.body, null, 2));
   console.log('🔍 DEBUG: RecordingUrl exists?', !!req.body.RecordingUrl);
   console.log('🔍 DEBUG: CallSid:', req.body.CallSid);
   console.log('🔍 DEBUG: TranscriptionStatus:', req.body.TranscriptionStatus);
@@ -115,11 +114,9 @@ async function smartVoiceProcess(req, res) {
         const response = await VoiceNavigationManager.processUserResponse('AUTO_START', CallSid, userPhone);
         
         console.log('🔍 DEBUG: AUTO_START response:', {
-          hasResponse: !!response,
-          questionType: response?.questionType,
-          hasNextQuestion: !!response?.nextQuestion,
-          hasFeedback: !!response?.feedback,
-          nextQuestionLength: response?.nextQuestion?.length || 0
+          type: response?.questionType,
+          hasQuestion: !!response?.nextQuestion,
+          questionLen: response?.nextQuestion?.length || 0
         });
 
         if (response && response.nextQuestion) {
@@ -151,15 +148,12 @@ async function smartVoiceProcess(req, res) {
   />
 </Response>`;
           console.log('📤 Sending AUTO_START TwiML response...');
-          console.log('🔍 DEBUG: TwiML length:', twimlResponse.length);
-          console.log('🔍 DEBUG: TwiML contains Record tag:', twimlResponse.includes('<Record'));
           res.set('Content-Type', 'application/xml');
           res.send(twimlResponse);
           console.log('✅ AUTO_START TwiML response sent successfully');
           return;
         } else {
           console.log('❌ No nextQuestion in AUTO_START response, ending call');
-          console.log('🔍 DEBUG: Response details:', JSON.stringify(response, null, 2));
           const errorTwiml = getErrorTwiml(userLanguage);
           res.set('Content-Type', 'application/xml');
           res.send(errorTwiml);
@@ -189,27 +183,7 @@ async function smartVoiceProcess(req, res) {
   console.log('✅ RecordingUrl found, proceeding with transcription callback');
   
   // FALLBACK: If transcription callback doesn't work, process directly
-  console.log('🔍 DEBUG: TranscriptionStatus is undefined, trying fallback processing');
-  console.log('🔍 DEBUG: Full request body for transcription analysis:', {
-    RecordingUrl: !!RecordingUrl,
-    TranscriptionStatus: req.body.TranscriptionStatus,
-    TranscriptionText: req.body.TranscriptionText,
-    hasTranscriptionText: !!req.body.TranscriptionText
-  });
-  
-  // Check if transcription callback was called
-  console.log('🔍 DEBUG: Checking if transcription callback was called...');
-  console.log('🔍 DEBUG: Request headers:', req.headers);
-  console.log('🔍 DEBUG: Request method:', req.method);
-  console.log('🔍 DEBUG: Request URL:', req.url);
-  
-  // Check Twilio transcription service status
-  console.log('🔍 DEBUG: Twilio transcription service analysis:', {
-    hasRecordingUrl: !!RecordingUrl,
-    recordingUrlLength: RecordingUrl ? RecordingUrl.length : 0,
-    recordingDuration: req.body.RecordingDuration,
-    callSid: req.body.CallSid
-  });
+  console.log('🔍 DEBUG: TranscriptionStatus undefined, trying fallback processing');
   
   try {
     // Try to process the recording directly since transcription callback might not work
@@ -384,13 +358,10 @@ async function smartTranscribeProcess(req, res) {
       );
       console.log('🔍 DEBUG: Updated recording info from transcription callback');
     }
-  console.log('🔍 DEBUG: Full transcription request body:', JSON.stringify(req.body, null, 2));
-  console.log('🔍 DEBUG: Transcription callback analysis:', {
-    hasCallSid: !!req.body.CallSid,
-    hasTranscriptionText: !!req.body.TranscriptionText,
-    hasTranscriptionStatus: !!req.body.TranscriptionStatus,
-    transcriptionStatus: req.body.TranscriptionStatus,
-    transcriptionTextLength: req.body.TranscriptionText ? req.body.TranscriptionText.length : 0
+  console.log('🔍 DEBUG: Transcription callback:', {
+    status: req.body.TranscriptionStatus,
+    textLength: req.body.TranscriptionText ? req.body.TranscriptionText.length : 0,
+    callSid: req.body.CallSid?.substring(-8) // Last 8 chars only
   });
   
   const transcribedText = req.body.TranscriptionText;
@@ -400,12 +371,12 @@ async function smartTranscribeProcess(req, res) {
     console.log(`💬 User said: "${transcribedText}"`);
     
     // Check if transcription looks nonsensical (likely wrong language detection)
-    const isNonsensical = transcribedText && (
-      transcribedText.length < 5 || // Very short
-      /^[a-z\s]{1,20}$/i.test(transcribedText.trim()) && // Only basic English letters
-      !transcribedText.toLowerCase().includes('a') && !transcribedText.toLowerCase().includes('b') && 
-      !transcribedText.toLowerCase().includes('c') && !transcribedText.toLowerCase().includes('d') && 
-      !['jedna', 'dva', 'tri', 'ctyri', '206', '100', '365', '52'].some(w => transcribedText.toLowerCase().includes(w))
+    // Don't trigger for valid single letter answers like "A", "B", "C", "D"
+    const isValidSingleLetter = /^[abcd]\.?$/i.test(transcribedText.trim());
+    const isNonsensical = transcribedText && !isValidSingleLetter && (
+      transcribedText.length < 3 || // Very short (but not single letters)
+      (/^[a-z\s]{1,15}$/i.test(transcribedText.trim()) && // Only basic English letters
+       !['jedna', 'dva', 'tri', 'ctyri', '206', '100', '365', '52'].some(w => transcribedText.toLowerCase().includes(w)))
     );
     
     if (isNonsensical) {
