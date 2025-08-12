@@ -102,6 +102,9 @@ const ContentManagement: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { user } = useAuth();
 
+  // Add error boundary state
+  const [componentError, setComponentError] = useState<string | null>(null);
+
   const [activeTab, setActiveTab] = useState(0);
   const [contentSources, setContentSources] = useState<ContentSource[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -150,11 +153,15 @@ const ContentManagement: React.FC = () => {
 
     try {
       setLoading(true);
+      setError(null); // Clear previous errors
       const response = await api.get(`/ai-proxy/content/company/${companyId}`);
+      console.log('✅ Content sources response:', response.data);
       setContentSources(response.data.content_sources || []);
     } catch (err: any) {
-      console.error('Error loading content sources:', err);
-      setError('Failed to load content sources');
+      console.error('❌ Error loading content sources:', err);
+      console.error('❌ Error details:', err.response?.data || err.message);
+      setError(`Failed to load content sources: ${err.response?.data?.error || err.message}`);
+      setContentSources([]); // Set empty array as fallback
     } finally {
       setLoading(false);
     }
@@ -165,10 +172,13 @@ const ContentManagement: React.FC = () => {
 
     try {
       const response = await api.get(`/courses/company/${companyId}`);
+      console.log('✅ Courses response:', response.data);
       setCourses(response.data.courses || []);
     } catch (err: any) {
-      console.error('Error loading courses:', err);
-      setError('Failed to load courses');
+      console.error('❌ Error loading courses:', err);
+      console.error('❌ Error details:', err.response?.data || err.message);
+      // Don't set error for courses - it's not critical
+      setCourses([]); // Set empty array as fallback
     }
   }, [user?.companyId]);
 
@@ -180,11 +190,17 @@ const ContentManagement: React.FC = () => {
           api.get('/lessons'),
           api.get('/trainings')
         ]);
-        setAvailableLessons(lessonsResponse.data);
-        setTrainings(trainingsResponse.data);
+        console.log('✅ Lessons response:', lessonsResponse.data);
+        console.log('✅ Trainings response:', trainingsResponse.data);
+        setAvailableLessons(lessonsResponse.data || []);
+        setTrainings(trainingsResponse.data || []);
         console.log('✅ Loaded lessons and trainings for content management');
-      } catch (err) {
+      } catch (err: any) {
         console.error('❌ Error loading lessons and trainings:', err);
+        console.error('❌ Error details:', err.response?.data || err.message);
+        // Set empty arrays as fallback
+        setAvailableLessons([]);
+        setTrainings([]);
       }
     };
 
@@ -192,8 +208,13 @@ const ContentManagement: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    loadContentSources();
-    loadCourses();
+    try {
+      loadContentSources();
+      loadCourses();
+    } catch (error: any) {
+      console.error('❌ Error in main useEffect:', error);
+      setComponentError(`Failed to initialize page: ${error.message}`);
+    }
   }, [loadContentSources, loadCourses]);
 
   // File upload handling
@@ -476,8 +497,31 @@ const ContentManagement: React.FC = () => {
     }
   };
 
-  return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+  // Error boundary fallback
+  if (componentError) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <Typography variant="h6">Component Error</Typography>
+          <Typography>{componentError}</Typography>
+          <Button 
+            variant="contained" 
+            onClick={() => {
+              setComponentError(null);
+              window.location.reload();
+            }}
+            sx={{ mt: 2 }}
+          >
+            Reload Page
+          </Button>
+        </Alert>
+      </Box>
+    );
+  }
+
+  try {
+    return (
+      <Box sx={{ p: { xs: 2, md: 3 } }}>
       {/* Header */}
       <Paper sx={{ p: 3, mb: 3, bgcolor: 'primary.main', color: 'white' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1065,6 +1109,25 @@ const ContentManagement: React.FC = () => {
       </Fab>
     </Box>
   );
+  } catch (error: any) {
+    console.error('❌ ContentManagement component error:', error);
+    setComponentError(`Component crashed: ${error.message}`);
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">
+          <Typography variant="h6">Component Error</Typography>
+          <Typography>The content management page encountered an error. Please try refreshing the page.</Typography>
+          <Button 
+            variant="contained" 
+            onClick={() => window.location.reload()}
+            sx={{ mt: 2 }}
+          >
+            Refresh Page
+          </Button>
+        </Alert>
+      </Box>
+    );
+  }
 };
 
 export default ContentManagement; 

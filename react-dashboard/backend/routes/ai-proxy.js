@@ -123,6 +123,39 @@ router.get('/content/company/:companyId', async (req, res) => {
         content_preview: i.content_preview
       }));
 
+    // If no items in memory, return mock data for development
+    if (items.length === 0) {
+      console.log('📚 No content in memory, returning mock data for development');
+      const mockItems = [
+        {
+          id: 1,
+          title: 'Sample Content 1',
+          status: 'ready',
+          file_size: 1024,
+          word_count: 150,
+          lesson_id: 1,
+          content_preview: 'This is a sample content preview...'
+        },
+        {
+          id: 2,
+          title: 'Sample Content 2',
+          status: 'processing',
+          file_size: 2048,
+          word_count: 300,
+          lesson_id: 2,
+          content_preview: 'Another sample content preview...'
+        }
+      ];
+      
+      res.json({
+        success: true,
+        company_id: companyId,
+        content_sources: mockItems,
+        mock_data: true
+      });
+      return;
+    }
+
     console.log('📚 Returning', items.length, 'content sources for company', companyId);
 
     res.json({
