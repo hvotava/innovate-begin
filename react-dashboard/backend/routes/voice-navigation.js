@@ -362,7 +362,22 @@ class VoiceNavigationManager {
 
   // Format lesson content
   static formatLessonContent(lesson) {
-    return `${lesson.title}. ${lesson.content || lesson.description || 'Praktické školení.'}`;
+    // Remove any markdown formatting and special characters
+    let content = lesson.content || lesson.description || 'Praktické školení.';
+    
+    // Remove markdown headers (#), bold (**), italic (*), lists (-)
+    content = content.replace(/#{1,6}\s*/g, ''); // Remove # headers
+    content = content.replace(/\*\*(.*?)\*\*/g, '$1'); // Remove **bold**
+    content = content.replace(/\*(.*?)\*/g, '$1'); // Remove *italic*
+    content = content.replace(/^[-*+]\s+/gm, ''); // Remove list markers
+    content = content.replace(/^\s*\d+\.\s+/gm, ''); // Remove numbered lists
+    
+    // Clean up extra whitespace
+    content = content.replace(/\n\s*\n/g, ' '); // Replace multiple newlines with space
+    content = content.replace(/\s+/g, ' '); // Replace multiple spaces with single space
+    content = content.trim();
+    
+    return `${lesson.title}. ${content}`;
   }
 
   // Format test question

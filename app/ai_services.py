@@ -186,15 +186,18 @@ class ContentProcessingService:
         content = content_source.raw_content[:8000]  # Limit for API
         
         generation_prompt = f"""
-        Convert the following educational content into a structured course with {target_lessons} lessons.
+        Convert the following educational content into a structured training course with {target_lessons} lessons.
         
         For each lesson, provide:
-        1. Title (engaging and descriptive)
+        1. Title (descriptive, no greetings)
         2. Learning objectives (3-5 specific goals)
-        3. Core content (300-500 words, well-structured)
+        3. Core training content (300-500 words, structured, no greetings or introductions)
         4. Key vocabulary (8-12 important terms with definitions)
         5. Estimated duration in minutes
         6. Difficulty level (beginner/intermediate/advanced)
+        
+        IMPORTANT: Content should be pure training material without any greetings, welcomes, or special characters like #, *, -.
+        Start directly with the educational content.
         
         Content to process:
         "{content}"

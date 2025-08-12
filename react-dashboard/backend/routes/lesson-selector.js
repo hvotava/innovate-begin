@@ -234,13 +234,13 @@ async function loadTestQuestionsFromDB(lessonId) {
 function getLocalizedMessage(language, userName, lessonTitle) {
   switch (language) {
     case 'en':
-      return `Hello ${userName}! Let's start with the test "${lessonTitle}".`;
+      return `Starting training: "${lessonTitle}".`;
     case 'de':
-      return `Guten Tag ${userName}! Wir beginnen mit dem Test "${lessonTitle}".`;
+      return `Beginnen mit Schulung: "${lessonTitle}".`;
     case 'sk':
-      return `Dobrý deň ${userName}! Začneme s testom "${lessonTitle}".`;
+      return `Začíname so školením: "${lessonTitle}".`;
     default: // cs
-      return `Dobrý den ${userName}! Začneme s testem "${lessonTitle}".`;
+      return `Začínáme školení: "${lessonTitle}".`;
   }
 }
 

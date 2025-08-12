@@ -77,56 +77,57 @@ class AILessonGenerator {
    */
   static buildLessonPrompt(content, title, language, options) {
     const languageInstructions = {
-      'cs': 'Odpověz v češtině. Vytvoř strukturovanou lekci.',
-      'en': 'Respond in English. Create a structured lesson.',
-      'de': 'Antworte auf Deutsch. Erstelle eine strukturierte Lektion.',
-      'sk': 'Odpovedaj v slovenčine. Vytvor štruktúrovanú lekciu.'
+      'cs': 'Odpověz v češtině. Vytvoř školící materiál bez uvítání.',
+      'en': 'Respond in English. Create training material without greetings.',
+      'de': 'Antworte auf Deutsch. Erstelle Schulungsmaterial ohne Begrüßung.',
+      'sk': 'Odpovedaj v slovenčine. Vytvor školiaci materiál bez privítania.'
     };
 
     const instruction = languageInstructions[language] || languageInstructions['cs'];
 
     return `${instruction}
 
-Na základě následujícího obsahu vytvoř strukturovanou vzdělávací lekci:
+Na základě následujícího obsahu vytvoř vzdělávací školení:
 
-NÁZEV LEKCE: ${title}
+TÉMA: ${title}
 
 OBSAH:
 ${content.substring(0, 3000)} ${content.length > 3000 ? '...[zkráceno]' : ''}
 
 POŽADAVKY:
-1. Vytvoř jasně strukturovanou lekci s úvodem, hlavními body a závěrem
-2. Rozděl obsah do logických sekcí s nadpisy
-3. Přidej klíčové pojmy a definice
-4. Zahrň praktické příklady kde je to možné
-5. Vytvoř shrnutí na konci
+1. Vytvoř pouze školící obsah, žádné uvítání ani pozdravu
+2. Začni rovnou hlavním obsahem bez úvodu
+3. Rozděl obsah do logických sekcí s prostými nadpisy
+4. Přidej klíčové pojmy a definice
+5. Zahrň praktické příklady kde je to možné
 6. Použij vzdělávací a přístupný jazyk
-7. Lekce by měla trvat 5-10 minut čtení
+7. Školení by mělo trvat 5-10 minut čtení
+8. NEPOUŽÍVEJ speciální znaky jako #, *, -, pouze prostý text s nadpisy
 
 FORMÁT ODPOVĚDI:
-Vrať pouze strukturovaný text lekce, bez dalších komentářů.
+Vrať pouze strukturovaný školící text, bez dalších komentářů.
 
-Struktura:
-# [Název lekce]
+Struktura (bez speciálních znaků):
 
-## Úvod
-[Úvodní část]
+[Hlavní nadpis]
 
-## [Sekce 1]
-[Obsah sekce 1]
+[Hlavní obsah první sekce]
 
-## [Sekce 2]  
-[Obsah sekce 2]
+[Nadpis druhé sekce]
+[Obsah druhé sekce]
 
-## Klíčové pojmy
-- **Pojem 1**: Definice
-- **Pojem 2**: Definice
+[Nadpis třetí sekce]
+[Obsah třetí sekce]
 
-## Shrnutí
-[Shrnutí lekce]
+Klíčové pojmy:
+Pojem 1: Definice
+Pojem 2: Definice
 
-## Praktické tipy
-[Praktické aplikace]`;
+Shrnutí:
+[Shrnutí školení]
+
+Praktické aplikace:
+[Praktické tipy]`;
   }
 
   /**
@@ -134,10 +135,10 @@ Struktura:
    */
   static getSystemPrompt(language) {
     const prompts = {
-      'cs': 'Jsi odborný vzdělávací konzultant. Vytváříš kvalitní, strukturované lekce z poskytnutého obsahu. Používáš jasný, srozumitelný jazyk a logickou strukturu.',
-      'en': 'You are an expert educational consultant. You create high-quality, structured lessons from provided content. You use clear, understandable language and logical structure.',
-      'de': 'Sie sind ein erfahrener Bildungsberater. Sie erstellen hochwertige, strukturierte Lektionen aus bereitgestellten Inhalten. Sie verwenden klare, verständliche Sprache und logische Struktur.',
-      'sk': 'Ste odborný vzdelávací konzultant. Vytvárate kvalitné, štruktúrované lekcie z poskytnutého obsahu. Používate jasný, zrozumiteľný jazyk a logickú štruktúru.'
+      'cs': 'Jsi odborný školící konzultant. Vytváříš kvalitní školící materiály bez uvítání a pozdravu. Začínáš rovnou obsahem. Nepoužíváš speciální znaky jako #, *, -. Používáš jasný, přímý jazyk a logickou strukturu.',
+      'en': 'You are an expert training consultant. You create high-quality training materials without greetings or welcomes. You start directly with content. You do not use special characters like #, *, -. You use clear, direct language and logical structure.',
+      'de': 'Sie sind ein erfahrener Schulungsberater. Sie erstellen hochwertige Schulungsmaterialien ohne Begrüßungen. Sie beginnen direkt mit dem Inhalt. Sie verwenden keine Sonderzeichen wie #, *, -. Sie verwenden klare, direkte Sprache und logische Struktur.',
+      'sk': 'Ste odborný školiaci konzultant. Vytvárate kvalitné školiace materiály bez privítania. Začínate priamo obsahom. Nepoužívate špeciálne znaky ako #, *, -. Používate jasný, priamy jazyk a logickú štruktúru.'
     };
 
     return prompts[language] || prompts['cs'];
