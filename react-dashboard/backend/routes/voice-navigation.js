@@ -498,7 +498,7 @@ class VoiceNavigationManager {
     const lessonText = `${lesson.title}. ${content}`;
     
     // Add a pause and transition instruction at the end
-    return `${lessonText}. [PAUSE] Lekce dokončena. Začínáme test.`;
+    return `${lessonText}. [PAUSE]`;
   }
 
   // Format test question
