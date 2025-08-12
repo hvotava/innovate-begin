@@ -363,6 +363,7 @@ router.post('/content/upload', async (req, res) => {
       console.log(`🔢 BACKGROUND JOB: Creating lesson with lesson_number: ${nextLessonNumber} for training: ${training.id}`);
       
       const newLesson = await Lesson.create({
+        id: nextLessonNumber, // EXPLICITNĚ nastavit ID = lesson_number!
         title: generatedLesson?.title || actualLessonTitle,
         description: lessonDescription,
         content: lessonContent,

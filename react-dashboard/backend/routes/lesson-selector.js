@@ -197,6 +197,8 @@ function generateQuestionsFromLesson(lesson) {
 }
 
 // Load test questions from database for a lesson
+// CRITICAL: This function expects lesson.id = lesson.lesson_number for consistent test lookup
+// All lesson creation must use explicit ID setting: id: nextLessonNumber
 async function loadTestQuestionsFromDB(lessonId) {
   try {
     console.log(`🔍 Loading test questions for lesson ID: ${lessonId}`);

@@ -81,6 +81,7 @@ router.post('/lessons/:lessonId/generate-questions', async (req, res) => {
     
     // Save to database
     const test = await Test.create({
+      id: lessonId, // EXPLICITNĚ nastavit ID = lessonId!
       title: `${lesson.title} Test`,
       description: `Generated test for ${lesson.title}`,
       questions: JSON.stringify(questions),

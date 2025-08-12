@@ -119,6 +119,7 @@ router.post('/', [
     console.log(`🔢 Creating lesson with lesson_number: ${nextLessonNumber} for training: ${trainingId}`);
 
     const lesson = await Lesson.create({
+      id: nextLessonNumber, // EXPLICITNĚ nastavit ID = lesson_number!
       title,
       content,
       trainingId,
