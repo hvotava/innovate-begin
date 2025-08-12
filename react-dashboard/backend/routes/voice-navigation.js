@@ -750,15 +750,15 @@ class VoiceNavigationManager {
     
     // Handle different question types
     const result = (() => {
-      switch (question.type) {
-        case 'free_text':
-          return this.checkFreeTextAnswer(cleanInput, question);
-        case 'fill_in_blank':
-          return this.checkFillInBlankAnswer(cleanInput, question);
-        case 'matching':
-          return this.checkMatchingAnswer(cleanInput, question);
-        case 'multiple_choice':
-        default:
+    switch (question.type) {
+      case 'free_text':
+        return this.checkFreeTextAnswer(cleanInput, question);
+      case 'fill_in_blank':
+        return this.checkFillInBlankAnswer(cleanInput, question);
+      case 'matching':
+        return this.checkMatchingAnswer(cleanInput, question);
+      case 'multiple_choice':
+      default:
           // If user enumerates many options, reprompt instead of marking wrong
           const mcResult = this.checkMultipleChoiceAnswer(cleanInput, question);
           if (mcResult === 'ambiguous') return 'ambiguous';
@@ -928,8 +928,8 @@ class VoiceNavigationManager {
       for (const correctWord of correctWords) {
         // Only count matches for words that are at least 3 characters and have significant overlap
         if (word.length >= 3 && correctWord.length >= 3) {
-          if (word.includes(correctWord) || correctWord.includes(word)) {
-            matchCount++;
+        if (word.includes(correctWord) || correctWord.includes(word)) {
+          matchCount++;
             console.log(`🔍 Partial word match: "${word}" contains/contained in "${correctWord}"`);
           }
         }
