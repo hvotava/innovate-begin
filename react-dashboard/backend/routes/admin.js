@@ -3,6 +3,7 @@ const axios = require('axios');
 const { auth, adminOnly } = require('../middleware/auth');
 const { fixLessonNumbering } = require('../scripts/fix-lesson-numbering');
 const { fixTestIds } = require('../scripts/fix-test-ids');
+const { fixTestLessonMapping } = require('../scripts/fix-test-lesson-mapping');
 const router = express.Router();
 
 // Run database migration by calling Python backend
@@ -143,6 +144,35 @@ router.post('/fix-test-ids', [auth, adminOnly], async (req, res) => {
     
   } catch (error) {
     console.error('❌ Error starting test ID fixing:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Fix test-lesson mapping to ensure test.id = lesson.lesson_number
+router.post('/fix-test-lesson-mapping', [auth, adminOnly], async (req, res) => {
+  try {
+    console.log('🔗 Admin triggered test-lesson mapping fix');
+    
+    // Run the migration in background
+    fixTestLessonMapping()
+      .then(() => {
+        console.log('✅ Test-lesson mapping fix completed successfully');
+      })
+      .catch(error => {
+        console.error('❌ Test-lesson mapping fix failed:', error);
+      });
+    
+    res.json({
+      success: true,
+      message: 'Test-lesson mapping fix started. Check server logs for progress.',
+      details: 'This will ensure test.id = lesson.lesson_number (e.g., Lesson 2 → Test 2).'
+    });
+    
+  } catch (error) {
+    console.error('❌ Error starting test-lesson mapping fix:', error);
     res.status(500).json({
       success: false,
       error: error.message

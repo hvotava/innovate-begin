@@ -201,11 +201,48 @@ async function loadTestQuestionsFromDB(lessonId) {
   try {
     console.log(`🔍 Loading test questions for lesson ID: ${lessonId}`);
     
-    // Find test with same ID as lesson (Varianta A: test.id = lesson.id)
-    const test = await Test.findByPk(lessonId);
+    // First get the lesson to understand its lesson_number
+    const lesson = await Lesson.findByPk(lessonId);
+    if (!lesson) {
+      console.log(`❌ Lesson ${lessonId} not found`);
+      return [];
+    }
+    
+    console.log(`📚 Lesson found: "${lesson.title}", lesson_number: ${lesson.lesson_number}, id: ${lesson.id}`);
+    
+    // Strategy 1: Find test with ID = lesson.lesson_number (PREFERRED)
+    let test = null;
+    if (lesson.lesson_number) {
+      test = await Test.findByPk(lesson.lesson_number);
+      if (test) {
+        console.log(`✅ Strategy 1 SUCCESS: Found test with ID ${test.id} (same as lesson.lesson_number ${lesson.lesson_number})`);
+      } else {
+        console.log(`❌ Strategy 1 FAILED: No test found with ID ${lesson.lesson_number} (lesson.lesson_number)`);
+      }
+    }
+    
+    // Strategy 2: Find test with same ID as lesson (test.id = lesson.id)
+    if (!test) {
+      test = await Test.findByPk(lessonId);
+      if (test) {
+        console.log(`✅ Strategy 2 SUCCESS: Found test with ID ${test.id} (same as lesson.id)`);
+      } else {
+        console.log(`❌ Strategy 2 FAILED: No test found with ID ${lessonId} (lesson.id)`);
+      }
+    }
+    
+    // Strategy 3: Find test by lessonId field
+    if (!test) {
+      test = await Test.findOne({ where: { lessonId: lessonId } });
+      if (test) {
+        console.log(`✅ Strategy 3 SUCCESS: Found test with lessonId=${lessonId}, test.id=${test.id}`);
+      } else {
+        console.log(`❌ Strategy 3 FAILED: No test found with lessonId=${lessonId}`);
+      }
+    }
     
     if (!test) {
-      console.log(`❌ No test found with ID ${lessonId} (matching lesson ID)`);
+      console.log(`❌ ALL STRATEGIES FAILED: No test found for lesson ${lessonId} "${lesson.title}"`);
       return [];
     }
     
