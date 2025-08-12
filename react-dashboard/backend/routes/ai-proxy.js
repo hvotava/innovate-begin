@@ -312,10 +312,28 @@ router.post('/content/upload', async (req, res) => {
       });
       
       targetLessonId = newLesson.id;
-      console.log(`✅ BACKGROUND JOB: New lesson created with ID: ${targetLessonId}`, {
-        aiGenerated: !!generatedLesson,
-        sectionsCount: generatedLesson?.sections?.length || 0
-      });
+      console.log(`✅ BACKGROUND JOB: New lesson created with ID: ${targetLessonId}`);
+
+      // AUTO-MIGRATION: Ensure database schema is synchronized after lesson creation
+      try {
+        console.log('🔄 BACKGROUND JOB: Running automatic database migration...');
+        const pythonBackendUrl = process.env.PYTHON_BACKEND_URL || 'https://lecture-app-production.up.railway.app';
+        const migrationUrl = `${pythonBackendUrl}/admin/migrate-db`;
+        
+        const migrationResponse = await axios.get(migrationUrl, {
+          timeout: 15000,
+          headers: {
+            'User-Agent': 'NodeJS-Auto-Migration'
+          }
+        });
+        
+        console.log('✅ BACKGROUND JOB: Automatic migration completed successfully');
+        console.log('📊 Migration results:', migrationResponse.data?.migrations || []);
+        
+      } catch (migrationError) {
+        console.error('⚠️ BACKGROUND JOB: Automatic migration failed (non-critical):', migrationError.message);
+        // Don't fail the entire process if migration fails - it's non-critical
+      }
       
     } else if (lessonId) {
       // Update existing lesson with new content
@@ -585,6 +603,27 @@ router.post('/lesson/generate-structured', async (req, res) => {
       id: savedLesson.id,
       title: savedLesson.title
     });
+
+    // AUTO-MIGRATION: Ensure database schema is synchronized after AI lesson creation
+    try {
+      console.log('🔄 Running automatic database migration after AI lesson creation...');
+      const pythonBackendUrl = process.env.PYTHON_BACKEND_URL || 'https://lecture-app-production.up.railway.app';
+      const migrationUrl = `${pythonBackendUrl}/admin/migrate-db`;
+      
+      const migrationResponse = await axios.get(migrationUrl, {
+        timeout: 15000,
+        headers: {
+          'User-Agent': 'NodeJS-Auto-Migration-AI'
+        }
+      });
+      
+      console.log('✅ Automatic migration completed successfully after AI lesson creation');
+      console.log('📊 Migration results:', migrationResponse.data?.migrations || []);
+      
+    } catch (migrationError) {
+      console.error('⚠️ Automatic migration failed after AI lesson creation (non-critical):', migrationError.message);
+      // Don't fail the response if migration fails - it's non-critical
+    }
 
     res.json({
       success: true,

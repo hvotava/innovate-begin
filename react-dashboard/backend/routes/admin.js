@@ -10,7 +10,7 @@ router.post('/run-migration', auth, adminOnly, async (req, res) => {
     console.log('👤 User:', req.user ? { id: req.user.id, role: req.user.role, email: req.user.email } : 'No user');
 
     // Call Python backend migration endpoint
-    const pythonBackendUrl = process.env.PYTHON_BACKEND_URL || 'https://lecture-final-production.up.railway.app';
+    const pythonBackendUrl = process.env.PYTHON_BACKEND_URL || 'https://lecture-app-production.up.railway.app';
     const migrationUrl = `${pythonBackendUrl}/admin/migrate-db`;
 
     console.log('🐍 Calling Python migration:', migrationUrl);
@@ -64,7 +64,7 @@ router.post('/run-migration', auth, adminOnly, async (req, res) => {
 // Health check endpoint for admin features
 router.get('/health', auth, adminOnly, async (req, res) => {
   try {
-    const pythonBackendUrl = process.env.PYTHON_BACKEND_URL || 'https://lecture-final-production.up.railway.app';
+    const pythonBackendUrl = process.env.PYTHON_BACKEND_URL || 'https://lecture-app-production.up.railway.app';
     
     // Test connection to Python backend
     const response = await axios.get(`${pythonBackendUrl}/health`, {
