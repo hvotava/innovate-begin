@@ -187,6 +187,7 @@ const Tests: React.FC = () => {
       setFormData({
         title: test.title,
         lessonId: test.lessonId,
+        trainingId: test.trainingId || '',
         orderNumber: test.orderNumber || 0,
         questions: test.questions || []
       });
@@ -195,6 +196,7 @@ const Tests: React.FC = () => {
       setFormData({
         title: '',
         lessonId: '',
+        trainingId: '',
         orderNumber: 0,
         questions: []
       });
