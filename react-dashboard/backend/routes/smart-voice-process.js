@@ -124,6 +124,8 @@ async function smartVoiceProcess(req, res) {
 
         if (response && response.nextQuestion) {
           console.log('✅ Response has nextQuestion, generating TwiML with Record tag');
+          console.log(`🔍 DEBUG: nextQuestion content: "${response.nextQuestion}"`);
+          console.log(`🔍 DEBUG: nextQuestion length: ${response.nextQuestion.length}`);
           const twilioLang = getTwilioLanguage(userLanguage);
           console.log(`🌍 DEBUG: User language: ${userLanguage} -> Twilio: ${twilioLang}`);
           const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
@@ -504,7 +506,9 @@ async function smartTranscribeProcess(req, res) {
     <Hangup/>
 </Response>`;
               } else if (response.nextQuestion) {
+          console.log(`🔍 DEBUG: transcribe nextQuestion content: "${response.nextQuestion}"`);
           const sayQuestion = response.nextQuestion && response.nextQuestion.trim().length > 0 ? response.nextQuestion : 'Otázka není k dispozici. Zopakujte prosím.';
+          console.log(`🔍 DEBUG: Using sayQuestion: "${sayQuestion}"`);
           twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">

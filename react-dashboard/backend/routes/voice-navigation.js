@@ -172,7 +172,7 @@ class VoiceNavigationManager {
     
     const firstQuestion = this.formatTestQuestion(state.lesson.questions[0], state.userLanguage);
     console.log(`✅ Starting test with first question: ${firstQuestion.substring(0, 100)}...`);
-    
+    console.log(`🔍 DEBUG: Full first question: "${firstQuestion}"`);    
     return {
       questionType: 'test',
       feedback: 'Lekce dokončena. Začínáme test.',
@@ -574,7 +574,7 @@ class VoiceNavigationManager {
     
     const firstQuestion = this.formatTestQuestion(state.lesson.questions[0], state.userLanguage);
     console.log(`✅ Starting test with first question: ${firstQuestion.substring(0, 100)}...`);
-    
+    console.log(`🔍 DEBUG: Full first question: "${firstQuestion}"`);    
     return {
       questionType: 'test',
       feedback: 'Lekce dokončena. Začínáme test.',
