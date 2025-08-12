@@ -559,8 +559,9 @@ class VoiceNavigationManager {
     state.currentState = CONVERSATION_STATES.TEST_ACTIVE;
     state.currentQuestionIndex = 0;
     state.totalQuestions = state.lesson.questions ? state.lesson.questions.length : 0;
-    state.score = 0;
-    state.userAnswers = [];
+    // DON'T reset score here - it should persist from previous test if any
+    // state.score = 0; // REMOVED - this was causing the 0/3 bug!
+    // state.userAnswers = []; // REMOVED - this was clearing previous answers!
     
     console.log(`🔍 Debug: questions array length = ${state.lesson.questions ? state.lesson.questions.length : 'undefined'}`);
     console.log(`🔍 Debug: totalQuestions = ${state.totalQuestions}`);

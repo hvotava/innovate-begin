@@ -71,7 +71,7 @@ async function getLessonForUser(phoneNumber) {
       } else {
         // Fallback: try as lesson ID (old behavior)
         targetLesson = await Lesson.findByPk(trainingId);
-        console.log(`🔍 Looking for lesson ID: ${user.training_type}, found: ${targetLesson ? 'YES' : 'NO'}`);
+      console.log(`🔍 Looking for lesson ID: ${user.training_type}, found: ${targetLesson ? 'YES' : 'NO'}`);
       }
     }
     
@@ -436,7 +436,7 @@ async function getNextLesson(currentLessonId) {
       console.log(`⚠️ No next lesson found in training ${currentLesson.trainingId}`);
     }
     
-    return next;
+  return next;
   } catch (error) {
     console.error('❌ Error in getNextLesson:', error);
     return null;
