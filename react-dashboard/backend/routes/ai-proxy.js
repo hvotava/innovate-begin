@@ -291,6 +291,15 @@ router.post('/content/upload', async (req, res) => {
         }
       }
       
+      // Find the highest lesson_number in this training
+      const maxLessonNumber = await Lesson.findOne({
+        where: { trainingId: training.id },
+        order: [['lesson_number', 'DESC']]
+      });
+      const nextLessonNumber = (maxLessonNumber?.lesson_number || 0) + 1;
+      
+      console.log(`🔢 BACKGROUND JOB: Creating lesson with lesson_number: ${nextLessonNumber} for training: ${training.id}`);
+      
       const newLesson = await Lesson.create({
         title: generatedLesson?.title || newLessonTitle,
         description: lessonDescription,
@@ -298,6 +307,8 @@ router.post('/content/upload', async (req, res) => {
         lesson_type: 'lesson',
         level: 1,
         trainingId: training.id,
+        lesson_number: nextLessonNumber, // Add proper lesson number
+        order_in_course: nextLessonNumber, // Also set order_in_course for consistency
         duration: generatedLesson?.metadata?.estimatedReadingTime ? 
           parseInt(generatedLesson.metadata.estimatedReadingTime) * 60 : 300, // Convert minutes to seconds
         metadata: JSON.stringify({
@@ -385,26 +396,42 @@ router.post('/content/upload', async (req, res) => {
       
       try {
         const questions = await generateQuestionsFromContent(textContent, newLessonTitle || 'Generated Test');
-        if (questions && questions.length > 0) {
+        console.log(`✅ BACKGROUND JOB: Generated ${questions.length} validated questions`);
+        
+        if (questions && questions.length > 0 && targetLessonId && training) {
+          // Find the highest orderNumber for tests in this training
+          const maxOrderTest = await Test.findOne({
+            where: { trainingId: training.id },
+            order: [['orderNumber', 'DESC']]
+          });
+          const nextOrderNumber = (maxOrderTest?.orderNumber || 0) + 1;
+          
+          console.log(`🔢 BACKGROUND JOB: Creating test with orderNumber: ${nextOrderNumber} for training: ${training.id}, lesson: ${targetLessonId}`);
+          
           const test = await Test.create({
             title: `${newLessonTitle || 'Generated'} Test`,
-            description: `Automatically generated test from uploaded content`,
-            questions: JSON.stringify(questions),
+            questions: questions, // Use array directly, not JSON.stringify
             lessonId: targetLessonId,
-            type: 'multiple_choice',
-            timeLimit: 600,
-            passingScore: 70
+            trainingId: training.id, // Add required trainingId
+            orderNumber: nextOrderNumber
           });
+          
           generatedTests.push({
             testId: test.id,
             title: test.title,
             questionCount: questions.length,
             type: 'multiple_choice'
           });
-          console.log(`✅ BACKGROUND JOB: Generated test with ${questions.length} questions`);
+          console.log(`✅ BACKGROUND JOB: Generated test with ID ${test.id} containing ${questions.length} questions`);
+        } else {
+          console.log(`⚠️ BACKGROUND JOB: Cannot create test - missing requirements:`, {
+            questionsCount: questions?.length || 0,
+            targetLessonId,
+            trainingId: training?.id
+          });
         }
       } catch (testGenError) {
-        console.error('❌ BACKGROUND JOB: Test generation failed:', testGenError.message);
+        console.error('❌ BACKGROUND JOB: Test generation failed:', testGenError.message, testGenError.stack);
       }
     }
 
@@ -574,11 +601,22 @@ router.post('/lesson/generate-structured', async (req, res) => {
       console.log('✅ Found existing AI training:', defaultTraining.id);
     }
 
+    // Find the highest lesson_number in this training for proper sequencing
+    const maxLessonNumber = await Lesson.findOne({
+      where: { trainingId: defaultTraining.id },
+      order: [['lesson_number', 'DESC']]
+    });
+    const nextLessonNumber = (maxLessonNumber?.lesson_number || 0) + 1;
+    
+    console.log(`🔢 Creating AI lesson with lesson_number: ${nextLessonNumber} for training: ${defaultTraining.id}`);
+
     // Create lesson in database
     const lessonData = {
       title: generatedLesson.title || title,
       content: generatedLesson.content || content,
       trainingId: defaultTraining.id, // Add required trainingId
+      lesson_number: nextLessonNumber, // Add proper lesson number
+      order_in_course: nextLessonNumber, // Also set order_in_course for consistency
       description: `AI Generated lesson: ${generatedLesson.title || title}`,
       language: language,
       level: generatedLesson.difficulty || 'beginner',
