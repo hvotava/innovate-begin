@@ -215,6 +215,7 @@ async function smartVoiceProcess(req, res) {
 
     // Try Whisper directly from RecordingUrl instead of defaulting to a letter
     const userLanguage = (state && state.lesson && state.lesson.language) ? state.lesson.language : 'cs';
+    const callStatus = req.body.CallStatus || 'in-progress';
     const whisperTranscription = await transcribeWithWhisper(RecordingUrl, userLanguage);
 
     let response;
