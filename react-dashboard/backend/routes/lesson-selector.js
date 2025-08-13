@@ -105,7 +105,8 @@ async function getLessonForUser(phoneNumber) {
     // Create lesson response with language support
     const lesson = {
         type: 'lesson',
-      lesson_id: targetLesson.id,
+      id: targetLesson.id,  // ← CRITICAL: Use 'id' instead of 'lesson_id'!
+      lesson_id: targetLesson.id,  // Keep for backward compatibility
       user_id: user.id,
       title: targetLesson.title,
       message: getLocalizedMessage(userLanguage, user.name, targetLesson.title),
