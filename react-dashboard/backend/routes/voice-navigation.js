@@ -60,27 +60,27 @@ class VoiceNavigationManager {
         questions = [];
       }
       
-      const state = {
-        callSid,
+    const state = {
+      callSid,
         lesson: {
           ...lessonData,
           questions: questions  // ← Store questions in lesson state!
         },
-        currentState: CONVERSATION_STATES.LESSON_PLAYING,
-        currentQuestionIndex: 0,
-        userAnswers: [],
-        score: 0,
+      currentState: CONVERSATION_STATES.LESSON_PLAYING,
+      currentQuestionIndex: 0,
+      userAnswers: [],
+      score: 0,
         totalQuestions: questions.length,  // ← Set totalQuestions!
-        userLanguage: lessonData.language || 'cs',
-        lessonCompleted: false,
-        testCompleted: false,
-        navigationHistory: [],
-        recordingUrl: null,
-        recordingDuration: null
-      };
-      
-      this.conversationStates.set(callSid, state);
-      console.log(`🎯 NEW: Voice Navigation initialized for lesson: ${lessonData.title}`);
+      userLanguage: lessonData.language || 'cs',
+      lessonCompleted: false,
+      testCompleted: false,
+      navigationHistory: [],
+      recordingUrl: null,
+      recordingDuration: null
+    };
+    
+    this.conversationStates.set(callSid, state);
+    console.log(`🎯 NEW: Voice Navigation initialized for lesson: ${lessonData.title}`);
       console.log(`📊 State: ${state.currentState}, Questions: ${questions.length}`);
     } catch (error) {
       console.error('❌ Error initializing state with questions:', error);
@@ -801,7 +801,7 @@ class VoiceNavigationManager {
     // Determine target language for evaluation (answers are always in the user's language)
     const targetLanguage = userLanguage || (LanguageTranslator && LanguageTranslator.detectLanguage ? LanguageTranslator.detectLanguage(userInput) : 'cs') || 'cs';
     console.log(`🌍 DEBUG: Using target language for evaluation: ${targetLanguage}`);
-
+    
     console.log(`🔍 DEBUG: Question type: ${question.type || 'multiple_choice'}`);
     console.log(`🔍 DEBUG: Raw input: "${userInput}"`);
     console.log(`🔍 DEBUG: Normalized input: "${cleanInput}"`);
@@ -867,7 +867,7 @@ class VoiceNavigationManager {
     // Tokenize for strict matching
     const tokens = cleanInput.split(' ').map(t => t.replace(/[^a-z0-9]/g, '')).filter(Boolean);
     const tokensSet = new Set(tokens);
-
+    
     // Levenshtein distance function
     const levenshtein = (a, b) => {
       if (a.length === 0) return b.length;
@@ -892,15 +892,15 @@ class VoiceNavigationManager {
       console.log('✅ Exact match found');
       return true;
     }
-
+    
     // Translation-assisted match: translate correct answer into user's language
     try {
       if (LanguageTranslator && typeof LanguageTranslator.translate === 'function') {
         const translatedCorrect = normalize(LanguageTranslator.translate(correctAnswer, targetLanguage));
         if (translatedCorrect && translatedCorrect.length > 0 && cleanInput.includes(translatedCorrect)) {
           console.log('✅ Translation-assisted exact match found');
-          return true;
-        }
+      return true;
+    }
       }
     } catch (e) {
       console.log('⚠️ Translation check skipped due to error:', e.message);
@@ -912,7 +912,7 @@ class VoiceNavigationManager {
       console.log('✅ Letter token match found');
       return true;
     }
-
+    
     // Number token match with multilingual synonyms
     const correctNumber = question.correctAnswer + 1;
     const numberSynonyms = {
@@ -924,7 +924,7 @@ class VoiceNavigationManager {
     const numberHit = (numberSynonyms[correctNumber] || []).some(w => tokensSet.has(normalize(w)));
     if (tokensSet.has(String(correctNumber)) || numberHit) {
       console.log('✅ Number/word token match found');
-      return true;
+            return true;
     }
     
     // Czech number words (token)
@@ -950,7 +950,7 @@ class VoiceNavigationManager {
         }
       }
     }
-
+    
     // Fuzzy match: allow small edit distance for short answers
     const distance = levenshtein(cleanInput, normalize(correctAnswer));
     const maxAllowed = Math.max(1, Math.floor(correctAnswer.length * 0.2));
@@ -958,7 +958,7 @@ class VoiceNavigationManager {
       console.log('✅ Fuzzy match within threshold');
       return true;
     }
-
+    
     return false;
   }
 
