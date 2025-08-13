@@ -37,11 +37,24 @@ class VoiceNavigationManager {
       // CRITICAL: Load test questions for this lesson
       console.log(`🔍 Loading test questions for lesson: ${lessonData.title} (ID: ${lessonData.id})`);
       
-      // Import lesson-selector to use loadTestQuestionsFromDB
-      const { loadTestQuestionsFromDB } = require('./lesson-selector');
-      const questions = await loadTestQuestionsFromDB(lessonData.id);
-      
-      console.log(`📚 Loaded ${questions.length} test questions for lesson`);
+      try {
+        // Import lesson-selector to use loadTestQuestionsFromDB
+        const { loadTestQuestionsFromDB } = require('./lesson-selector');
+        console.log(`📥 Imported loadTestQuestionsFromDB function`);
+        
+        const questions = await loadTestQuestionsFromDB(lessonData.id);
+        console.log(`📚 loadTestQuestionsFromDB returned:`, {
+          questionsType: typeof questions,
+          questionsLength: Array.isArray(questions) ? questions.length : 'not array',
+          questionsData: questions
+        });
+        
+        console.log(`📚 Loaded ${questions.length} test questions for lesson`);
+      } catch (loadError) {
+        console.error('❌ Error loading test questions:', loadError);
+        console.error('❌ Error stack:', loadError.stack);
+        throw loadError;
+      }
       
       const state = {
         callSid,
