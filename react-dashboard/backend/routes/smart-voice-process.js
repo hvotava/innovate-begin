@@ -108,11 +108,13 @@ async function smartVoiceProcess(req, res) {
       const userPhone = Called || Caller;
       
       // Check if we're in lesson state and need to transition to test
-      // CRITICAL: Only transition when lesson is COMPLETED, not during lesson!
-      // Lesson must be finished (completed status) AND have questions ready
+      // CRITICAL: Transition when lesson is completed OR when call is long enough
+      // Lesson must be finished (completed status OR long enough duration) AND have questions ready
       if (state.currentState === 'lesson_playing' && 
-          callStatus === 'completed' &&
-          state.lesson?.questions && state.lesson.questions.length > 0) {
+          state.lesson?.questions && state.lesson.questions.length > 0 &&
+          (callStatus === 'completed' || (callStatus === 'in-progress' && callDuration >= 30))) {
+        console.log('🎯 AUTO_START TRIGGERED!');
+        console.log(`🔍 DEBUG: callStatus: ${callStatus}, callDuration: ${callDuration}s, questions: ${state.lesson.questions.length}`);
         console.log('🎯 Lesson-to-test transition - transitioning from lesson to test via AUTO_START');
         const response = await VoiceNavigationManager.processUserResponse('AUTO_START', CallSid, userPhone);
         
@@ -162,7 +164,7 @@ async function smartVoiceProcess(req, res) {
           res.send(errorTwiml);
           return;
         }
-      } else if (state.currentState === 'lesson_playing' && callStatus === 'in-progress') {
+      } else if (state.currentState === 'lesson_playing' && callStatus === 'in-progress' && callDuration < 30) {
         console.log('📚 Lesson is in progress - continuing with lesson content');
         console.log('🔄 Call is still active, lesson should continue playing');
         // Continue with lesson - don't try to transition to test yet

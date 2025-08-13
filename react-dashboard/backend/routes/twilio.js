@@ -307,3 +307,17 @@ const { smartVoiceProcess, smartTranscribeProcess, recordingStatusCallback } = r
 router.post('/voice/process-smart', smartVoiceProcess);
 router.post('/voice/transcribe-smart', smartTranscribeProcess);
 router.post('/voice/recording-status', recordingStatusCallback);
+
+// CRITICAL: Add Twilio status callback endpoint
+router.post('/status', (req, res) => {
+  console.log('📞 Twilio Call Status Update:');
+  console.log('    SID:', req.body.CallSid);
+  console.log('    Status:', req.body.CallStatus);
+  console.log('    From:', req.body.From);
+  console.log('    To:', req.body.To);
+  console.log('    Duration:', req.body.CallDuration, 'seconds');
+  console.log('  ');
+  
+  // Send OK response
+  res.status(200).send('OK');
+});
