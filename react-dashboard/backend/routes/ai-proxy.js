@@ -299,19 +299,19 @@ router.post('/content/upload', async (req, res) => {
       // If no training selected or not found, create/find default training
       if (!training) {
         training = await Training.findOne({ 
-          where: { 
-            title: 'AI Generated Content',
-            companyId: req.body.company_id || 1
-          } 
+        where: { 
+          title: 'AI Generated Content',
+          companyId: req.body.company_id || 1
+        } 
+      });
+      
+      if (!training) {
+        training = await Training.create({
+          title: 'AI Generated Content',
+          description: 'Training created from AI-generated lessons',
+          category: lessonCategory,
+          companyId: req.body.company_id || 1
         });
-        
-        if (!training) {
-          training = await Training.create({
-            title: 'AI Generated Content',
-            description: 'Training created from AI-generated lessons',
-            category: lessonCategory,
-            companyId: req.body.company_id || 1
-          });
           console.log('✅ BACKGROUND JOB: Created new default training for AI content');
         } else {
           console.log('✅ BACKGROUND JOB: Using existing default training');
@@ -493,12 +493,12 @@ router.post('/content/upload', async (req, res) => {
             // Create test with specific ID (same as lesson ID)
             test = await Test.create({
               id: targetLessonId, // Set specific ID to match lesson
-              title: `${newLessonTitle || 'Generated'} Test`,
+            title: `${newLessonTitle || 'Generated'} Test`,
               questions: questions,
-              lessonId: targetLessonId,
+            lessonId: targetLessonId,
               trainingId: training.id,
               orderNumber: nextLessonNumber // Use lesson_number as order number (not ID)
-            });
+          });
           }
           
           generatedTests.push({

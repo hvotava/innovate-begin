@@ -672,7 +672,7 @@ class VoiceNavigationManager {
       correctAnswerText: currentQuestion.options[currentQuestion.correctAnswer]
     });
     
-    const isCorrect = this.checkTestAnswer(userInput, currentQuestion);
+    const isCorrect = this.checkTestAnswer(userInput, currentQuestion, state.userLanguage);
     if (isCorrect === 'ambiguous') {
       console.log('⚠️ Ambiguous user input. Repeating the question.');
       const nextQuestion = this.formatTestQuestion(currentQuestion, state.userLanguage);
@@ -771,7 +771,7 @@ class VoiceNavigationManager {
   }
 
   // Enhanced test answer checking with fuzzy matching - supports multiple question types
-  static checkTestAnswer(userInput, question) {
+  static checkTestAnswer(userInput, question, userLanguage) {
     if (!question) {
       console.log('❌ No question provided');
       return false;
@@ -788,7 +788,7 @@ class VoiceNavigationManager {
     const cleanInput = normalize(userInput);
 
     // Ambiguity detection: if user lists many options/keywords, ask to repeat
-    const ambiguityKeywords = ['a','b','c','d','jedna','dva','tri','ctyri','mozek','plice','zaludek','jatra','srdce','sto','dveste','sest','206','365','52'];
+    const ambiguityKeywords = ['a','b','c','d','jedna','dva','tri','ctyri','mozek','plice','zaludek','jatra','srdce','sto','dveste','sest','206','365','52','www','http','https','one','two','three','four','eins','zwei','drei','vier','uno','dos','tres','cuatro','un','deux','trois','quatre'];
     const distinctHits = new Set();
     for (const kw of ambiguityKeywords) {
       if (cleanInput.includes(kw)) distinctHits.add(kw);
@@ -798,10 +798,10 @@ class VoiceNavigationManager {
       return 'ambiguous';
     }
     
-    // Detect language from user input
-    const detectedLanguage = LanguageTranslator.detectLanguage(userInput);
-    console.log(`🌍 DEBUG: Detected language from input: ${detectedLanguage}`);
-    
+    // Determine target language for evaluation (answers are always in the user's language)
+    const targetLanguage = userLanguage || (LanguageTranslator && LanguageTranslator.detectLanguage ? LanguageTranslator.detectLanguage(userInput) : 'cs') || 'cs';
+    console.log(`🌍 DEBUG: Using target language for evaluation: ${targetLanguage}`);
+
     console.log(`🔍 DEBUG: Question type: ${question.type || 'multiple_choice'}`);
     console.log(`🔍 DEBUG: Raw input: "${userInput}"`);
     console.log(`🔍 DEBUG: Normalized input: "${cleanInput}"`);
@@ -822,7 +822,7 @@ class VoiceNavigationManager {
       case 'multiple_choice':
       default:
           // If user enumerates many options, reprompt instead of marking wrong
-          const mcResult = this.checkMultipleChoiceAnswer(cleanInput, question);
+          const mcResult = this.checkMultipleChoiceAnswer(cleanInput, question, targetLanguage);
           if (mcResult === 'ambiguous') return 'ambiguous';
           return mcResult;
       }
@@ -840,7 +840,7 @@ class VoiceNavigationManager {
   }
 
   // Check multiple choice answer
-  static checkMultipleChoiceAnswer(cleanInput, question) {
+  static checkMultipleChoiceAnswer(cleanInput, question, targetLanguage = 'cs') {
     console.log(`🔍 DEBUG: Question structure:`, {
       hasOptions: !!question.options,
       optionsLength: question.options?.length,
@@ -863,7 +863,11 @@ class VoiceNavigationManager {
     console.log(`🔍 Checking answer: "${cleanInput}" against "${correctAnswer}"`);
     console.log(`🔍 Question options: ${question.options.join(', ')}`);
     console.log(`🔍 Correct answer index: ${question.correctAnswer}`);
-    
+
+    // Tokenize for strict matching
+    const tokens = cleanInput.split(' ').map(t => t.replace(/[^a-z0-9]/g, '')).filter(Boolean);
+    const tokensSet = new Set(tokens);
+
     // Levenshtein distance function
     const levenshtein = (a, b) => {
       if (a.length === 0) return b.length;
@@ -883,130 +887,78 @@ class VoiceNavigationManager {
       return matrix[b.length][a.length];
     };
     
-    // Check exact match (diacritics-insensitive)
+    // Exact match (diacritics-insensitive)
     if (cleanInput.includes(normalize(correctAnswer))) {
       console.log('✅ Exact match found');
       return true;
     }
-    
-    // Check letter match (A, B, C, D)
-    const correctLetter = String.fromCharCode(65 + question.correctAnswer);
-    if (cleanInput.includes(correctLetter.toLowerCase())) {
-      console.log('✅ Letter match found');
-      return true;
+
+    // Translation-assisted match: translate correct answer into user's language
+    try {
+      if (LanguageTranslator && typeof LanguageTranslator.translate === 'function') {
+        const translatedCorrect = normalize(LanguageTranslator.translate(correctAnswer, targetLanguage));
+        if (translatedCorrect && translatedCorrect.length > 0 && cleanInput.includes(translatedCorrect)) {
+          console.log('✅ Translation-assisted exact match found');
+          return true;
+        }
+      }
+    } catch (e) {
+      console.log('⚠️ Translation check skipped due to error:', e.message);
     }
     
-    // Check number match (1, 2, 3, 4) and numeric words
+    // Letter token match (A, B, C, D)
+    const correctLetter = String.fromCharCode(97 + question.correctAnswer); // a,b,c,d
+    if (tokensSet.has(correctLetter)) {
+      console.log('✅ Letter token match found');
+      return true;
+    }
+
+    // Number token match with multilingual synonyms
     const correctNumber = question.correctAnswer + 1;
-    const numericWords = {
-      1: ['1','jedna','prvni','a'],
-      2: ['2','dva','druha','b'],
-      3: ['3','tri','treti','c','tři'],
-      4: ['4','ctyri','ctvrta','d','čtyři']
+    const numberSynonyms = {
+      1: ['1','jedna','prvni','one','eins','uno','un','yi'],
+      2: ['2','dva','druha','two','zwei','dos','deux','er'],
+      3: ['3','tri','treti','three','drei','tres','trois','san','tři'],
+      4: ['4','ctyri','ctvrta','four','vier','cuatro','quatre','si','čtyři']
     };
-    const hits = (numericWords[correctNumber] || []).some(w => cleanInput.includes(normalize(w)));
-    if (cleanInput.includes(correctNumber.toString()) || hits) {
-      console.log('✅ Number/word match found');
+    const numberHit = (numberSynonyms[correctNumber] || []).some(w => tokensSet.has(normalize(w)));
+    if (tokensSet.has(String(correctNumber)) || numberHit) {
+      console.log('✅ Number/word token match found');
       return true;
     }
     
-    // Check Czech number words + variants without diacritics
+    // Czech number words (token)
     const czechNumbers = ['jedna', 'dva', 'tri', 'ctyri'];
-    if (cleanInput.includes(czechNumbers[question.correctAnswer])) {
-      console.log('✅ Czech number match found');
+    if (tokensSet.has(czechNumbers[question.correctAnswer])) {
+      console.log('✅ Czech number token match found');
       return true;
     }
     
-    // Check specific Czech phrases (for common medical/scientific terms)
-    const specificPhrases = {
-      'pumpovat krev': ['pumpovat krev', 'pumpuje krev', 'cerpa krev', 'čerpá krev', 'pumpovani krve', 'pumpování krve'],
-      'prenaseni kysliku': ['přenášení kyslíku', 'prenaseni kysliku', 'prenos kysliku', 'přenos kyslíku'],
-      'filtrace krve': ['filtrace krve', 'filtruje krev', 'cisteni krve', 'čištění krve'],
-      'traveni potravy': ['trávení potravy', 'traveni', 'travi potravu', 'tráví potravu'],
-      'dychani': ['dýchání', 'dychani', 'dych', 'dech'],
-      // Numbers as phrases
-      '206': ['dveste sest', 'dvěstě šest', 'dvesta sest', 'dvě stě šest', '206', 'dvěsti šest'],
-      '100': ['sto', 'jedna sta', '100'],
-      '365': ['tri sta sedesatpet', 'tři sta šedesát pět', '365'],
-      '52': ['padesatdva', 'padesát dva', '52']
+    // Specific phrase synonyms across languages for common terms (minimal set)
+    const synonymMap = {
+      'plice': ['plice','pľuca','lungs','lungen','pulmones','poumons'],
+      'mozek': ['mozek','brain','gehirn','cerebro','cerveau'],
+      'zaludek': ['zaludek','stomach','magen','estomago','estomac'],
+      'srdce': ['srdce','heart','herz','corazon','coeur']
     };
-    
-    // Check if the correct answer matches any of our specific phrases
-    for (const [key, phrases] of Object.entries(specificPhrases)) {
-      const normalizedKey = normalize(key);
-      const normalizedCorrect = normalize(correctAnswer);
-      
-      // Check if correct answer contains the key phrase
-      if (normalizedCorrect.includes(normalizedKey) || normalizedKey.includes(normalizedCorrect)) {
-        for (const phrase of phrases) {
-          if (cleanInput.includes(normalize(phrase))) {
-            console.log(`✅ Specific Czech phrase match found: "${phrase}" for "${correctAnswer}"`);
-            return true;
-          }
-        }
-      }
-      
-      // Also check direct match with key
-      if (correctAnswer === key) {
-        for (const phrase of phrases) {
-          if (cleanInput.includes(normalize(phrase))) {
-            console.log(`✅ Direct phrase match found: "${phrase}" for ${key}`);
-            return true;
-          }
-        }
-      }
-    }
-    
-    // Check fuzzy match with Levenshtein distance (more forgiving 70% similarity)
-    const normalizedCorrect = normalize(correctAnswer);
-    const distance = levenshtein(cleanInput, normalizedCorrect);
-    const similarity = 1 - (distance / Math.max(cleanInput.length, normalizedCorrect.length));
-    
-    console.log(`🔍 Fuzzy matching: "${cleanInput}" vs "${normalizedCorrect}" = ${Math.round(similarity * 100)}% similarity`);
-    
-    if (similarity >= 0.7) { // Lowered from 0.8 to 0.7 for better voice recognition
-      console.log(`✅ Fuzzy match found: ${Math.round(similarity * 100)}% similarity`);
-      return true;
-    }
-    
-    // Check if any word in input is similar to correct answer (more forgiving threshold)
-    const words = cleanInput.split(' ');
-    for (const word of words) {
-      if (word.length >= 3) { // Lowered from 4 to 3 characters
-        const wordDistance = levenshtein(word, normalizedCorrect);
-        const wordSimilarity = 1 - (wordDistance / Math.max(word.length, normalizedCorrect.length));
-        console.log(`🔍 Word matching: "${word}" vs "${normalizedCorrect}" = ${Math.round(wordSimilarity * 100)}% similarity`);
-        if (wordSimilarity >= 0.75) { // Lowered from 0.85 to 0.75 for better voice recognition
-          console.log(`✅ Word similarity match: "${word}" ~= "${normalizedCorrect}" (${Math.round(wordSimilarity * 100)}%)`);
+    const correctKey = normalize(correctAnswer);
+    for (const [key, synonyms] of Object.entries(synonymMap)) {
+      if (correctKey.includes(key)) {
+        if (synonyms.some(s => tokensSet.has(normalize(s)) || cleanInput.includes(normalize(s)))) {
+          console.log('✅ Synonym match found');
           return true;
         }
       }
     }
-    
-    // Check partial word match (60% threshold) - more forgiving for voice recognition
-    const correctWords = normalizedCorrect.split(' ');
-    let matchCount = 0;
-    for (const word of words) {
-      for (const correctWord of correctWords) {
-        // Only count matches for words that are at least 3 characters and have significant overlap
-        if (word.length >= 3 && correctWord.length >= 3) {
-        if (word.includes(correctWord) || correctWord.includes(word)) {
-          matchCount++;
-            console.log(`🔍 Partial word match: "${word}" contains/contained in "${correctWord}"`);
-          }
-        }
-      }
-    }
-    
-    const matchPercentage = (matchCount / Math.max(words.length, correctWords.length)) * 100;
-    console.log(`🔍 Partial match percentage: ${Math.round(matchPercentage)}%`);
-    if (matchPercentage >= 60) { // Lowered from 70% to 60% for better voice recognition
-      console.log(`✅ Partial match found: ${matchPercentage}%`);
+
+    // Fuzzy match: allow small edit distance for short answers
+    const distance = levenshtein(cleanInput, normalize(correctAnswer));
+    const maxAllowed = Math.max(1, Math.floor(correctAnswer.length * 0.2));
+    if (distance <= maxAllowed && correctAnswer.length >= 4) {
+      console.log('✅ Fuzzy match within threshold');
       return true;
     }
-    
-    console.log('❌ No match found');
-    console.log(`🔍 DEBUG: Tried all matching methods for "${cleanInput}" vs "${correctAnswer}" - no success`);
+
     return false;
   }
 

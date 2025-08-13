@@ -274,7 +274,7 @@ async function smartVoiceProcess(req, res) {
       // Generate TwiML based on response type
       if (response.questionType === 'test') {
         // Generate test TwiML
-        twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+      twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         ${response.feedback || 'Začínáme test.'}
