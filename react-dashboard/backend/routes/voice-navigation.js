@@ -32,26 +32,62 @@ class VoiceNavigationManager {
   static conversationStates = new Map();
   
   // Initialize conversation state
-  static initializeState(callSid, lessonData) {
-    const state = {
-      callSid,
-      lesson: lessonData,
-      currentState: CONVERSATION_STATES.LESSON_PLAYING,
-      currentQuestionIndex: 0,
-      userAnswers: [],
-      score: 0,
-      totalQuestions: 0,
-      userLanguage: lessonData.language || 'cs',
-      lessonCompleted: false,
-      testCompleted: false,
-      navigationHistory: [],
-      recordingUrl: null,
-      recordingDuration: null
-    };
-    
-    this.conversationStates.set(callSid, state);
-    console.log(`🎯 NEW: Voice Navigation initialized for lesson: ${lessonData.title}`);
-    console.log(`📊 State: ${state.currentState}`);
+  static async initializeState(callSid, lessonData) {
+    try {
+      // CRITICAL: Load test questions for this lesson
+      console.log(`🔍 Loading test questions for lesson: ${lessonData.title} (ID: ${lessonData.id})`);
+      
+      // Import lesson-selector to use loadTestQuestionsFromDB
+      const { loadTestQuestionsFromDB } = require('./lesson-selector');
+      const questions = await loadTestQuestionsFromDB(lessonData.id);
+      
+      console.log(`📚 Loaded ${questions.length} test questions for lesson`);
+      
+      const state = {
+        callSid,
+        lesson: {
+          ...lessonData,
+          questions: questions  // ← Store questions in lesson state!
+        },
+        currentState: CONVERSATION_STATES.LESSON_PLAYING,
+        currentQuestionIndex: 0,
+        userAnswers: [],
+        score: 0,
+        totalQuestions: questions.length,  // ← Set totalQuestions!
+        userLanguage: lessonData.language || 'cs',
+        lessonCompleted: false,
+        testCompleted: false,
+        navigationHistory: [],
+        recordingUrl: null,
+        recordingDuration: null
+      };
+      
+      this.conversationStates.set(callSid, state);
+      console.log(`🎯 NEW: Voice Navigation initialized for lesson: ${lessonData.title}`);
+      console.log(`📊 State: ${state.currentState}, Questions: ${questions.length}`);
+    } catch (error) {
+      console.error('❌ Error initializing state with questions:', error);
+      // Fallback: initialize without questions
+      const state = {
+        callSid,
+        lesson: lessonData,
+        currentState: CONVERSATION_STATES.LESSON_PLAYING,
+        currentQuestionIndex: 0,
+        userAnswers: [],
+        score: 0,
+        totalQuestions: 0,
+        userLanguage: lessonData.language || 'cs',
+        lessonCompleted: false,
+        testCompleted: false,
+        navigationHistory: [],
+        recordingUrl: null,
+        recordingDuration: null
+      };
+      
+      this.conversationStates.set(callSid, state);
+      console.log(`🎯 NEW: Voice Navigation initialized for lesson: ${lessonData.title} (without questions)`);
+      console.log(`📊 State: ${state.currentState}, Questions: 0`);
+    }
   }
 
   // Get conversation state

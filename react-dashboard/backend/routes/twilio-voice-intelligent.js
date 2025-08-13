@@ -24,7 +24,7 @@ async function intelligentVoiceCall(req, res) {
     
     // Initialize VoiceNavigationManager with lesson data
     if (lessonData.type === 'lesson' && callSid) {
-      VoiceNavigationManager.initializeState(callSid, lessonData);
+      await VoiceNavigationManager.initializeState(callSid, lessonData);
       console.log('✅ VoiceNavigationManager initialized for lesson:', lessonData.title);
     }
     
