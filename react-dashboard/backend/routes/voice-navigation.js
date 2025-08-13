@@ -33,6 +33,9 @@ class VoiceNavigationManager {
   
   // Initialize conversation state
   static async initializeState(callSid, lessonData) {
+    // CRITICAL: Declare questions variable outside try block
+    let questions = [];
+    
     try {
       // CRITICAL: Load test questions for this lesson
       console.log(`🔍 Loading test questions for lesson: ${lessonData.title} (ID: ${lessonData.id})`);
@@ -42,7 +45,7 @@ class VoiceNavigationManager {
         const { loadTestQuestionsFromDB } = require('./lesson-selector');
         console.log(`📥 Imported loadTestQuestionsFromDB function`);
         
-        const questions = await loadTestQuestionsFromDB(lessonData.id);
+        questions = await loadTestQuestionsFromDB(lessonData.id);
         console.log(`📚 loadTestQuestionsFromDB returned:`, {
           questionsType: typeof questions,
           questionsLength: Array.isArray(questions) ? questions.length : 'not array',
@@ -53,7 +56,8 @@ class VoiceNavigationManager {
       } catch (loadError) {
         console.error('❌ Error loading test questions:', loadError);
         console.error('❌ Error stack:', loadError.stack);
-        throw loadError;
+        // Don't throw, just set questions to empty array
+        questions = [];
       }
       
       const state = {
@@ -88,7 +92,7 @@ class VoiceNavigationManager {
         currentQuestionIndex: 0,
         userAnswers: [],
         score: 0,
-        totalQuestions: 0,
+        totalQuestions: questions.length,  // ← Now questions is available!
         userLanguage: lessonData.language || 'cs',
         lessonCompleted: false,
         testCompleted: false,
@@ -99,7 +103,7 @@ class VoiceNavigationManager {
       
       this.conversationStates.set(callSid, state);
       console.log(`🎯 NEW: Voice Navigation initialized for lesson: ${lessonData.title} (without questions)`);
-      console.log(`📊 State: ${state.currentState}, Questions: 0`);
+      console.log(`📊 State: ${state.currentState}, Questions: ${questions.length}`);
     }
   }
 
