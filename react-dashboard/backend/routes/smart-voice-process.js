@@ -271,26 +271,16 @@ async function smartVoiceProcess(req, res) {
     <Hangup/>
 </Response>`;
     } else if (response.nextQuestion) {
-      // CRITICAL: Check if this is lesson completion and should trigger AUTO_START
-      // Only trigger AUTO_START if lesson is actually completed (not just in progress)
-      if (response.questionType === 'lesson' && 
-          state.currentState === 'lesson_playing' && 
-          state.lesson?.questions && state.lesson.questions.length > 0) {
-        console.log('🎯 Lesson completed in fallback path - triggering AUTO_START');
-        // Send AUTO_START to transition to test
-        try {
-          const autoStartResponse = await VoiceNavigationManager.processUserResponse('AUTO_START', req.body.CallSid, req.body.Called || req.body.Caller);
-          console.log('🚀 AUTO_START response:', autoStartResponse);
-          
-          if (autoStartResponse.questionType === 'test') {
-            // Generate test TwiML
-            twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+      // Generate TwiML based on response type
+      if (response.questionType === 'test') {
+        // Generate test TwiML
+        twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
-        ${autoStartResponse.feedback || 'Začínáme test.'}
+        ${response.feedback || 'Začínáme test.'}
     </Say>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
-        ${autoStartResponse.nextQuestion}
+        ${response.nextQuestion}
     </Say>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.7" voice="${LanguageTranslator.getTwilioVoice(userLanguage)}">
         ${LanguageTranslator.translate('say_your_answer', userLanguage)}
@@ -312,9 +302,9 @@ async function smartVoiceProcess(req, res) {
         trim="trim-silence"
     />
 </Response>`;
-          } else {
-            // Fallback to lesson content (NO RECORD during lesson)
-            twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+      } else if (response.questionType === 'lesson') {
+        // Return lesson content without starting test here; redirect will handle AUTO_START
+        twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         ${response.feedback || ''}
@@ -325,68 +315,16 @@ async function smartVoiceProcess(req, res) {
     <Pause length="1"/>
     <Redirect method="POST">https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart</Redirect>
 </Response>`;
-          }
-        } catch (autoStartError) {
-          console.error('❌ AUTO_START failed in fallback path:', autoStartError);
-          // Fallback to original lesson content
-          twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
-        ${response.feedback}
-    </Say>
-    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
-        ${response.nextQuestion}
-    </Say>
-    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.7" voice="${LanguageTranslator.getTwilioVoice(userLanguage)}">
-        ${LanguageTranslator.translate('say_your_answer', userLanguage)}
-    </Say>
-    <Record 
-        timeout="5"
-        maxLength="30"
-        playBeep="true"
-        finishOnKey="#"
-        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
-        method="POST"
-        transcribe="true"
-        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
-        transcribeCallbackMethod="POST"
-        language="${getTwilioLanguage(userLanguage)}"
-        transcribeLanguage="${getTwilioLanguage(userLanguage)}"
-        speechTimeout="auto"
-        speechModel="phone_call"
-        trim="trim-silence"
-    />
-</Response>`;
-        }
       } else {
-        // Normal lesson content
+        // Fallback to generic say
         twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
-        ${response.feedback}
+        ${response.feedback || ''}
     </Say>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         ${response.nextQuestion}
     </Say>
-            <Say language="${getTwilioLanguage(userLanguage)}" rate="0.7" voice="${LanguageTranslator.getTwilioVoice(userLanguage)}">
-        ${LanguageTranslator.translate('say_your_answer', userLanguage)}
-    </Say>
-    <Record 
-        timeout="5"
-        maxLength="30"
-        playBeep="true"
-        finishOnKey="#"
-        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
-        method="POST"
-        transcribe="true"
-        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
-        transcribeCallbackMethod="POST"
-        language="${getTwilioLanguage(userLanguage)}"
-        transcribeLanguage="${getTwilioLanguage(userLanguage)}"
-        speechTimeout="auto"
-        speechModel="phone_call"
-        trim="trim-silence"
-    />
 </Response>`;
       }
     } else {
