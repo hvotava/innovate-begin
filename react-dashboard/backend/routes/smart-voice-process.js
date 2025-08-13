@@ -313,34 +313,17 @@ async function smartVoiceProcess(req, res) {
     />
 </Response>`;
           } else {
-            // Fallback to lesson content
+            // Fallback to lesson content (NO RECORD during lesson)
             twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
-        ${response.feedback}
+        ${response.feedback || ''}
     </Say>
     <Say language="${getTwilioLanguage(userLanguage)}" rate="0.8" voice="Google.${getTwilioLanguage(userLanguage)}-Standard-A">
         ${response.nextQuestion}
     </Say>
-    <Say language="${getTwilioLanguage(userLanguage)}" rate="0.7" voice="${LanguageTranslator.getTwilioVoice(userLanguage)}">
-        ${LanguageTranslator.translate('say_your_answer', userLanguage)}
-    </Say>
-    <Record 
-        timeout="5"
-        maxLength="30"
-        playBeep="true"
-        finishOnKey="#"
-        action="https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart"
-        method="POST"
-        transcribe="true"
-        transcribeCallback="https://lecture-final-production.up.railway.app/api/twilio/voice/transcribe-smart"
-        transcribeCallbackMethod="POST"
-        language="${getTwilioLanguage(userLanguage)}"
-        transcribeLanguage="${getTwilioLanguage(userLanguage)}"
-        speechTimeout="auto"
-        speechModel="phone_call"
-        trim="trim-silence"
-    />
+    <Pause length="1"/>
+    <Redirect method="POST">https://lecture-final-production.up.railway.app/api/twilio/voice/process-smart</Redirect>
 </Response>`;
           }
         } catch (autoStartError) {
