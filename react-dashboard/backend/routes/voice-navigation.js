@@ -552,7 +552,7 @@ class VoiceNavigationManager {
     const lessonText = `${lesson.title}. ${content}`;
     
     // Add a pause and transition instruction at the end
-    return `${lessonText}. [PAUSE]`; // AUTO_START will trigger on next redirect when lessonReadyForAutoStart is true
+    return `${lessonText}. [PAUSE]`;
   }
 
   // Format test question

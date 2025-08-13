@@ -112,7 +112,7 @@ async function smartVoiceProcess(req, res) {
       // Lesson must be finished (completed status OR in-progress with questions ready)
       if (state.currentState === 'lesson_playing' && 
           state.lesson?.questions && state.lesson.questions.length > 0 &&
-          state.lessonReadyForAutoStart) {
+          (callStatus === 'completed' || callStatus === 'in-progress')) {
         console.log('🎯 AUTO_START TRIGGERED!');
         console.log(`🔍 DEBUG: callStatus: ${callStatus}, callDuration: ${callDuration}s, questions: ${state.lesson.questions.length}`);
         console.log('🎯 Lesson-to-test transition - transitioning from lesson to test via AUTO_START');
@@ -394,8 +394,6 @@ async function smartVoiceProcess(req, res) {
     }
     
     console.log('📤 Sending fallback TwiML response...');
-    // Mark lesson ready for AUTO_START on next redirect
-    try { VoiceNavigationManager.updateState(req.body.CallSid, { lessonReadyForAutoStart: true }); } catch (e) { console.log('⚠️ Could not mark lessonReadyForAutoStart:', e.message); }
     res.set('Content-Type', 'application/xml');
     res.send(twimlResponse);
     console.log('✅ Fallback TwiML response sent');
