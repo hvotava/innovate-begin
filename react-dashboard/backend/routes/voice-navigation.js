@@ -438,6 +438,7 @@ class VoiceNavigationManager {
       const nextLesson = {
         type: 'lesson',
         lesson_id: nextLessonRecord.id,
+        user_id: state.lesson?.user_id || null,
         title: nextLessonRecord.title,
         content: nextLessonRecord.content || nextLessonRecord.description,
         language: state.userLanguage,
