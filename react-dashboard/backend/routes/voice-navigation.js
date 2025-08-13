@@ -604,37 +604,8 @@ class VoiceNavigationManager {
   static async handleLessonPhase(userInput, state, userPhone) {
     console.log('📚 Lesson phase - processing');
     
-    // Check if lesson has been completed (has questions and user is ready for test)
-    if (state.lesson?.questions && state.lesson.questions.length > 0 && userInput !== 'AUTO_START') {
-      // Check if this is a test answer (user is trying to answer test questions)
-      const testAnswerKeywords = ['a', 'b', 'c', 'd', 'jedna', 'dva', 'tři', 'čtyři', '1', '2', '3', '4'];
-      const isTestAnswer = testAnswerKeywords.some(keyword => 
-        userInput.toLowerCase().trim() === keyword.toLowerCase()
-      );
-      
-      if (isTestAnswer) {
-        console.log('🎯 User provided test answer, transitioning to test phase');
-        console.log(`🔍 Detected test answer: "${userInput}"`);
-        
-        // Transition to test
-        state.currentState = CONVERSATION_STATES.TEST_ACTIVE;
-        state.currentQuestionIndex = 0;
-        state.totalQuestions = state.lesson.questions.length;
-        
-        console.log(`🔍 Debug: questions array length = ${state.lesson.questions.length}`);
-        console.log(`🔍 Debug: totalQuestions = ${state.totalQuestions}`);
-        
-        const firstQuestion = this.formatTestQuestion(state.lesson.questions[0], state.userLanguage);
-        console.log(`✅ Starting test with first question: ${firstQuestion.substring(0, 100)}...`);
-        console.log(`🔍 DEBUG: Full first question: "${firstQuestion}"`);
-        
-        return {
-          questionType: 'test',
-          feedback: 'Lekce dokončena. Začínáme test.',
-          nextQuestion: firstQuestion
-        };
-      }
-    }
+    // Do NOT interpret any user input as a test answer during lesson phase
+    // Transition to test happens only via explicit AUTO_START after lesson TTS completes
     
     // Only transition when explicitly triggered after lesson ends (AUTO_START)
     // Lesson automatically ends when Twilio finishes reading the content

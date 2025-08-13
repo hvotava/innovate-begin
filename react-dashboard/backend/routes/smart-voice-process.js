@@ -275,7 +275,7 @@ async function smartVoiceProcess(req, res) {
       // Only trigger AUTO_START if lesson is actually completed (not just in progress)
       if (response.questionType === 'lesson' && 
           state.currentState === 'lesson_playing' && 
-          callStatus === 'completed') {
+          state.lesson?.questions && state.lesson.questions.length > 0) {
         console.log('🎯 Lesson completed in fallback path - triggering AUTO_START');
         // Send AUTO_START to transition to test
         try {
