@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* AI SaaS Design System */
+    --background: 222 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 224 71% 7%;
+    --card-foreground: 210 40% 98%;
+    --popover: 224 71% 7%;
+    --popover-foreground: 210 40% 98%;
+    
+    /* AI Blue-Purple Gradient */
+    --primary: 229 84% 62%;
+    --primary-foreground: 210 40% 98%;
+    --primary-glow: 250 84% 70%;
+    --secondary: 217 32% 17%;
+    --secondary-foreground: 210 40% 98%;
+    
+    /* Accent Colors */
+    --accent: 270 90% 85%;
+    --accent-foreground: 224 71% 4%;
+    --muted: 217 32% 17%;
+    --muted-foreground: 215 20% 65%;
+    
+    /* Status Colors */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+    
+    /* UI Elements */
+    --border: 217 32% 17%;
+    --input: 217 32% 17%;
+    --ring: 229 84% 62%;
+    --radius: 0.75rem;
+    
+    /* AI Theme Gradients */
+    --gradient-ai: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-neural: linear-gradient(90deg, hsl(229 84% 62%) 0%, hsl(270 90% 75%) 50%, hsl(310 80% 70%) 100%);
+    --gradient-bg: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(224 71% 6%) 100%);
+    
+    /* Shadows */
+    --shadow-ai: 0 25px 50px -12px hsl(var(--primary) / 0.3);
+    --shadow-neural: 0 20px 40px -8px hsl(270 90% 75% / 0.4);
+    --shadow-card: 0 10px 30px -5px hsl(0 0% 0% / 0.3);
+    
+    /* Typography */
+    --font-heading: 'Space Grotesk', system-ui, sans-serif;
+    --font-body: 'Inter', system-ui, sans-serif;
+  }
+
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 222 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 84% 4.9%;
+    --primary: 229 84% 62%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 270 90% 95%;
+    --accent-foreground: 222 84% 4.9%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --gradient-bg: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(210 40% 98%) 100%);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground font-body;
+    background: var(--gradient-bg);
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    font-weight: 600;
+  }
+}
+
+@layer components {
+  .gradient-ai {
+    background: var(--gradient-ai);
+  }
+  
+  .gradient-neural {
+    background: var(--gradient-neural);
+  }
+  
+  .shadow-ai {
+    box-shadow: var(--shadow-ai);
+  }
+  
+  .shadow-neural {
+    box-shadow: var(--shadow-neural);
+  }
+  
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent;
+  }
+}
