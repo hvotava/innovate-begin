@@ -22,7 +22,7 @@
   "vite:build:dev": "cd frontend && vite build --mode development",
   "vite:lint": "cd frontend && eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
   "vite:preview": "cd frontend && vite preview"
-}
+},
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
