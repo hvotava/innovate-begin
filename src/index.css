@@ -49,39 +49,38 @@
     /* Custom radius - 16px */
     --radius: 1rem;
     
-    /* AI Theme Gradients */
-    --gradient-ai: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    --gradient-neural: linear-gradient(90deg, hsl(229 84% 62%) 0%, hsl(270 90% 75%) 50%, hsl(310 80% 70%) 100%);
-    --gradient-bg: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(224 71% 6%) 100%);
+    /* Container widths */
+    --container-sm: 640px;
+    --container-md: 768px;
+    --container-lg: 1024px;
+    --container-xl: 1280px;
     
     /* Shadows */
-    --shadow-ai: 0 25px 50px -12px hsl(var(--primary) / 0.3);
-    --shadow-neural: 0 20px 40px -8px hsl(270 90% 75% / 0.4);
-    --shadow-card: 0 10px 30px -5px hsl(0 0% 0% / 0.3);
-    
-    /* Typography */
-    --font-heading: 'Space Grotesk', system-ui, sans-serif;
-    --font-body: 'Inter', system-ui, sans-serif;
+    --shadow-soft: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   }
 
-  .light {
-    --background: 0 0% 100%;
-    --foreground: 222 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 84% 4.9%;
-    --primary: 229 84% 62%;
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    
+    --primary: 243.4 75.4% 58.6%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 270 90% 95%;
-    --accent-foreground: 222 84% 4.9%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --gradient-bg: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(210 40% 98%) 100%);
+    
+    --secondary: 188 94% 43%;
+    --secondary-foreground: 210 40% 98%;
+    
+    --accent: 160 84% 39%;
+    --accent-foreground: 210 40% 98%;
+    
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 243.4 75.4% 58.6%;
   }
 }
 
@@ -89,41 +88,65 @@
   * {
     @apply border-border;
   }
-  
   body {
-    @apply bg-background text-foreground font-body;
-    background: var(--gradient-bg);
-    font-feature-settings: 'rlig' 1, 'calt' 1;
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
   
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-heading);
-    font-weight: 600;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    @apply font-semibold;
   }
 }
 
 @layer components {
-  .gradient-ai {
-    background: var(--gradient-ai);
+  /* Gradient utilities */
+  .gradient-primary {
+    @apply bg-gradient-to-r from-primary to-primary-glow;
   }
   
-  .gradient-neural {
-    background: var(--gradient-neural);
+  .gradient-secondary {
+    @apply bg-gradient-to-r from-secondary to-cyan-400;
   }
   
-  .shadow-ai {
-    box-shadow: var(--shadow-ai);
+  .gradient-accent {
+    @apply bg-gradient-to-r from-accent to-emerald-400;
   }
   
-  .shadow-neural {
-    box-shadow: var(--shadow-neural);
-  }
-  
-  .shadow-card {
-    box-shadow: var(--shadow-card);
-  }
-  
-  .text-gradient {
+  /* Text gradients */
+  .text-gradient-primary {
     @apply bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent;
+  }
+  
+  /* Container utilities */
+  .container-sm {
+    @apply max-w-[640px] mx-auto px-4;
+  }
+  
+  .container-md {
+    @apply max-w-[768px] mx-auto px-4;
+  }
+  
+  .container-lg {
+    @apply max-w-[1024px] mx-auto px-6;
+  }
+  
+  .container-xl {
+    @apply max-w-[1280px] mx-auto px-8;
+  }
+  
+  /* Shadow utilities */
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+  
+  /* Animation utilities */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
   }
 }
