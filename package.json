@@ -16,7 +16,7 @@
   "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
   "heroku-postbuild": "npm run build",
 
-  // přidané pro Lovable
+
   "vite:dev": "cd frontend && vite",
   "vite:build": "cd frontend && tsc && vite build",
   "vite:build:dev": "cd frontend && vite build --mode development",
