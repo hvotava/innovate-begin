@@ -2,40 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
 @layer base {
   :root {
-    /* AI SaaS Design System */
-    --background: 222 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 224 71% 7%;
-    --card-foreground: 210 40% 98%;
-    --popover: 224 71% 7%;
-    --popover-foreground: 210 40% 98%;
+    /* Lector AI Design Tokens */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
     
-    /* AI Blue-Purple Gradient */
-    --primary: 229 84% 62%;
-    --primary-foreground: 210 40% 98%;
-    --primary-glow: 250 84% 70%;
-    --secondary: 217 32% 17%;
-    --secondary-foreground: 210 40% 98%;
+    /* Primary: #4F46E5 (indigo-600) */
+    --primary: 243.4 75.4% 58.6%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 243.4 75.4% 75%;
     
-    /* Accent Colors */
-    --accent: 270 90% 85%;
-    --accent-foreground: 224 71% 4%;
-    --muted: 217 32% 17%;
-    --muted-foreground: 215 20% 65%;
+    /* Secondary: #06B6D4 (cyan-500) */
+    --secondary: 188 94% 43%;
+    --secondary-foreground: 0 0% 100%;
     
-    /* Status Colors */
+    /* Accent: #10B981 (emerald-500) */
+    --accent: 160 84% 39%;
+    --accent-foreground: 0 0% 100%;
+    
+    /* Warning: #F59E0B */
+    --warning: 43 96% 56%;
+    --warning-foreground: 0 0% 100%;
+    
+    /* Danger: #EF4444 */
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-    --success: 142 71% 45%;
-    --warning: 38 92% 50%;
+    --destructive-foreground: 0 0% 100%;
     
-    /* UI Elements */
-    --border: 217 32% 17%;
-    --input: 217 32% 17%;
-    --ring: 229 84% 62%;
-    --radius: 0.75rem;
+    /* Neutral colors */
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 243.4 75.4% 58.6%;
+    
+    /* Success (same as accent) */
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+    
+    /* Custom radius - 16px */
+    --radius: 1rem;
     
     /* AI Theme Gradients */
     --gradient-ai: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));

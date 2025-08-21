@@ -19,8 +19,7 @@ const config: Config = {
 		},
 		extend: {
 			fontFamily: {
-				'heading': ['Space Grotesk', 'system-ui', 'sans-serif'],
-				'body': ['Inter', 'system-ui', 'sans-serif'],
+				sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
 			},
 			colors: {
 				border: "hsl(var(--border))",
@@ -41,8 +40,14 @@ const config: Config = {
 					DEFAULT: "hsl(var(--destructive))",
 					foreground: "hsl(var(--destructive-foreground))",
 				},
-				success: "hsl(var(--success))",
-				warning: "hsl(var(--warning))",
+				success: {
+					DEFAULT: "hsl(var(--success))",
+					foreground: "hsl(var(--success-foreground))",
+				},
+				warning: {
+					DEFAULT: "hsl(var(--warning))",
+					foreground: "hsl(var(--warning-foreground))",
+				},
 				muted: {
 					DEFAULT: "hsl(var(--muted))",
 					foreground: "hsl(var(--muted-foreground))",
@@ -59,6 +64,12 @@ const config: Config = {
 					DEFAULT: "hsl(var(--card))",
 					foreground: "hsl(var(--card-foreground))",
 				},
+			},
+			maxWidth: {
+				'container-sm': '640px',
+				'container-md': '768px', 
+				'container-lg': '1024px',
+				'container-xl': '1280px',
 			},
 			borderRadius: {
 				lg: "var(--radius)",
